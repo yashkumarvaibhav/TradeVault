@@ -24,6 +24,15 @@
     {% endif %}
     {% endwith %}
 
+    <div id="free-server-notice" class="free-server-notice" hidden>
+        <div class="free-server-dot"></div>
+        <div class="free-server-copy">
+            <strong>Running on free hosting.</strong>
+            First request after inactivity may take a little longer while server wakes up.
+        </div>
+        <button id="free-server-notice-close" class="free-server-close" aria-label="Close notice">&times;</button>
+    </div>
+
     {% block content %}{% endblock %}
 
     {% block extra_js %}{% endblock %}
@@ -35,6 +44,22 @@
                 setTimeout(() => el.remove(), 400);
             });
         }, 4000);
+
+        // Show free-hosting note until dismissed by user.
+        (() => {
+            const storageKey = 'tradevault_free_notice_dismissed_v1';
+            const notice = document.getElementById('free-server-notice');
+            const closeBtn = document.getElementById('free-server-notice-close');
+            if (!notice || !closeBtn) return;
+
+            const isDismissed = localStorage.getItem(storageKey) === '1';
+            if (!isDismissed) notice.hidden = false;
+
+            closeBtn.addEventListener('click', () => {
+                notice.remove();
+                localStorage.setItem(storageKey, '1');
+            });
+        })();
     </script>
 </body>
 </html>

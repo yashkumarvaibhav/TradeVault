@@ -41,3 +41,9 @@ DATABASE_URL='<supabase-url>' python scripts/migrate_sqlite_to_postgres.py
 
 - Render Free: service sleeps after inactivity and cold-starts on next request.
 - Supabase Free: projects may pause after extended inactivity.
+
+## 6) Optional keepalive cron
+
+To reduce Render cold starts, this repo includes GitHub Actions keepalive:
+- `.github/workflows/render_keepalive.yml`
+- setup notes in `KEEPALIVE_SETUP.md`

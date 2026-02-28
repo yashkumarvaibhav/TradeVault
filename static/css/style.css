@@ -101,6 +101,66 @@ a:hover { color: var(--accent-hover); }
     line-height: 1;
 }
 
+.free-server-notice {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 9998;
+    max-width: 520px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(99, 102, 241, 0.12));
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.free-server-dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 6px;
+    border-radius: 999px;
+    background: var(--orange);
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0.55);
+    animation: noticePulse 1.8s infinite;
+    flex-shrink: 0;
+}
+
+@keyframes noticePulse {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+    70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.free-server-copy {
+    font-size: 0.86rem;
+    color: var(--text-primary);
+    line-height: 1.45;
+}
+
+.free-server-copy strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.free-server-close {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 0 0 0;
+}
+
+.free-server-close:hover {
+    color: var(--text-primary);
+}
+
 @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
@@ -1676,6 +1736,13 @@ textarea:focus {
     .categories-grid { grid-template-columns: 1fr; }
     .overview-grid { grid-template-columns: 1fr; }
     .auth-card { padding: 28px 20px; width: 100%; }
+
+    .free-server-notice {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        max-width: unset;
+    }
 }
 
 /* ─── Forex P&L Notice ──────────────────────────────── */

@@ -371,31 +371,119 @@ function populateSelect(id, items) {
 // ─── API Helpers ─────────────────────────────────────────────
 
 const BASE = window.TRADEVAULT_BASE || '';
+let wakeupToastActive = false;
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function showWakeupToast(message) {
+    if (wakeupToastActive) return;
+    wakeupToastActive = true;
+
+    let container = document.querySelector('.flash-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'flash-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'flash flash-info';
+    toast.innerHTML = `<span><i class="fas fa-hourglass-half"></i> ${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            toast.remove();
+            wakeupToastActive = false;
+        }, 400);
+    }, 6000);
+}
+
+async function requestJSON(url, options = {}, nullOnHttpError = false) {
+    const fullUrl = BASE + url;
+    const retries = 2;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        let wakeupTimer = null;
+        try {
+            wakeupTimer = setTimeout(() => {
+                showWakeupToast('Free server may be waking up. This can take up to ~60 seconds.');
+            }, 4500);
+
+            const res = await fetch(fullUrl, options);
+            clearTimeout(wakeupTimer);
+
+            if (res.status === 401 || res.redirected) {
+                window.location.href = BASE + '/login';
+                return null;
+            }
+
+            const isRetryable = res.status >= 500 || res.status === 429;
+            if (isRetryable && attempt < retries) {
+                showWakeupToast('Server is waking up. Retrying automatically...');
+                await sleep(2000 * (attempt + 1));
+                continue;
+            }
+
+            const text = await res.text();
+            let parsed = {};
+            if (text) {
+                try {
+                    parsed = JSON.parse(text);
+                } catch {
+                    parsed = { error: text };
+                }
+            }
+
+            if (!res.ok && nullOnHttpError) return null;
+            return parsed;
+        } catch (err) {
+            if (wakeupTimer) clearTimeout(wakeupTimer);
+            if (attempt < retries) {
+                showWakeupToast('Waking free server. Retrying...');
+                await sleep(2000 * (attempt + 1));
+                continue;
+            }
+            showWakeupToast('Server is still waking up. Please retry in a few seconds.');
+            return nullOnHttpError ? null : { error: err.message || 'Network error' };
+        }
+    }
+    return nullOnHttpError ? null : { error: 'Request failed after retries' };
+}
 
 async function apiGet(url) {
-    const res = await fetch(BASE + url);
-    if (res.status === 401 || res.redirected) { window.location.href = BASE + '/login'; return null; }
-    return res.json();
+    return requestJSON(url, {}, true);
 }
 
 async function apiPost(url, data) {
-    const res = await fetch(BASE + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    return res.json();
+    return requestJSON(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
 }
 
 async function apiPut(url, data) {
-    const res = await fetch(BASE + url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    return res.json();
+    return requestJSON(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
 }
 
 async function apiPatch(url, data) {
-    const res = await fetch(BASE + url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    return res.json();
+    return requestJSON(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
 }
 
 async function apiDelete(url) {
-    const res = await fetch(BASE + url, { method: 'DELETE' });
-    return res.json();
+    return requestJSON(url, { method: 'DELETE' });
 }
 
 // ─── Overview ────────────────────────────────────────────────
