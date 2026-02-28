@@ -8,6 +8,7 @@ Target URL: `https://tradevault.yashkumarvaibhav.me`
 2. Go to **Project Settings -> Database -> Connection string**.
 3. Copy the **Postgres** URL (pooler URL preferred).
 4. Ensure it includes SSL (add `?sslmode=require` if not present).
+5. If your DB password contains `@`, use `%40` in the URL.
 
 ## 2) Deploy on Render (Free)
 
