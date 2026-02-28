@@ -1,0 +1,1153 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – TradeVault{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <i class="fas fa-chart-line"></i>
+        <span>TradeVault</span>
+    </div>
+
+    <div class="sidebar-user">
+        <div class="user-avatar"><i class="fas fa-user"></i></div>
+        <span>{{ username }}</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="#" class="nav-item active" data-view="overview">
+            <i class="fas fa-tachometer-alt"></i> Overview
+        </a>
+        <a href="#" class="nav-item" data-view="trades">
+            <i class="fas fa-list-alt"></i> My Trades
+        </a>
+        <a href="#" class="nav-item" data-view="open-trades">
+            <i class="fas fa-clock"></i> Open Trades
+        </a>
+        <a href="#" class="nav-item" data-view="add-trade">
+            <i class="fas fa-plus-circle"></i> Add Trade
+        </a>
+        <a href="#" class="nav-item" data-view="analytics">
+            <i class="fas fa-chart-bar"></i> Analytics
+        </a>
+        <a href="#" class="nav-item" data-view="international">
+            <i class="fas fa-globe"></i> International
+        </a>
+
+        <div class="nav-section-label">Tools</div>
+        <a href="#" class="nav-item" data-view="export-import">
+            <i class="fas fa-file-export"></i> Export / Import
+        </a>
+
+        <div class="nav-section-label">Asset Categories</div>
+        <a href="#" class="nav-item cat-item" data-category="Equity">
+            <i class="fas fa-building"></i> Equity
+        </a>
+        <a href="#" class="nav-item cat-item" data-category="Index">
+            <i class="fas fa-chart-line"></i> Index
+        </a>
+        <a href="#" class="nav-item cat-item" data-category="Forex">
+            <i class="fas fa-coins"></i> Forex
+        </a>
+        <a href="#" class="nav-item cat-item" data-category="Commodity">
+            <i class="fas fa-gem"></i> Commodity
+        </a>
+        <a href="#" class="nav-item cat-item" data-category="US Index">
+            <i class="fas fa-globe-americas"></i> US Index
+        </a>
+    </nav>
+
+    <a href="{{ url_for('logout') }}" class="sidebar-logout">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</aside>
+
+<!-- Main Content -->
+<main class="main-content">
+    <!-- Top Bar -->
+    <header class="topbar">
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h2 class="topbar-title" id="pageTitle">Overview</h2>
+        <div class="topbar-right">
+            <span class="user-badge"><i class="fas fa-shield-halved"></i> TOTP Secured</span>
+        </div>
+    </header>
+
+    <!-- Overview View -->
+    <div class="view active" id="view-overview">
+        <!-- Overview Filters -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-filter"></i> Overview Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Subcategory</label>
+                        <select id="ov-filter-subcategory"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Style</label>
+                        <select id="ov-filter-style"><option value="">All Styles</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Direction</label>
+                        <select id="ov-filter-direction">
+                            <option value="">All</option>
+                            <option value="Long">Long</option>
+                            <option value="Short">Short</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Platform</label>
+                        <select id="ov-filter-platform"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Instrument</label>
+                        <select id="ov-filter-instrument"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Currency</label>
+                        <select id="ov-filter-currency">
+                            <option value="" selected>All</option>
+                            <option value="INR">INR</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Psychology</label>
+                        <select id="ov-filter-psychology">
+                            <option value="">All</option>
+                            <option value="Strong">Strong</option>
+                            <option value="Weak">Weak</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Close Reason</label>
+                        <select id="ov-filter-close-reason"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Strategy</label>
+                        <select id="ov-filter-strategy"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>From</label>
+                        <input type="datetime-local" id="ov-filter-from">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="datetime-local" id="ov-filter-to">
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button class="btn btn-primary btn-sm" onclick="loadOverview()"><i class="fas fa-sync"></i> Apply</button>
+                        <button class="btn btn-outline btn-sm" onclick="clearOverviewFilters()"><i class="fas fa-eraser"></i> Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="overview-tabs mt-4">
+            <button class="ov-tab active" data-ov-cat="">Overall</button>
+            <button class="ov-tab" data-ov-cat="Equity">Equity</button>
+            <button class="ov-tab" data-ov-cat="Index">Index</button>
+            <button class="ov-tab" data-ov-cat="Forex">Forex</button>
+            <button class="ov-tab" data-ov-cat="Commodity">Commodity</button>
+            <button class="ov-tab" data-ov-cat="US Index">US Index</button>
+        </div>
+
+        <div class="overview-grid mt-4">
+            <div class="stat-card">
+                <div class="stat-card-icon blue"><i class="fas fa-receipt"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Total Trades</span>
+                    <span class="stat-card-value" id="ov-total">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Winning Trades</span>
+                    <span class="stat-card-value" id="ov-wins">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon red"><i class="fas fa-times-circle"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Losing Trades</span>
+                    <span class="stat-card-value" id="ov-losses">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon purple"><i class="fas fa-percentage"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Win Rate</span>
+                    <span class="stat-card-value" id="ov-winrate">0%</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon cyan"><i class="fas fa-scale-balanced"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">W/L Ratio</span>
+                    <span class="stat-card-value" id="ov-wlratio">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon orange"><i class="fas fa-hourglass-half"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Open Trades</span>
+                    <span class="stat-card-value" id="ov-open">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Equity Curve -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line"></i> Equity Curve</h3>
+            </div>
+            <div class="card-body chart-container">
+                <canvas id="overviewEquityCurve"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly P&L -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-calendar-alt"></i> Monthly P&amp;L</h3>
+            </div>
+            <div class="card-body chart-container">
+                <canvas id="overviewMonthlyPnl"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trades View -->
+    <div class="view" id="view-trades">
+        <!-- Filters -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-filter"></i> Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select id="filter-category">
+                            <option value="">All Categories</option>
+                            <option>Equity</option>
+                            <option>Index</option>
+                            <option>Forex</option>
+                            <option>Commodity</option>
+                            <option>US Index</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Subcategory</label>
+                        <select id="filter-subcategory">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Style</label>
+                        <select id="filter-style">
+                            <option value="">All Styles</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Direction</label>
+                        <select id="filter-direction">
+                            <option value="">All</option>
+                            <option value="Long">Long</option>
+                            <option value="Short">Short</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="filter-status">
+                            <option value="">All</option>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Platform</label>
+                        <select id="filter-platform"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Instrument</label>
+                        <select id="filter-instrument"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Currency</label>
+                        <select id="filter-currency">
+                            <option value="" selected>All</option>
+                            <option value="INR">INR</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Psychology</label>
+                        <select id="filter-psychology">
+                            <option value="">All</option>
+                            <option value="Strong">Strong</option>
+                            <option value="Weak">Weak</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Close Reason</label>
+                        <select id="filter-close-reason"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Strategy</label>
+                        <select id="filter-strategy"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>From</label>
+                        <input type="datetime-local" id="filter-from">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="datetime-local" id="filter-to">
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button class="btn btn-primary" onclick="loadTrades()">
+                            <i class="fas fa-search"></i> Apply
+                        </button>
+                        <button class="btn btn-outline" onclick="clearFilters()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trades Table -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-table"></i> Trade Log</h3>
+                <button class="btn btn-primary btn-sm" onclick="showView('add-trade')">
+                    <i class="fas fa-plus"></i> Add Trade
+                </button>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Instrument</th>
+                            <th>Category</th>
+                            <th>Dir</th>
+                            <th>Style</th>
+                            <th>Platform</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>SL</th>
+                            <th>Size</th>
+                            <th>P&L</th>
+                            <th>Strategy</th>
+                            <th>Psychology</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-tbody">
+                        <tr><td colspan="15" class="empty-state">No trades found. Start by adding a trade!</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Trade View -->
+    <div class="view" id="view-add-trade">
+        <form id="add-trade-form" class="trade-form">
+        <!-- SECTION 1: Asset Selection / Instrument -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-search-dollar"></i> Asset Selection &amp; Instrument</h3>
+                <span class="section-tag">Step 1</span>
+            </div>
+            <div class="card-body">
+                <!-- Instrument with autocomplete -->
+                <div class="form-row">
+                    <div class="form-group fg-wide">
+                        <label><i class="fas fa-tag"></i> Instrument Name *</label>
+                        <div class="instrument-picker">
+                            <input type="text" id="trade-instrument" required
+                                   placeholder="Start typing or select an existing instrument..."
+                                   autocomplete="off">
+                            <div class="instrument-dropdown" id="instrument-dropdown"></div>
+                        </div>
+                        <small class="field-hint" id="instrument-hint">Type to search saved instruments or enter a new one</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-layer-group"></i> Asset Category *</label>
+                        <select id="trade-category" required>
+                            <option value="">Select Category</option>
+                            <option>Equity</option>
+                            <option>Index</option>
+                            <option>Forex</option>
+                            <option>Commodity</option>
+                            <option>US Index</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-sitemap"></i> Subcategory</label>
+                        <select id="trade-subcategory">
+                            <option value="">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Trading Style *</label>
+                        <select id="trade-style" required>
+                            <option value="">Select Style</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Index-specific: Futures vs Options -->
+                <div class="form-row" id="instrument-type-row" style="display:none">
+                    <div class="form-group">
+                        <label><i class="fas fa-cubes"></i> Instrument Type *</label>
+                        <select id="trade-instrument-type">
+                            <option value="">Select Type</option>
+                            <option value="Futures">Futures</option>
+                            <option value="Options">Options</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Platform -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-desktop"></i> Platform</label>
+                        <div class="platform-picker">
+                            <input type="text" id="trade-platform" placeholder="e.g., Zerodha, Upstox, MT4, TradingView" autocomplete="off">
+                            <div class="platform-dropdown" id="platform-dropdown"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-chess"></i> Strategy</label>
+                        <div class="strategy-picker">
+                            <input type="text" id="trade-strategy" placeholder="e.g., Breakout, Reversal, Moving Avg..." autocomplete="off">
+                            <div class="strategy-dropdown" id="strategy-dropdown"></div>
+                        </div>
+                        <small class="field-hint">Type a new strategy or select from previously used</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: Trade Details -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-exchange-alt"></i> Trade Details</h3>
+                <span class="section-tag">Step 2</span>
+            </div>
+            <div class="card-body">
+                <!-- Direction: Long / Short -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-arrows-alt-v"></i> Direction *</label>
+                        <div class="direction-toggle">
+                            <input type="radio" name="trade-direction" id="dir-long" value="Long" checked>
+                            <label for="dir-long" class="dir-label dir-long">
+                                <i class="fas fa-arrow-trend-up"></i> Long
+                            </label>
+                            <input type="radio" name="trade-direction" id="dir-short" value="Short">
+                            <label for="dir-short" class="dir-label dir-short">
+                                <i class="fas fa-arrow-trend-down"></i> Short
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-rupee-sign"></i> Entry Price *</label>
+                        <input type="number" step="0.01" id="trade-entry-price" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar-alt"></i> Entry Date &amp; Time *</label>
+                        <input type="datetime-local" id="trade-entry-dt" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-shield-alt"></i> Stop Loss *</label>
+                        <input type="number" step="0.01" id="trade-sl" required placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Position sizing – differs by asset -->
+                <div class="form-row">
+                    <div class="form-group" id="lot-size-group" style="display:none">
+                        <label><i class="fas fa-cube"></i> Lot Size</label>
+                        <input type="number" step="0.01" id="trade-lot-size" placeholder="e.g., 50, 25">
+                        <small class="field-hint">Units per lot (prefilled if available)</small>
+                    </div>
+                    <div class="form-group">
+                        <label id="position-size-label"><i class="fas fa-hashtag"></i> Position Size * <span id="size-unit-hint">(Qty)</span></label>
+                        <input type="number" step="0.01" id="trade-size" required placeholder="Qty">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-money-bill-wave"></i> Currency *</label>
+                        <select id="trade-currency" required>
+                            <option value="INR">₹ INR</option>
+                            <option value="USD">$ USD</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Entry Notes -->
+                <div class="form-row">
+                    <div class="form-group fg-wide">
+                        <label><i class="fas fa-sticky-note"></i> Entry Notes <small>(optional)</small></label>
+                        <textarea id="trade-entry-notes" rows="2" placeholder="Why are you taking this trade? Setup, rationale..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Save Trade
+                    </button>
+                    <button type="reset" class="btn btn-outline btn-lg" onclick="resetTradeForm()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+        </form>
+    </div>
+
+    <!-- Analytics View -->
+    <div class="view" id="view-analytics">
+        <!-- Analytics Filters -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-sliders"></i> Analytics Filters</h3>
+            </div>
+            <div class="card-body">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select id="analytics-category">
+                            <option value="">All Categories</option>
+                            <option>Equity</option>
+                            <option>Index</option>
+                            <option>Forex</option>
+                            <option>Commodity</option>
+                            <option>US Index</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Subcategory</label>
+                        <select id="analytics-subcategory">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Style</label>
+                        <select id="analytics-style">
+                            <option value="">All Styles</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Direction</label>
+                        <select id="analytics-direction">
+                            <option value="">All</option>
+                            <option value="Long">Long</option>
+                            <option value="Short">Short</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Platform</label>
+                        <select id="analytics-platform"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Instrument</label>
+                        <select id="analytics-instrument"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Currency</label>
+                        <select id="analytics-currency">
+                            <option value="">All</option>
+                            <option value="INR">INR</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Psychology</label>
+                        <select id="analytics-psychology">
+                            <option value="">All</option>
+                            <option value="Strong">Strong</option>
+                            <option value="Weak">Weak</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Close Reason</label>
+                        <select id="analytics-close-reason"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Strategy</label>
+                        <select id="analytics-strategy"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>From</label>
+                        <input type="datetime-local" id="analytics-from">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="datetime-local" id="analytics-to">
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button class="btn btn-primary" onclick="loadAnalytics()">
+                            <i class="fas fa-sync"></i> Update
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="clearAnalyticsFilters()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid mt-4">
+            <div class="metric-card">
+                <div class="metric-label">Total Closed Trades</div>
+                <div class="metric-value" id="an-total">0</div>
+            </div>
+            <div class="metric-card win">
+                <div class="metric-label">Winning Trades</div>
+                <div class="metric-value" id="an-wins">0</div>
+            </div>
+            <div class="metric-card loss">
+                <div class="metric-label">Losing Trades</div>
+                <div class="metric-value" id="an-losses">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Win Percentage</div>
+                <div class="metric-value" id="an-winpct">0%</div>
+            </div>
+            <div class="metric-card win">
+                <div class="metric-label">Average Win</div>
+                <div class="metric-value" id="an-avgwin">₹0</div>
+            </div>
+            <div class="metric-card loss">
+                <div class="metric-label">Average Loss</div>
+                <div class="metric-value" id="an-avgloss">₹0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Win/Loss Ratio</div>
+                <div class="metric-value" id="an-wlratio">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Adjusted W/L Ratio</div>
+                <div class="metric-value" id="an-adjwl">0</div>
+            </div>
+            <div class="metric-card win">
+                <div class="metric-label">Largest Win</div>
+                <div class="metric-value" id="an-lgwin">₹0</div>
+            </div>
+            <div class="metric-card loss">
+                <div class="metric-label">Largest Loss</div>
+                <div class="metric-value" id="an-lgloss">₹0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Win Duration</div>
+                <div class="metric-value" id="an-windur">0h</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Loss Duration</div>
+                <div class="metric-value" id="an-lossdur">0h</div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="charts-row mt-4">
+            <div class="card chart-half">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Equity Curve</h3>
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="analyticsEquityCurve"></canvas>
+                </div>
+            </div>
+            <div class="card chart-half">
+                <div class="card-header">
+                    <h3><i class="fas fa-calendar-alt"></i> Monthly P&amp;L</h3>
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="analyticsMonthlyPnl"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-row mt-4">
+            <div class="card chart-half">
+                <div class="card-header">
+                    <h3><i class="fas fa-layer-group"></i> P&amp;L by Category</h3>
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="analyticsCategoryPnl"></canvas>
+                </div>
+            </div>
+            <div class="card chart-half">
+                <div class="card-header">
+                    <h3><i class="fas fa-chess"></i> P&amp;L by Strategy</h3>
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="analyticsStrategyPnl"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Trade Editor Modal (for closing open trades AND editing any trade) -->
+    <div class="modal-overlay" id="trade-editor-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3 id="trade-editor-title"><i class="fas fa-edit"></i> Edit Trade #<span id="editor-trade-id-label"></span></h3>
+                <button class="modal-close" onclick="closeModal('trade-editor-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="trade-editor-body">
+                <input type="hidden" id="editor-trade-id">
+                <input type="hidden" id="editor-trade-status">
+
+                <!-- Section: Asset & Instrument -->
+                <div class="editor-section">
+                    <h4><i class="fas fa-tag"></i> Asset &amp; Instrument</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Instrument</label>
+                            <input type="text" id="editor-instrument" placeholder="Instrument name">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="editor-category">
+                                <option value="">Select</option>
+                                <option>Equity</option><option>Index</option><option>Forex</option><option>Commodity</option><option>US Index</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Subcategory</label>
+                            <select id="editor-subcategory"><option value="">None</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Trading Style</label>
+                            <select id="editor-style"><option value="">Select</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Direction</label>
+                            <select id="editor-direction">
+                                <option value="Long">Long</option>
+                                <option value="Short">Short</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Instrument Type</label>
+                            <select id="editor-instrument-type">
+                                <option value="">N/A</option>
+                                <option value="Futures">Futures</option>
+                                <option value="Options">Options</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Platform</label>
+                            <input type="text" id="editor-platform" placeholder="Platform">
+                        </div>
+                        <div class="form-group">
+                            <label>Currency</label>
+                            <select id="editor-currency">
+                                <option value="INR">&#8377; INR</option>
+                                <option value="USD">$ USD</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-chess"></i> Strategy</label>
+                            <div class="strategy-picker">
+                                <input type="text" id="editor-strategy" placeholder="Strategy name..." autocomplete="off">
+                                <div class="strategy-dropdown" id="editor-strategy-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Entry Details -->
+                <div class="editor-section">
+                    <h4><i class="fas fa-sign-in-alt"></i> Entry Details</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Entry Price</label>
+                            <input type="number" step="0.01" id="editor-entry-price" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Entry Date &amp; Time</label>
+                            <input type="datetime-local" id="editor-entry-dt">
+                        </div>
+                        <div class="form-group">
+                            <label>Stop Loss</label>
+                            <input type="number" step="0.01" id="editor-stop-loss" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Lot Size</label>
+                            <input type="number" step="0.01" id="editor-lot-size" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Position Size</label>
+                            <input type="number" step="0.01" id="editor-position-size" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group fg-wide">
+                            <label>Entry Notes</label>
+                            <textarea id="editor-entry-notes" rows="2" placeholder="Entry rationale..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Exit Details (shown for closing or editing closed trades) -->
+                <div class="editor-section" id="editor-exit-section">
+                    <h4><i class="fas fa-sign-out-alt"></i> Exit Details</h4>
+
+                    <!-- Standard (non-forex) exit -->
+                    <div id="editor-standard-exit">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Exit Price *</label>
+                                <input type="number" step="0.01" id="editor-exit-price" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>Exit Date &amp; Time *</label>
+                                <input type="datetime-local" id="editor-exit-dt">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Forex exit: manual P&L -->
+                    <div id="editor-forex-exit" style="display:none">
+                        <div class="forex-pnl-notice">
+                            <i class="fas fa-info-circle"></i> Forex trades require manual P&amp;L entry.
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Profit or Loss *</label>
+                                <select id="editor-pnl-type">
+                                    <option value="profit">Profit (+)</option>
+                                    <option value="loss">Loss (&minus;)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount *</label>
+                                <input type="number" step="0.01" id="editor-pnl-amount" placeholder="Amount" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Exit Price <small>(optional)</small></label>
+                                <input type="number" step="0.00001" id="editor-forex-exit-price" placeholder="0.00000">
+                            </div>
+                            <div class="form-group">
+                                <label>Exit Date &amp; Time *</label>
+                                <input type="datetime-local" id="editor-forex-exit-dt">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Close & Psychology -->
+                <div class="editor-section">
+                    <h4><i class="fas fa-brain"></i> Close Reason &amp; Psychology</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Closing Because Of</label>
+                            <div class="close-reason-picker">
+                                <select id="editor-close-reason">
+                                    <option value="">Select reason...</option>
+                                    <option value="Stoploss Hit">Stoploss Hit</option>
+                                    <option value="TP Hit">TP Hit</option>
+                                    <option value="Exited Earlier in Loss">Exited Earlier in Loss</option>
+                                    <option value="Exited Earlier in Profit">Exited Earlier in Profit</option>
+                                    <option value="__custom__">+ Add Custom Reason</option>
+                                </select>
+                                <input type="text" id="editor-close-reason-custom" placeholder="Type custom reason..." style="display:none;margin-top:6px">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Psychology</label>
+                            <select id="editor-psychology">
+                                <option value="">Not set</option>
+                                <option value="Strong">Strong</option>
+                                <option value="Weak">Weak</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="editor-psychology-detail-group" style="display:none">
+                            <label>Weak Psychology Detail</label>
+                            <select id="editor-psychology-detail">
+                                <option value="">Select...</option>
+                                <option value="Weak psychology during entry">During entry</option>
+                                <option value="Weak psychology during exit">During exit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group fg-wide">
+                            <label>Exit Notes</label>
+                            <textarea id="editor-exit-notes" rows="2" placeholder="Learnings, observations..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="editor-save-btn" onclick="saveTradeEditor()">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button class="btn btn-outline" onclick="closeModal('trade-editor-modal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Trades View -->
+    <div class="view" id="view-open-trades">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-clock"></i> Open Trades</h3>
+                <button class="btn btn-primary btn-sm" onclick="showView('add-trade')">
+                    <i class="fas fa-plus"></i> Add Trade
+                </button>
+            </div>
+            <div class="card-body">
+                <p class="intl-info"><i class="fas fa-info-circle"></i> All currently open (active) trades. Close a trade by clicking the <strong>Close</strong> button.</p>
+            </div>
+        </div>
+
+        <!-- Open Trades Summary -->
+        <div class="overview-grid mt-4">
+            <div class="stat-card">
+                <div class="stat-card-icon blue"><i class="fas fa-receipt"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Open Trades</span>
+                    <span class="stat-card-value" id="open-trades-count">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon green"><i class="fas fa-arrow-trend-up"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Long</span>
+                    <span class="stat-card-value" id="open-trades-long">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon red"><i class="fas fa-arrow-trend-down"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Short</span>
+                    <span class="stat-card-value" id="open-trades-short">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-table"></i> Active Positions</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Instrument</th>
+                            <th>Category</th>
+                            <th>Dir</th>
+                            <th>Style</th>
+                            <th>Platform</th>
+                            <th>Strategy</th>
+                            <th>Entry</th>
+                            <th>SL</th>
+                            <th>Size</th>
+                            <th>Entry Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="open-trades-tbody">
+                        <tr><td colspan="12" class="empty-state">No open trades.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- International Trades View (Non-INR) -->
+    <div class="view" id="view-international">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-globe"></i> International Trades (Non-INR)</h3>
+            </div>
+            <div class="card-body">
+                <p class="intl-info"><i class="fas fa-info-circle"></i> This section shows trades denominated in currencies other than INR. These are kept separate as they cannot be directly compared with INR trades.</p>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Currency</label>
+                        <select id="intl-filter-currency">
+                            <option value="">All Non-INR</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select id="intl-filter-category">
+                            <option value="">All</option>
+                            <option>Equity</option>
+                            <option>Index</option>
+                            <option>Forex</option>
+                            <option>Commodity</option>
+                            <option>US Index</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="intl-filter-status">
+                            <option value="">All</option>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button class="btn btn-primary btn-sm" onclick="loadInternationalTrades()"><i class="fas fa-search"></i> Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- International Summary Cards -->
+        <div class="overview-grid mt-4">
+            <div class="stat-card">
+                <div class="stat-card-icon blue"><i class="fas fa-receipt"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Total Trades</span>
+                    <span class="stat-card-value" id="intl-total">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Open</span>
+                    <span class="stat-card-value" id="intl-open">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon red"><i class="fas fa-door-closed"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Closed</span>
+                    <span class="stat-card-value" id="intl-closed">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon cyan"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Total P&L</span>
+                    <span class="stat-card-value" id="intl-pnl">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-table"></i> International Trade Log</h3>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Instrument</th>
+                            <th>Category</th>
+                            <th>Dir</th>
+                            <th>Currency</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>Size</th>
+                            <th>P&L</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="intl-trades-tbody">
+                        <tr><td colspan="11" class="empty-state">No international trades found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export / Import View -->
+    <div class="view" id="view-export-import">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-file-export"></i> Export & Import Trade Logs</h3>
+            </div>
+            <div class="card-body">
+                <p class="intl-info"><i class="fas fa-info-circle"></i> Export your complete trade data as a JSON file for backup or migration. Import a previously exported file to restore all trades, instruments, and close reasons.</p>
+
+                <div class="export-import-grid">
+                    <!-- Export Section -->
+                    <div class="ei-section">
+                        <div class="ei-icon"><i class="fas fa-download"></i></div>
+                        <h4>Export Trades</h4>
+                        <p>Download all your trades, instruments, and close reasons as a single JSON file.</p>
+                        <button class="btn btn-primary btn-lg" onclick="exportTrades()">
+                            <i class="fas fa-file-download"></i> Export All Data
+                        </button>
+                    </div>
+
+                    <!-- Import Section -->
+                    <div class="ei-section">
+                        <div class="ei-icon"><i class="fas fa-upload"></i></div>
+                        <h4>Import Trades</h4>
+                        <p>Upload a previously exported JSON file to restore trade logs.</p>
+                        <div class="file-upload-area" id="import-drop-zone">
+                            <input type="file" id="import-file-input" accept=".json" style="display:none">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to select file or drag &amp; drop</p>
+                            <small>Only .json files from TradeVault export</small>
+                        </div>
+                        <button class="btn btn-primary btn-lg mt-4" onclick="importTrades()" id="import-btn" disabled>
+                            <i class="fas fa-file-import"></i> Import Data
+                        </button>
+                        <div id="import-result" class="mt-4" style="display:none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Base URL prefix for API calls (handles /TradeVault reverse proxy)
+    window.TRADEVAULT_BASE = {{ request.script_root|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

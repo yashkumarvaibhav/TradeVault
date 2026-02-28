@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: tradevault
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: TRADEVAULT_DB_PATH
+        value: /var/data/trading_journal.db
+    disk:
+      name: tradevault-data
+      mountPath: /var/data
+      sizeGB: 1

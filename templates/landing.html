@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}TradeVault – Your Trading Journal{% endblock %}
+{% block body_class %}landing-page{% endblock %}
+
+{% block content %}
+<!-- Animated background -->
+<div class="landing-bg">
+    <div class="grid-overlay"></div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <div class="glow glow-3"></div>
+</div>
+
+<!-- Navbar -->
+<nav class="landing-nav">
+    <div class="nav-brand">
+        <i class="fas fa-chart-line"></i>
+        <span>TradeVault</span>
+    </div>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#categories">Markets</a>
+        <a href="#analytics">Analytics</a>
+        <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Get Started</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">
+            <i class="fas fa-shield-halved"></i> Secured with TOTP Authentication
+        </div>
+        <h1>Master Your <span class="gradient-text">Trading Performance</span></h1>
+        <p class="hero-subtitle">
+            Record, organize, and analyze your trading activity across Equity, Index, Forex, Commodity &amp; US Index markets.
+            Gain insights with powerful analytics and visual performance distributions.
+        </p>
+        <div class="hero-actions">
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-rocket"></i> Start Journaling Free
+            </a>
+            <a href="#features" class="btn btn-glass btn-lg">
+                <i class="fas fa-play-circle"></i> Learn More
+            </a>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <span class="stat-number">5</span>
+                <span class="stat-label">Asset Classes</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">15+</span>
+                <span class="stat-label">Trading Styles</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">12</span>
+                <span class="stat-label">Key Metrics</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number">30d</span>
+                <span class="stat-label">Session Validity</span>
+            </div>
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="mockup-card">
+            <div class="mockup-header">
+                <div class="mockup-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <span class="mockup-title">Performance Dashboard</span>
+            </div>
+            <div class="mockup-body">
+                <div class="mini-chart">
+                    <svg viewBox="0 0 200 80" class="chart-svg">
+                        <defs>
+                            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                                <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M0,60 Q30,50 50,40 T100,25 T150,35 T200,10" stroke="#6366f1" fill="none" stroke-width="2"/>
+                        <path d="M0,60 Q30,50 50,40 T100,25 T150,35 T200,10 L200,80 L0,80 Z" fill="url(#chartGrad)"/>
+                    </svg>
+                </div>
+                <div class="mini-stats">
+                    <div class="mini-stat win"><span>Win Rate</span><strong>68.5%</strong></div>
+                    <div class="mini-stat ratio"><span>W/L Ratio</span><strong>2.34</strong></div>
+                    <div class="mini-stat trades"><span>Trades</span><strong>142</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features-section" id="features">
+    <div class="section-container">
+        <h2 class="section-title">Everything You Need to <span class="gradient-text">Trade Smarter</span></h2>
+        <p class="section-subtitle">Comprehensive tools to track, analyze, and improve your trading performance</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-book-open"></i></div>
+                <h3>Trade Journal</h3>
+                <p>Log every trade with entry/exit prices, stop loss, position sizing and timestamps. Track open and closed positions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-chart-pie"></i></div>
+                <h3>Performance Analytics</h3>
+                <p>Win rate, average win/loss, W/L ratio, adjusted ratios, largest trades and holding durations – all auto-computed.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-bell-curve fa-chart-bar"></i></div>
+                <h3>Bell Curve Distribution</h3>
+                <p>Visualize your return distribution with 2% interval histograms. See how your trades are distributed from -100% to +600%.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-filter"></i></div>
+                <h3>Time-Frame Filtering</h3>
+                <p>All analytics update dynamically for your chosen date range, asset category, and trading style.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-lock"></i></div>
+                <h3>TOTP Security</h3>
+                <p>Two-factor authentication with Time-based One-Time Passwords. Your trading data stays private and protected.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-layer-group"></i></div>
+                <h3>Multi-Asset Support</h3>
+                <p>Equity, Index, Forex, Commodity and US Index – each with specific subcategories and trading styles.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories -->
+<section class="categories-section" id="categories">
+    <div class="section-container">
+        <h2 class="section-title">Trade Across <span class="gradient-text">Multiple Markets</span></h2>
+        <div class="categories-grid">
+            <div class="category-card">
+                <div class="cat-icon equity"><i class="fas fa-building"></i></div>
+                <h3>Equity</h3>
+                <div class="cat-tags">
+                    <span>Small Cap</span><span>Mid Cap</span><span>Large Cap</span>
+                </div>
+                <p>Intraday · Swing · Positional</p>
+            </div>
+            <div class="category-card">
+                <div class="cat-icon index"><i class="fas fa-chart-line"></i></div>
+                <h3>Index</h3>
+                <div class="cat-tags">
+                    <span>Nifty</span><span>Bank Nifty</span>
+                </div>
+                <p>Intraday · Swing · Positional</p>
+            </div>
+            <div class="category-card">
+                <div class="cat-icon forex"><i class="fas fa-coins"></i></div>
+                <h3>Forex</h3>
+                <div class="cat-tags">
+                    <span>All Pairs</span>
+                </div>
+                <p>Intraday · Swing · Scalp · Positional</p>
+            </div>
+            <div class="category-card">
+                <div class="cat-icon commodity"><i class="fas fa-gem"></i></div>
+                <h3>Commodity</h3>
+                <div class="cat-tags">
+                    <span>All Commodities</span>
+                </div>
+                <p>Intraday · Swing</p>
+            </div>
+            <div class="category-card">
+                <div class="cat-icon usindex"><i class="fas fa-globe-americas"></i></div>
+                <h3>US Index</h3>
+                <div class="cat-tags">
+                    <span>S&P · NASDAQ · Dow</span>
+                </div>
+                <p>Intraday · Swing</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Analytics Preview -->
+<section class="analytics-section" id="analytics">
+    <div class="section-container">
+        <h2 class="section-title">Powerful <span class="gradient-text">Analytics Engine</span></h2>
+        <p class="section-subtitle">Every metric you need to make data-driven trading decisions</p>
+        <div class="metrics-showcase">
+            <div class="metric-pill"><i class="fas fa-trophy"></i> Average Win</div>
+            <div class="metric-pill"><i class="fas fa-arrow-down"></i> Average Loss</div>
+            <div class="metric-pill"><i class="fas fa-scale-balanced"></i> Win/Loss Ratio</div>
+            <div class="metric-pill"><i class="fas fa-percent"></i> Win Percentage</div>
+            <div class="metric-pill"><i class="fas fa-sliders"></i> Adjusted W/L Ratio</div>
+            <div class="metric-pill"><i class="fas fa-arrow-up"></i> Largest Win</div>
+            <div class="metric-pill"><i class="fas fa-arrow-trend-down"></i> Largest Loss</div>
+            <div class="metric-pill"><i class="fas fa-clock"></i> Win Hold Duration</div>
+            <div class="metric-pill"><i class="fas fa-hourglass"></i> Loss Hold Duration</div>
+            <div class="metric-pill"><i class="fas fa-chart-area"></i> Bell Curve</div>
+            <div class="metric-pill"><i class="fas fa-calendar-days"></i> Time Filters</div>
+            <div class="metric-pill"><i class="fas fa-stream"></i> Category Filters</div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <div class="section-container">
+        <h2>Ready to Level Up Your Trading?</h2>
+        <p>Join TradeVault and start making data-driven trading decisions today.</p>
+        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-user-plus"></i> Create Free Account
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="landing-footer">
+    <div class="footer-content">
+        <div class="footer-brand">
+            <i class="fas fa-chart-line"></i> TradeVault
+        </div>
+        <p>&copy; 2026 TradeVault. Trading Journal & Performance Analytics Platform.</p>
+    </div>
+</footer>
+{% endblock %}
