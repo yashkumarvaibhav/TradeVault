@@ -7,6 +7,7 @@ import io
 import base64
 from datetime import datetime, timedelta
 from functools import wraps
+from threading import Lock
 
 import json
 
@@ -247,7 +248,11 @@ class DBConnection:
 
 # ─── Database helpers ───────────────────────────────────────────────
 
-def get_db():
+_DB_INIT_LOCK = Lock()
+_DB_INITIALIZED = False
+
+
+def _open_db():
     if USE_POSTGRES:
         if psycopg is None:
             raise RuntimeError('DATABASE_URL is set but psycopg is not installed')
@@ -262,10 +267,22 @@ def get_db():
 
 
 def init_db():
-    conn = get_db()
-    conn.executescript(POSTGRES_SCHEMA if USE_POSTGRES else SQLITE_SCHEMA)
-    conn.commit()
-    conn.close()
+    global _DB_INITIALIZED
+    if _DB_INITIALIZED:
+        return
+    with _DB_INIT_LOCK:
+        if _DB_INITIALIZED:
+            return
+        conn = _open_db()
+        conn.executescript(POSTGRES_SCHEMA if USE_POSTGRES else SQLITE_SCHEMA)
+        conn.commit()
+        conn.close()
+        _DB_INITIALIZED = True
+
+def get_db():
+    # Lazy init avoids blocking service boot during platform port checks.
+    init_db()
+    return _open_db()
 
 
 def insert_and_get_id(db, insert_sql, params):
@@ -275,8 +292,6 @@ def insert_and_get_id(db, insert_sql, params):
     db.execute(insert_sql, params)
     return db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-
-init_db()
 
 # ─── Auth helpers ─────────────────────────────────────────────────
 
