@@ -418,6 +418,58 @@ def login():
     return redirect(url_for('dashboard'))
 
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'GET':
+        return render_template('forgot_password.html')
+
+    username = request.form.get('username', '').strip()
+    totp_code = request.form.get('totp_code', '').strip()
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not username or not totp_code or not new_password or not confirm_password:
+        flash('All fields are required.', 'error')
+        return redirect(url_for('forgot_password'))
+    if len(new_password) < 6:
+        flash('Password must be at least 6 characters.', 'error')
+        return redirect(url_for('forgot_password'))
+    if new_password != confirm_password:
+        flash('Passwords do not match.', 'error')
+        return redirect(url_for('forgot_password'))
+    if len(totp_code) != 6 or not totp_code.isdigit():
+        flash('TOTP code must be a valid 6-digit code.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    db = get_db()
+    user = db.execute(
+        'SELECT id, totp_secret FROM users WHERE username=?',
+        (username,)
+    ).fetchone()
+    if not user:
+        db.close()
+        flash('Invalid recovery details.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    totp = pyotp.TOTP(user['totp_secret'])
+    if not totp.verify(totp_code, valid_window=1):
+        db.close()
+        flash('Invalid recovery details.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    pw_hash, salt = hash_password(new_password)
+    db.execute(
+        'UPDATE users SET password_hash=?, salt=? WHERE id=?',
+        (pw_hash, salt, user['id'])
+    )
+    db.commit()
+    db.close()
+
+    session.clear()
+    flash('Password reset successful. Please login with your new password.', 'success')
+    return redirect(url_for('login'))
+
+
 @app.route('/logout')
 def logout():
     session.clear()

@@ -21,10 +21,6 @@ Ensure these files are present:
    - env vars (`SECRET_KEY`, `TRADEVAULT_DB_PATH`, `SESSION_COOKIE_SECURE`)
 4. Wait for first deploy to complete.
 
-If you want Supabase Postgres instead of local SQLite on Render:
-- Set `DATABASE_URL` in Render Environment to your Supabase connection string.
-- When `DATABASE_URL` is set, the app ignores `TRADEVAULT_DB_PATH`.
-
 ## 3) Add custom domain
 
 1. In Render service settings, open **Custom Domains**.
@@ -48,10 +44,7 @@ Push to the connected GitHub branch; Render auto-deploys.
 
 ## Supabase note
 
-Supabase is good for Postgres/Auth/Storage, but it does **not** host Flask apps.
-
-Current code uses SQLite queries heavily. So the fastest stable setup is:
+Render-only setup for this app:
 - Host app on Render
 - Keep SQLite on Render persistent disk
-
-If you want Supabase Postgres later, we can do a proper migration pass (DB layer refactor + schema migration) in a separate step.
+- Accept cold starts on Render Free after inactivity
