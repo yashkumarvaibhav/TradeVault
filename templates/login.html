@@ -15,22 +15,16 @@
         <div class="auth-header">
             <div class="auth-logo"><i class="fas fa-chart-line"></i></div>
             <h1>Welcome Back</h1>
-            <p>Sign in to your trading journal</p>
+            <p>Sign in with your username and password. TOTP is only used for recovery and unlocks.</p>
         </div>
         <form method="POST" class="auth-form">
             <div class="form-group">
                 <label><i class="fas fa-user"></i> Username</label>
-                <input type="text" name="username" required placeholder="Your username" autofocus>
+                <input type="text" name="username" required placeholder="Your username" autofocus value="{{ prefill_username or '' }}">
             </div>
             <div class="form-group">
                 <label><i class="fas fa-lock"></i> Password</label>
                 <input type="password" name="password" required placeholder="Your password">
-            </div>
-            <div class="form-group">
-                <label><i class="fas fa-key"></i> TOTP Code</label>
-                <input type="text" name="totp_code" required placeholder="6-digit code"
-                       maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
-                       autocomplete="one-time-code" class="totp-input">
             </div>
             <button type="submit" class="btn btn-primary btn-full">
                 <i class="fas fa-sign-in-alt"></i> Login
@@ -38,6 +32,7 @@
         </form>
         <div class="auth-links">
             <a href="{{ url_for('forgot_password') }}">Forgot password? Recover via TOTP</a>
+            <a href="{{ url_for('unlock_account') }}">Account locked? Unlock via TOTP</a>
         </div>
         <div class="auth-footer">
             Don't have an account? <a href="{{ url_for('register') }}">Register here</a>

@@ -34,6 +34,8 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 
+MAX_LOGIN_ATTEMPTS = 3
+
 
 class ReverseProxied:
     """Middleware to handle SCRIPT_NAME / URL prefix when behind a reverse proxy.
@@ -76,6 +78,8 @@ SQLITE_SCHEMA = '''
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         totp_secret TEXT NOT NULL,
+        failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+        account_locked INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS instruments (
@@ -150,6 +154,8 @@ POSTGRES_SCHEMA = '''
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         totp_secret TEXT NOT NULL,
+        failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+        account_locked INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS instruments (
@@ -266,6 +272,26 @@ def _open_db():
     return DBConnection(conn, 'sqlite')
 
 
+def _get_table_columns(db, table_name):
+    if db.backend == 'postgres':
+        rows = db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=?",
+            (table_name,)
+        ).fetchall()
+        return {row['column_name'] for row in rows}
+
+    rows = db.execute(f'PRAGMA table_info({table_name})').fetchall()
+    return {row['name'] for row in rows}
+
+
+def _ensure_user_security_columns(db):
+    columns = _get_table_columns(db, 'users')
+    if 'failed_login_attempts' not in columns:
+        db.execute('ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0')
+    if 'account_locked' not in columns:
+        db.execute('ALTER TABLE users ADD COLUMN account_locked INTEGER NOT NULL DEFAULT 0')
+
+
 def init_db():
     global _DB_INITIALIZED
     if _DB_INITIALIZED:
@@ -275,6 +301,7 @@ def init_db():
             return
         conn = _open_db()
         conn.executescript(POSTGRES_SCHEMA if USE_POSTGRES else SQLITE_SCHEMA)
+        _ensure_user_security_columns(conn)
         conn.commit()
         conn.close()
         _DB_INITIALIZED = True
@@ -300,6 +327,27 @@ def hash_password(password, salt=None):
         salt = secrets.token_hex(16)
     pw_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 310_000).hex()
     return pw_hash, salt
+
+
+def is_valid_totp_code(code):
+    return len(code) == 6 and code.isdigit()
+
+
+def reset_login_state(db, user_id):
+    db.execute(
+        'UPDATE users SET failed_login_attempts=0, account_locked=0 WHERE id=?',
+        (user_id,)
+    )
+
+
+def register_failed_login(db, user):
+    attempts = int(user['failed_login_attempts'] or 0) + 1
+    locked = 1 if attempts >= MAX_LOGIN_ATTEMPTS else 0
+    db.execute(
+        'UPDATE users SET failed_login_attempts=?, account_locked=? WHERE id=?',
+        (attempts, locked, user['id'])
+    )
+    return attempts, bool(locked)
 
 
 def login_required(f):
@@ -402,29 +450,43 @@ def setup_totp():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template('login.html')
+        return render_template(
+            'login.html',
+            prefill_username=request.args.get('username', '').strip()
+        )
 
     username = request.form.get('username', '').strip()
     password = request.form.get('password', '')
-    totp_code = request.form.get('totp_code', '').strip()
 
     db = get_db()
     user = db.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
-    db.close()
 
     if not user:
+        db.close()
         flash('Invalid credentials.', 'error')
         return redirect(url_for('login'))
+
+    if user['account_locked']:
+        db.close()
+        flash('Account locked after 3 failed logins. Unlock it with your TOTP code.', 'error')
+        return redirect(url_for('unlock_account', username=username))
 
     pw_hash, _ = hash_password(password, user['salt'])
     if pw_hash != user['password_hash']:
-        flash('Invalid credentials.', 'error')
-        return redirect(url_for('login'))
+        attempts, locked = register_failed_login(db, user)
+        db.commit()
+        db.close()
+        if locked:
+            flash('Account locked after 3 failed logins. Unlock it with your TOTP code.', 'error')
+            return redirect(url_for('unlock_account', username=username))
+        remaining = MAX_LOGIN_ATTEMPTS - attempts
+        suffix = '' if remaining == 1 else 's'
+        flash(f'Invalid credentials. {remaining} login attempt{suffix} remaining before lock.', 'error')
+        return redirect(url_for('login', username=username))
 
-    totp = pyotp.TOTP(user['totp_secret'])
-    if not totp.verify(totp_code, valid_window=1):
-        flash('Invalid TOTP code.', 'error')
-        return redirect(url_for('login'))
+    reset_login_state(db, user['id'])
+    db.commit()
+    db.close()
 
     session.permanent = True
     session['user_id'] = user['id']
@@ -436,7 +498,10 @@ def login():
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'GET':
-        return render_template('forgot_password.html')
+        return render_template(
+            'forgot_password.html',
+            prefill_username=request.args.get('username', '').strip()
+        )
 
     username = request.form.get('username', '').strip()
     totp_code = request.form.get('totp_code', '').strip()
@@ -452,7 +517,7 @@ def forgot_password():
     if new_password != confirm_password:
         flash('Passwords do not match.', 'error')
         return redirect(url_for('forgot_password'))
-    if len(totp_code) != 6 or not totp_code.isdigit():
+    if not is_valid_totp_code(totp_code):
         flash('TOTP code must be a valid 6-digit code.', 'error')
         return redirect(url_for('forgot_password'))
 
@@ -474,7 +539,7 @@ def forgot_password():
 
     pw_hash, salt = hash_password(new_password)
     db.execute(
-        'UPDATE users SET password_hash=?, salt=? WHERE id=?',
+        'UPDATE users SET password_hash=?, salt=?, failed_login_attempts=0, account_locked=0 WHERE id=?',
         (pw_hash, salt, user['id'])
     )
     db.commit()
@@ -483,6 +548,50 @@ def forgot_password():
     session.clear()
     flash('Password reset successful. Please login with your new password.', 'success')
     return redirect(url_for('login'))
+
+
+@app.route('/unlock-account', methods=['GET', 'POST'])
+def unlock_account():
+    if request.method == 'GET':
+        return render_template(
+            'unlock_account.html',
+            prefill_username=request.args.get('username', '').strip()
+        )
+
+    username = request.form.get('username', '').strip()
+    totp_code = request.form.get('totp_code', '').strip()
+
+    if not username or not is_valid_totp_code(totp_code):
+        flash('Username and a valid 6-digit TOTP code are required.', 'error')
+        return redirect(url_for('unlock_account', username=username))
+
+    db = get_db()
+    user = db.execute(
+        'SELECT id, totp_secret, account_locked FROM users WHERE username=?',
+        (username,)
+    ).fetchone()
+    if not user:
+        db.close()
+        flash('Invalid unlock details.', 'error')
+        return redirect(url_for('unlock_account'))
+
+    if not user['account_locked']:
+        db.close()
+        flash('This account is not locked. Login with your password.', 'info')
+        return redirect(url_for('login', username=username))
+
+    totp = pyotp.TOTP(user['totp_secret'])
+    if not totp.verify(totp_code, valid_window=1):
+        db.close()
+        flash('Invalid unlock details.', 'error')
+        return redirect(url_for('unlock_account', username=username))
+
+    reset_login_state(db, user['id'])
+    db.commit()
+    db.close()
+
+    flash('Account unlocked. Please login with your password.', 'success')
+    return redirect(url_for('login', username=username))
 
 
 @app.route('/logout')

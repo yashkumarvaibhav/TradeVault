@@ -11,6 +11,8 @@ const CATEGORIES = {
 };
 
 const CURRENCY_SYMBOLS = { 'INR': '₹', 'USD': '$' };
+const STANDARD_PRICE_STEP = '0.01';
+const FOREX_PRICE_STEP = 'any';
 
 let userInstruments = [];
 let selectedInstrument = null;
@@ -303,6 +305,30 @@ function updatePositionFields() {
         instrTypeRow.style.display = 'none'; lotSizeGroup.style.display = 'none';
         sizeUnitHint.textContent = '(Shares)'; sizeInput.placeholder = 'No. of shares';
     }
+
+    setTradePricePrecision(cat);
+}
+
+function setPriceInputPrecision(inputIds, isForex) {
+    const step = isForex ? FOREX_PRICE_STEP : STANDARD_PRICE_STEP;
+    const placeholder = isForex ? '0.00000' : '0.00';
+
+    inputIds.forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        input.step = step;
+        if (!input.value) input.placeholder = placeholder;
+    });
+}
+
+function setTradePricePrecision(category) {
+    setPriceInputPrecision(['trade-entry-price', 'trade-sl'], category === 'Forex');
+}
+
+function setEditorPricePrecision(category) {
+    const isForex = category === 'Forex';
+    setPriceInputPrecision(['editor-entry-price', 'editor-stop-loss', 'editor-exit-price'], isForex);
+    setPriceInputPrecision(['editor-forex-exit-price'], true);
 }
 
 document.getElementById('filter-category')?.addEventListener('change', () => {
@@ -707,6 +733,7 @@ function resetTradeForm() {
     document.getElementById('size-unit-hint').textContent = '(Qty)';
     const longRadio = document.getElementById('dir-long');
     if (longRadio) longRadio.checked = true;
+    setTradePricePrecision(document.getElementById('trade-category')?.value || '');
 }
 
 // ─── Modal Helper ────────────────────────────────────────────
@@ -747,6 +774,7 @@ async function openTradeEditor(tradeId, mode) {
     document.getElementById('editor-instrument').value = trade.instrument || '';
     document.getElementById('editor-category').value = trade.asset_category || '';
     updateEditorDropdowns();
+    setEditorPricePrecision(trade.asset_category || '');
     document.getElementById('editor-subcategory').value = trade.subcategory || '';
     document.getElementById('editor-style').value = trade.trading_style || '';
     document.getElementById('editor-direction').value = trade.direction || 'Long';
@@ -855,6 +883,7 @@ function updateEditorDropdowns() {
         CATEGORIES[cat].subcategories.forEach(s => { subSelect.innerHTML += `<option>${s}</option>`; });
         CATEGORIES[cat].styles.forEach(s => { styleSelect.innerHTML += `<option>${s}</option>`; });
     }
+    setEditorPricePrecision(cat);
 }
 
 document.getElementById('editor-category')?.addEventListener('change', updateEditorDropdowns);
@@ -1333,6 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCloseReasons();
     loadStrategies();
     setupInstrumentPicker();
+    setTradePricePrecision(document.getElementById('trade-category')?.value || '');
 
     // Determine initial view from URL path (e.g. /dashboard/trades)
     const pathParts = window.location.pathname.replace(BASE, '').split('/').filter(Boolean);
