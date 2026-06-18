@@ -3,12 +3,6 @@
 {% block body_class %}auth-page{% endblock %}
 
 {% block content %}
-<div class="auth-bg">
-    <div class="grid-overlay"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-</div>
-
 <div class="auth-container">
     <div class="auth-card">
         <a href="{{ url_for('login') }}" class="auth-back"><i class="fas fa-arrow-left"></i> Back to Login</a>
@@ -18,6 +12,7 @@
             <p>After 3 failed logins, use your authenticator code once to unlock access.</p>
         </div>
         <form method="POST" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><i class="fas fa-user"></i> Username</label>
                 <input type="text" name="username" required placeholder="Your username" autofocus value="{{ prefill_username or '' }}">

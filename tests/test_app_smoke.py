@@ -1,0 +1,202 @@
+import base64
+import io
+import json
+import os
+import re
+import tempfile
+import unittest
+from pathlib import Path
+
+os.environ['SECRET_KEY'] = 'test-secret'
+TEST_ROOT = Path(tempfile.mkdtemp())
+os.environ['TRADEVAULT_DB_PATH'] = str(TEST_ROOT / 'tradevault-test.db')
+os.environ['TRADEVAULT_UPLOAD_DIR'] = str(TEST_ROOT / 'uploads')
+
+import pyotp
+
+import app as tradevault
+
+TINY_PNG = base64.b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='
+)
+
+
+def csrf_from(response):
+    html = response.data.decode()
+    match = (
+        re.search(r'name="csrf_token" value="([^"]+)"', html)
+        or re.search(r'name="csrf-token" content="([^"]+)"', html)
+    )
+    if not match:
+        raise AssertionError(html[:500])
+    return match.group(1)
+
+
+class TradeVaultSmokeTest(unittest.TestCase):
+    def setUp(self):
+        tradevault.app.config['TESTING'] = True
+
+    def test_auth_password_change_validation_and_lot_pnl(self):
+        with tradevault.app.test_client() as client:
+            token = csrf_from(client.get('/register'))
+            res = client.post('/register', data={
+                'csrf_token': token,
+                'username': 'smokeuser',
+                'password': 'pass1234',
+                'confirm_password': 'pass1234',
+            })
+            self.assertEqual(res.status_code, 302)
+            self.assertIn('/setup-totp', res.headers['Location'])
+
+            with client.session_transaction() as sess:
+                secret = sess['totp_setup_secret']
+
+            token = csrf_from(client.get('/setup-totp'))
+            res = client.post('/setup-totp', data={
+                'csrf_token': token,
+                'totp_code': pyotp.TOTP(secret).now(),
+            })
+            self.assertEqual(res.status_code, 302)
+            self.assertIn('/dashboard', res.headers['Location'])
+
+            api_token = csrf_from(client.get('/dashboard'))
+            headers = {'X-CSRF-Token': api_token}
+
+            playbook = client.post('/api/playbooks', json={
+                'name': 'Opening Range Breakout',
+                'market_scope': 'Index',
+                'setup_rules': 'Break opening range with volume confirmation.',
+                'checklist': 'Trend aligned\nStop defined\nTarget at least 2R',
+                'notes': 'Avoid late entries.',
+            }, headers=headers)
+            self.assertEqual(playbook.status_code, 201)
+            playbook_id = playbook.get_json()['id']
+            self.assertEqual(len(client.get('/api/playbooks').get_json()), 1)
+
+            bad = client.post('/api/trades', json={
+                'asset_category': 'Equity',
+                'trading_style': 'Swing',
+                'instrument': 'BAD',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-18T10:00',
+                'stop_loss': 120,
+                'position_size': 1,
+                'direction': 'Long',
+                'currency': 'INR',
+            }, headers=headers)
+            self.assertEqual(bad.status_code, 400)
+            self.assertIn('Stop loss', bad.get_json()['error'])
+
+            created = client.post('/api/trades', json={
+                'asset_category': 'Index',
+                'subcategory': 'Nifty',
+                'trading_style': 'Intraday',
+                'instrument': 'NIFTY FUT',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-18T10:00',
+                'stop_loss': 90,
+                'planned_target': 130,
+                'position_size': 2,
+                'lot_size': 50,
+                'direction': 'Long',
+                'currency': 'INR',
+                'playbook_id': playbook_id,
+            }, headers=headers)
+            self.assertEqual(created.status_code, 201)
+            trade_id = created.get_json()['id']
+
+            closed = client.patch(f'/api/trades/{trade_id}', json={
+                'asset_category': 'Index',
+                'subcategory': 'Nifty',
+                'trading_style': 'Intraday',
+                'instrument': 'NIFTY FUT',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-18T10:00',
+                'stop_loss': 90,
+                'planned_target': 130,
+                'position_size': 2,
+                'lot_size': 50,
+                'direction': 'Long',
+                'currency': 'INR',
+                'playbook_id': playbook_id,
+                'exit_price': 110,
+                'exit_datetime': '2026-06-18T11:00',
+                'execution_score': 4,
+                'rule_followed': True,
+                'mistake_tags': 'Early exit',
+                'setup_quality': 'A',
+                'review_notes': 'Good entry, exit management can improve.',
+                'status': 'closed',
+            }, headers=headers)
+            self.assertEqual(closed.status_code, 200)
+            trade = client.get(f'/api/trades/{trade_id}').get_json()
+            self.assertEqual(trade['computed_pnl'], 1000)
+            self.assertEqual(trade['planned_rr'], 3)
+            self.assertEqual(trade['realized_r'], 1)
+            self.assertTrue(trade['reviewed'])
+            self.assertEqual(trade['playbook_name'], 'Opening Range Breakout')
+            analytics = client.get('/api/analytics').get_json()
+            self.assertTrue(analytics['return_distribution'])
+            self.assertEqual(analytics['avg_execution_score'], 4)
+            self.assertEqual(analytics['playbook_pnl']['Opening Range Breakout'], 1000)
+            review = client.get('/api/review/summary').get_json()
+            self.assertEqual(review['pending_review_count'], 0)
+            self.assertEqual(review['avg_execution_score'], 4)
+            self.assertEqual(review['rule_follow_rate'], 100)
+            self.assertEqual(review['playbook_coverage'], 100)
+
+            attachment = client.post(
+                f'/api/trades/{trade_id}/attachments',
+                data={
+                    'file': (io.BytesIO(TINY_PNG), 'entry-chart.png'),
+                    'caption': 'Entry chart before breakout',
+                },
+                content_type='multipart/form-data',
+                headers=headers,
+            )
+            self.assertEqual(attachment.status_code, 201)
+            attachment_data = attachment.get_json()
+            self.assertEqual(attachment_data['caption'], 'Entry chart before breakout')
+            self.assertTrue(attachment_data['url'].endswith(f'/api/trade-attachments/{attachment_data["id"]}/file'))
+            attachments = client.get(f'/api/trades/{trade_id}/attachments').get_json()
+            self.assertEqual(len(attachments), 1)
+            attachment_file = client.get(attachment_data['url'])
+            self.assertEqual(attachment_file.status_code, 200)
+            self.assertEqual(attachment_file.mimetype, 'image/png')
+            attachment_file.close()
+
+            export_data = json.loads(client.get('/api/trades/export').data.decode())
+            self.assertEqual(export_data['format'], 'tradevault_export_v3')
+            self.assertFalse(export_data['attachments']['included'])
+            self.assertEqual(export_data['trades'][0]['attachment_count'], 1)
+
+            deleted_attachment = client.delete(
+                f'/api/trade-attachments/{attachment_data["id"]}',
+                headers=headers,
+            )
+            self.assertEqual(deleted_attachment.status_code, 200)
+            self.assertEqual(client.get(f'/api/trades/{trade_id}/attachments').get_json(), [])
+
+            token = csrf_from(client.get('/change-password'))
+            changed = client.post('/change-password', data={
+                'csrf_token': token,
+                'current_password': 'pass1234',
+                'totp_code': pyotp.TOTP(secret).now(),
+                'new_password': 'pass5678',
+                'confirm_password': 'pass5678',
+            })
+            self.assertEqual(changed.status_code, 302)
+            self.assertIn('/login', changed.headers['Location'])
+
+            token = csrf_from(client.get('/login?username=smokeuser'))
+            logged_in = client.post('/login', data={
+                'csrf_token': token,
+                'username': 'smokeuser',
+                'password': 'pass5678',
+            })
+            self.assertEqual(logged_in.status_code, 302)
+            self.assertIn('/dashboard', logged_in.headers['Location'])
+
+
+if __name__ == '__main__':
+    unittest.main()

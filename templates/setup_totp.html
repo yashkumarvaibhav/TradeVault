@@ -1,20 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Setup TOTP – TradeVault{% endblock %}
+{% block title %}Setup Recovery TOTP – TradeVault{% endblock %}
 {% block body_class %}auth-page{% endblock %}
 
 {% block content %}
-<div class="auth-bg">
-    <div class="grid-overlay"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-</div>
-
 <div class="auth-container">
     <div class="auth-card totp-card">
         <div class="auth-header">
             <div class="auth-logo"><i class="fas fa-shield-halved"></i></div>
-            <h1>Setup Two-Factor Auth</h1>
-            <p>Scan the QR code with your authenticator app. You will only use it for recovery and account unlocks.</p>
+            <h1>Setup Recovery TOTP</h1>
+            <p>Scan the QR code with your authenticator app. Login stays username and password; this code protects password recovery, account unlocks, and password changes.</p>
         </div>
 
         <div class="totp-qr">
@@ -25,13 +19,14 @@
             <label>Manual entry key:</label>
             <div class="secret-display">
                 <code>{{ secret }}</code>
-                <button type="button" class="btn-copy" onclick="navigator.clipboard.writeText('{{ secret }}'); this.innerHTML='<i class=\'fas fa-check\'></i> Copied'">
+                <button type="button" class="btn-copy" onclick="navigator.clipboard.writeText('{{ secret }}'); this.textContent='Copied'">
                     <i class="fas fa-copy"></i> Copy
                 </button>
             </div>
         </div>
 
         <form method="POST" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><i class="fas fa-key"></i> Enter 6-digit TOTP Code</label>
                 <input type="text" name="totp_code" required placeholder="000000"
@@ -40,7 +35,7 @@
                        class="totp-input">
             </div>
             <button type="submit" class="btn btn-primary btn-full">
-                <i class="fas fa-check-circle"></i> Verify & Complete Registration
+                <i class="fas fa-check-circle"></i> Verify Recovery Setup
             </button>
         </form>
     </div>

@@ -1,16 +1,9 @@
 {% extends "base.html" %}
+{% set inline_theme_toggle = true %}
 {% block title %}TradeVault – Your Trading Journal{% endblock %}
 {% block body_class %}landing-page{% endblock %}
 
 {% block content %}
-<!-- Animated background -->
-<div class="landing-bg">
-    <div class="grid-overlay"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-    <div class="glow glow-3"></div>
-</div>
-
 <!-- Navbar -->
 <nav class="landing-nav">
     <div class="nav-brand">
@@ -21,7 +14,10 @@
         <a href="#features">Features</a>
         <a href="#categories">Markets</a>
         <a href="#analytics">Analytics</a>
-        <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm">Login</a>
+        <button class="theme-toggle nav-theme-toggle" data-theme-toggle type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+            <i class="fas fa-moon"></i>
+        </button>
+        <a href="{{ url_for('login') }}" class="btn btn-outline btn-sm">Login</a>
         <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Get Started</a>
     </div>
 </nav>
@@ -30,19 +26,19 @@
 <section class="hero">
     <div class="hero-content">
         <div class="hero-badge">
-            <i class="fas fa-shield-halved"></i> Secured with TOTP Authentication
+            <i class="fas fa-chart-line"></i> Private Trade Review Workspace
         </div>
-        <h1>Master Your <span class="gradient-text">Trading Performance</span></h1>
+        <h1>TradeVault</h1>
         <p class="hero-subtitle">
-            Record, organize, and analyze your trading activity across Equity, Index, Forex, Commodity &amp; US Index markets.
-            Gain insights with powerful analytics and visual performance distributions.
+            A private manual trading journal for playbooks, planned risk, clean execution review, mistake-cost tracking, and performance analytics
+            across Equity, Index, Forex, Commodity, and US Index markets.
         </p>
         <div class="hero-actions">
             <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-rocket"></i> Start Journaling Free
+                <i class="fas fa-pen-nib"></i> Create Journal
             </a>
-            <a href="#features" class="btn btn-glass btn-lg">
-                <i class="fas fa-play-circle"></i> Learn More
+            <a href="#features" class="btn btn-outline btn-lg">
+                <i class="fas fa-chart-column"></i> View Analytics
             </a>
         </div>
         <div class="hero-stats">
@@ -51,16 +47,16 @@
                 <span class="stat-label">Asset Classes</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number">15+</span>
-                <span class="stat-label">Trading Styles</span>
+                <span class="stat-number">4</span>
+                <span class="stat-label">Style Types</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number">12</span>
-                <span class="stat-label">Key Metrics</span>
+                <span class="stat-number">1R</span>
+                <span class="stat-label">Risk Tracking</span>
             </div>
             <div class="stat-item">
-                <span class="stat-number">30d</span>
-                <span class="stat-label">Session Validity</span>
+                <span class="stat-number">42d</span>
+                <span class="stat-label">Review Map</span>
             </div>
         </div>
     </div>
@@ -77,11 +73,11 @@
                     <svg viewBox="0 0 200 80" class="chart-svg">
                         <defs>
                             <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
-                                <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                                <stop offset="0%" stop-color="#3fada8" stop-opacity="0.18"/>
+                                <stop offset="100%" stop-color="#3fada8" stop-opacity="0"/>
                             </linearGradient>
                         </defs>
-                        <path d="M0,60 Q30,50 50,40 T100,25 T150,35 T200,10" stroke="#6366f1" fill="none" stroke-width="2"/>
+                        <path d="M0,60 Q30,50 50,40 T100,25 T150,35 T200,10" stroke="#3fada8" fill="none" stroke-width="2"/>
                         <path d="M0,60 Q30,50 50,40 T100,25 T150,35 T200,10 L200,80 L0,80 Z" fill="url(#chartGrad)"/>
                     </svg>
                 </div>
@@ -98,38 +94,43 @@
 <!-- Features -->
 <section class="features-section" id="features">
     <div class="section-container">
-        <h2 class="section-title">Everything You Need to <span class="gradient-text">Trade Smarter</span></h2>
-        <p class="section-subtitle">Comprehensive tools to track, analyze, and improve your trading performance</p>
+        <h2 class="section-title">A Journal Built for <span class="accent-text">Post-Trade Review</span></h2>
+        <p class="section-subtitle">Capture the planned trade, close the position, then review execution quality, rule adherence, and mistakes before the next setup.</p>
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon"><i class="fas fa-book-open"></i></div>
-                <h3>Trade Journal</h3>
-                <p>Log every trade with entry/exit prices, stop loss, position sizing and timestamps. Track open and closed positions.</p>
+                <h3>Structured Trade Capture</h3>
+                <p>Record market, direction, entry, stop, target, size, strategy, notes, and timestamps without losing the trade thesis.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-chart-pie"></i></div>
-                <h3>Performance Analytics</h3>
-                <p>Win rate, average win/loss, W/L ratio, adjusted ratios, largest trades and holding durations – all auto-computed.</p>
+                <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
+                <h3>Risk and R-Multiple</h3>
+                <p>Preview 1R risk and planned R:R before saving, then compare realized R after the trade closes.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-bell-curve fa-chart-bar"></i></div>
-                <h3>Bell Curve Distribution</h3>
-                <p>Visualize your return distribution with 2% interval histograms. See how your trades are distributed from -100% to +600%.</p>
+                <div class="feature-icon"><i class="fas fa-book-open"></i></div>
+                <h3>Strategy Playbooks</h3>
+                <p>Define reusable setup rules, checklists, market scope, and notes, then link trades back to the playbook.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-filter"></i></div>
-                <h3>Time-Frame Filtering</h3>
-                <p>All analytics update dynamically for your chosen date range, asset category, and trading style.</p>
+                <div class="feature-icon"><i class="fas fa-clipboard-check"></i></div>
+                <h3>Review Center</h3>
+                <p>Closed trades enter a review queue for execution score, setup quality, rule check, mistake tags, and follow-up notes.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-lock"></i></div>
-                <h3>TOTP Security</h3>
-                <p>Two-factor authentication with Time-based One-Time Passwords. Your trading data stays private and protected.</p>
+                <div class="feature-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                <h3>Mistake Cost</h3>
+                <p>Tag behavior patterns on losing trades and see which mistakes are taking the most money from the account.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-calendar-days"></i></div>
+                <h3>Outcome Map</h3>
+                <p>A compact daily heatmap shows where closed-trade outcomes and review consistency are clustering.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon"><i class="fas fa-layer-group"></i></div>
-                <h3>Multi-Asset Support</h3>
-                <p>Equity, Index, Forex, Commodity and US Index – each with specific subcategories and trading styles.</p>
+                <h3>Portable Data</h3>
+                <p>Export and import trades, instruments, strategies, and review data as TradeVault JSON on the VM-backed setup.</p>
             </div>
         </div>
     </div>
@@ -138,7 +139,7 @@
 <!-- Categories -->
 <section class="categories-section" id="categories">
     <div class="section-container">
-        <h2 class="section-title">Trade Across <span class="gradient-text">Multiple Markets</span></h2>
+        <h2 class="section-title">Markets Stay <span class="accent-text">Clearly Separated</span></h2>
         <div class="categories-grid">
             <div class="category-card">
                 <div class="cat-icon equity"><i class="fas fa-building"></i></div>
@@ -187,8 +188,8 @@
 <!-- Analytics Preview -->
 <section class="analytics-section" id="analytics">
     <div class="section-container">
-        <h2 class="section-title">Powerful <span class="gradient-text">Analytics Engine</span></h2>
-        <p class="section-subtitle">Every metric you need to make data-driven trading decisions</p>
+        <h2 class="section-title">Analytics That Stay <span class="accent-text">Grounded in the Journal</span></h2>
+        <p class="section-subtitle">Closed trades become a review surface: expectancy, profit factor, playbook P&amp;L, R-multiple quality, discipline score, calendar outcomes, and return distribution.</p>
         <div class="metrics-showcase">
             <div class="metric-pill"><i class="fas fa-trophy"></i> Average Win</div>
             <div class="metric-pill"><i class="fas fa-arrow-down"></i> Average Loss</div>
@@ -199,9 +200,11 @@
             <div class="metric-pill"><i class="fas fa-arrow-trend-down"></i> Largest Loss</div>
             <div class="metric-pill"><i class="fas fa-clock"></i> Win Hold Duration</div>
             <div class="metric-pill"><i class="fas fa-hourglass"></i> Loss Hold Duration</div>
-            <div class="metric-pill"><i class="fas fa-chart-area"></i> Bell Curve</div>
-            <div class="metric-pill"><i class="fas fa-calendar-days"></i> Time Filters</div>
-            <div class="metric-pill"><i class="fas fa-stream"></i> Category Filters</div>
+            <div class="metric-pill"><i class="fas fa-chart-area"></i> Return Distribution</div>
+            <div class="metric-pill"><i class="fas fa-book-open"></i> Playbook P&amp;L</div>
+            <div class="metric-pill"><i class="fas fa-star-half-stroke"></i> Execution Score</div>
+            <div class="metric-pill"><i class="fas fa-calendar-days"></i> Daily Outcome Map</div>
+            <div class="metric-pill"><i class="fas fa-triangle-exclamation"></i> Mistake Cost</div>
         </div>
     </div>
 </section>
@@ -209,10 +212,10 @@
 <!-- CTA -->
 <section class="cta-section">
     <div class="section-container">
-        <h2>Ready to Level Up Your Trading?</h2>
-        <p>Join TradeVault and start making data-driven trading decisions today.</p>
+        <h2>Start With a Clean Trading Record</h2>
+        <p>Create a private TradeVault workspace and keep each trade reviewable from entry to exit.</p>
         <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
-            <i class="fas fa-user-plus"></i> Create Free Account
+            <i class="fas fa-user-plus"></i> Create Account
         </a>
     </div>
 </section>
@@ -223,7 +226,7 @@
         <div class="footer-brand">
             <i class="fas fa-chart-line"></i> TradeVault
         </div>
-        <p>&copy; 2026 TradeVault. Trading Journal & Performance Analytics Platform.</p>
+        <p>&copy; 2026 TradeVault. Private trading journal and performance review workspace.</p>
     </div>
 </footer>
 {% endblock %}

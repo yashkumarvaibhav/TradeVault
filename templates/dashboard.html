@@ -1,10 +1,7 @@
 {% extends "base.html" %}
+{% set inline_theme_toggle = true %}
 {% block title %}Dashboard – TradeVault{% endblock %}
 {% block body_class %}dashboard-page{% endblock %}
-
-{% block extra_css %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-{% endblock %}
 
 {% block content %}
 <!-- Sidebar -->
@@ -30,6 +27,12 @@
         <a href="#" class="nav-item" data-view="open-trades">
             <i class="fas fa-clock"></i> Open Trades
         </a>
+        <a href="#" class="nav-item" data-view="review-center">
+            <i class="fas fa-clipboard-check"></i> Review Center
+        </a>
+        <a href="#" class="nav-item" data-view="playbooks">
+            <i class="fas fa-book-open"></i> Playbooks
+        </a>
         <a href="#" class="nav-item" data-view="add-trade">
             <i class="fas fa-plus-circle"></i> Add Trade
         </a>
@@ -41,6 +44,9 @@
         </a>
 
         <div class="nav-section-label">Tools</div>
+        <a href="{{ url_for('change_password') }}" class="nav-item">
+            <i class="fas fa-key"></i> Change Password
+        </a>
         <a href="#" class="nav-item" data-view="export-import">
             <i class="fas fa-file-export"></i> Export / Import
         </a>
@@ -63,9 +69,12 @@
         </a>
     </nav>
 
-    <a href="{{ url_for('logout') }}" class="sidebar-logout">
-        <i class="fas fa-sign-out-alt"></i> Logout
-    </a>
+    <form method="POST" action="{{ url_for('logout') }}" class="sidebar-logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="sidebar-logout">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </form>
 </aside>
 
 <!-- Main Content -->
@@ -77,16 +86,73 @@
         </button>
         <h2 class="topbar-title" id="pageTitle">Overview</h2>
         <div class="topbar-right">
-            <span class="user-badge"><i class="fas fa-shield-halved"></i> TOTP Secured</span>
+            <button class="theme-toggle topbar-theme-toggle" data-theme-toggle type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+                <i class="fas fa-moon"></i>
+            </button>
         </div>
     </header>
 
     <!-- Overview View -->
     <div class="view active" id="view-overview">
+        <!-- Category Tabs -->
+        <div class="overview-tabs">
+            <button class="ov-tab active" data-ov-cat="">Overall</button>
+            <button class="ov-tab" data-ov-cat="Equity">Equity</button>
+            <button class="ov-tab" data-ov-cat="Index">Index</button>
+            <button class="ov-tab" data-ov-cat="Forex">Forex</button>
+            <button class="ov-tab" data-ov-cat="Commodity">Commodity</button>
+            <button class="ov-tab" data-ov-cat="US Index">US Index</button>
+        </div>
+
+        <div class="overview-grid mt-4">
+            <div class="stat-card">
+                <div class="stat-card-icon blue"><i class="fas fa-receipt"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Total Trades</span>
+                    <span class="stat-card-value" id="ov-total">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon green"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Winning Trades</span>
+                    <span class="stat-card-value" id="ov-wins">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon red"><i class="fas fa-times-circle"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Losing Trades</span>
+                    <span class="stat-card-value" id="ov-losses">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon purple"><i class="fas fa-percentage"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Win Rate</span>
+                    <span class="stat-card-value" id="ov-winrate">0%</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon cyan"><i class="fas fa-scale-balanced"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">W/L Ratio</span>
+                    <span class="stat-card-value" id="ov-wlratio">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon orange"><i class="fas fa-hourglass-half"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Open Trades</span>
+                    <span class="stat-card-value" id="ov-open">0</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Overview Filters -->
-        <div class="card">
+        <div class="card mt-4">
             <div class="card-header">
-                <h3><i class="fas fa-filter"></i> Overview Filters</h3>
+                <h3><i class="fas fa-filter"></i> Advanced Filters</h3>
             </div>
             <div class="card-body">
                 <div class="filter-row">
@@ -139,6 +205,10 @@
                         <select id="ov-filter-strategy"><option value="">All</option></select>
                     </div>
                     <div class="filter-group">
+                        <label>Playbook</label>
+                        <select id="ov-filter-playbook"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
                         <label>From</label>
                         <input type="datetime-local" id="ov-filter-from">
                     </div>
@@ -150,61 +220,6 @@
                         <button class="btn btn-primary btn-sm" onclick="loadOverview()"><i class="fas fa-sync"></i> Apply</button>
                         <button class="btn btn-outline btn-sm" onclick="clearOverviewFilters()"><i class="fas fa-eraser"></i> Clear</button>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Category Tabs -->
-        <div class="overview-tabs mt-4">
-            <button class="ov-tab active" data-ov-cat="">Overall</button>
-            <button class="ov-tab" data-ov-cat="Equity">Equity</button>
-            <button class="ov-tab" data-ov-cat="Index">Index</button>
-            <button class="ov-tab" data-ov-cat="Forex">Forex</button>
-            <button class="ov-tab" data-ov-cat="Commodity">Commodity</button>
-            <button class="ov-tab" data-ov-cat="US Index">US Index</button>
-        </div>
-
-        <div class="overview-grid mt-4">
-            <div class="stat-card">
-                <div class="stat-card-icon blue"><i class="fas fa-receipt"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">Total Trades</span>
-                    <span class="stat-card-value" id="ov-total">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon green"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">Winning Trades</span>
-                    <span class="stat-card-value" id="ov-wins">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon red"><i class="fas fa-times-circle"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">Losing Trades</span>
-                    <span class="stat-card-value" id="ov-losses">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon purple"><i class="fas fa-percentage"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">Win Rate</span>
-                    <span class="stat-card-value" id="ov-winrate">0%</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon cyan"><i class="fas fa-scale-balanced"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">W/L Ratio</span>
-                    <span class="stat-card-value" id="ov-wlratio">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon orange"><i class="fas fa-hourglass-half"></i></div>
-                <div class="stat-card-info">
-                    <span class="stat-card-label">Open Trades</span>
-                    <span class="stat-card-value" id="ov-open">0</span>
                 </div>
             </div>
         </div>
@@ -311,6 +326,10 @@
                         <select id="filter-strategy"><option value="">All</option></select>
                     </div>
                     <div class="filter-group">
+                        <label>Playbook</label>
+                        <select id="filter-playbook"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
                         <label>From</label>
                         <input type="datetime-local" id="filter-from">
                     </div>
@@ -354,15 +373,108 @@
                             <th>Size</th>
                             <th>P&L</th>
                             <th>Strategy</th>
+                            <th>Playbook</th>
                             <th>Psychology</th>
+                            <th>Review</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="trades-tbody">
-                        <tr><td colspan="15" class="empty-state">No trades found. Start by adding a trade!</td></tr>
+                        <tr><td colspan="17" class="empty-state">No trades found. Start by adding a trade!</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playbooks View -->
+    <div class="view" id="view-playbooks">
+        <div class="review-hero">
+            <div>
+                <span class="section-tag">Strategy Lab</span>
+                <h3>Define the setups you are allowed to trade.</h3>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="resetPlaybookForm()">
+                <i class="fas fa-plus"></i> New Playbook
+            </button>
+        </div>
+
+        <div class="playbook-layout mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-book-open"></i> Playbook Editor</h3>
+                    <span class="section-tag" id="playbook-form-mode">New</span>
+                </div>
+                <div class="card-body">
+                    <form id="playbook-form">
+                        <input type="hidden" id="playbook-id">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Name *</label>
+                                <input type="text" id="playbook-name" required placeholder="e.g., Opening range breakout">
+                            </div>
+                            <div class="form-group">
+                                <label>Market Scope</label>
+                                <select id="playbook-market">
+                                    <option value="">All markets</option>
+                                    <option>Equity</option>
+                                    <option>Index</option>
+                                    <option>Forex</option>
+                                    <option>Commodity</option>
+                                    <option>US Index</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group fg-wide">
+                                <label>Setup Rules</label>
+                                <textarea id="playbook-rules" rows="4" placeholder="Market structure, trigger, invalidation, ideal context..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group fg-wide">
+                                <label>Checklist</label>
+                                <textarea id="playbook-checklist" rows="4" placeholder="One rule per line: trend aligned, liquidity swept, volume confirms..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group fg-wide">
+                                <label>Notes</label>
+                                <textarea id="playbook-notes" rows="3" placeholder="Screenshots to take, ideal hold behavior, common mistakes..."></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Playbook
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="resetPlaybookForm()">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list-check"></i> Saved Playbooks</h3>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Market</th>
+                                <th>Rules</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playbooks-tbody">
+                            <tr><td colspan="4" class="empty-state">No playbooks yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -446,6 +558,13 @@
                         </div>
                         <small class="field-hint">Type a new strategy or select from previously used</small>
                     </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-book-open"></i> Playbook</label>
+                        <select id="trade-playbook">
+                            <option value="">No playbook</option>
+                        </select>
+                        <small class="field-hint">Use saved rules/checklists for this setup</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -487,6 +606,10 @@
                         <label><i class="fas fa-shield-alt"></i> Stop Loss *</label>
                         <input type="number" step="0.01" id="trade-sl" required placeholder="0.00">
                     </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-bullseye"></i> Planned Target <small>(optional)</small></label>
+                        <input type="number" step="0.01" id="trade-target" placeholder="0.00">
+                    </div>
                 </div>
 
                 <!-- Position sizing – differs by asset -->
@@ -507,6 +630,32 @@
                             <option value="USD">$ USD</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="risk-preview" id="trade-risk-preview">
+                    <div class="risk-preview-head">
+                        <span><i class="fas fa-shield-halved"></i> Risk Preview</span>
+                        <small>Calculated before the trade is saved</small>
+                    </div>
+                    <div class="risk-preview-grid">
+                        <div>
+                            <span>1R Risk</span>
+                            <strong id="risk-preview-risk">--</strong>
+                        </div>
+                        <div>
+                            <span>Planned R:R</span>
+                            <strong id="risk-preview-rr">--</strong>
+                        </div>
+                        <div>
+                            <span>Effective Units</span>
+                            <strong id="risk-preview-units">--</strong>
+                        </div>
+                        <div>
+                            <span>Position Value</span>
+                            <strong id="risk-preview-value">--</strong>
+                        </div>
+                    </div>
+                    <p id="risk-preview-note">Enter entry, stop, size, and optional target to audit the trade before committing it.</p>
                 </div>
 
                 <!-- Entry Notes -->
@@ -603,6 +752,10 @@
                         <select id="analytics-strategy"><option value="">All</option></select>
                     </div>
                     <div class="filter-group">
+                        <label>Playbook</label>
+                        <select id="analytics-playbook"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
                         <label>From</label>
                         <input type="datetime-local" id="analytics-from">
                     </div>
@@ -623,6 +776,13 @@
         </div>
 
         <!-- Metrics Cards -->
+        <div class="intl-info mt-4" id="analytics-currency-warning" style="display:none">
+            <i class="fas fa-triangle-exclamation"></i>
+            Multiple currencies are present. Monetary totals are grouped by currency; select one currency for ratio-style review.
+        </div>
+
+        <div class="intl-info mt-4" id="analytics-currency-summary" style="display:none"></div>
+
         <div class="metrics-grid mt-4">
             <div class="metric-card">
                 <div class="metric-label">Total Closed Trades</div>
@@ -655,6 +815,30 @@
             <div class="metric-card">
                 <div class="metric-label">Adjusted W/L Ratio</div>
                 <div class="metric-value" id="an-adjwl">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Profit Factor</div>
+                <div class="metric-value" id="an-profit-factor">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Expectancy / Trade</div>
+                <div class="metric-value" id="an-expectancy">₹0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Planned R:R</div>
+                <div class="metric-value" id="an-planned-rr">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Realized R</div>
+                <div class="metric-value" id="an-realized-r">0R</div>
+            </div>
+            <div class="metric-card loss">
+                <div class="metric-label">Max Drawdown</div>
+                <div class="metric-value" id="an-max-dd">₹0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Current Streak</div>
+                <div class="metric-value" id="an-streak">--</div>
             </div>
             <div class="metric-card win">
                 <div class="metric-label">Largest Win</div>
@@ -710,6 +894,24 @@
                 <div class="card-body chart-container">
                     <canvas id="analyticsStrategyPnl"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-book-open"></i> P&amp;L by Playbook</h3>
+            </div>
+            <div class="card-body chart-container">
+                <canvas id="analyticsPlaybookPnl"></canvas>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-column"></i> Return Distribution</h3>
+            </div>
+            <div class="card-body chart-container">
+                <canvas id="analyticsReturnDistribution"></canvas>
             </div>
         </div>
     </div>
@@ -785,6 +987,12 @@
                                 <div class="strategy-dropdown" id="editor-strategy-dropdown"></div>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-book-open"></i> Playbook</label>
+                            <select id="editor-playbook">
+                                <option value="">No playbook</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -803,6 +1011,10 @@
                         <div class="form-group">
                             <label>Stop Loss</label>
                             <input type="number" step="0.01" id="editor-stop-loss" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Planned Target</label>
+                            <input type="number" step="0.01" id="editor-planned-target" placeholder="0.00">
                         </div>
                     </div>
                     <div class="form-row">
@@ -917,6 +1129,84 @@
                     </div>
                 </div>
 
+                <!-- Section: Trade Review -->
+                <div class="editor-section">
+                    <h4><i class="fas fa-clipboard-check"></i> Trade Review</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Execution Score</label>
+                            <select id="editor-execution-score">
+                                <option value="">Not reviewed</option>
+                                <option value="5">5 - Excellent</option>
+                                <option value="4">4 - Good</option>
+                                <option value="3">3 - Acceptable</option>
+                                <option value="2">2 - Poor</option>
+                                <option value="1">1 - Broken Process</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Setup Quality</label>
+                            <select id="editor-setup-quality">
+                                <option value="">Not set</option>
+                                <option value="A+">A+ Clean setup</option>
+                                <option value="A">A High quality</option>
+                                <option value="B">B Mixed quality</option>
+                                <option value="C">C Low quality</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rule Check</label>
+                            <label class="check-control">
+                                <input type="checkbox" id="editor-rule-followed">
+                                <span>Rules followed</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group fg-wide">
+                            <label>Mistake Tags</label>
+                            <div class="review-chip-group" id="editor-mistake-tags">
+                                <label class="review-chip"><input type="checkbox" value="Late entry"><span>Late entry</span></label>
+                                <label class="review-chip"><input type="checkbox" value="Chased move"><span>Chased move</span></label>
+                                <label class="review-chip"><input type="checkbox" value="Moved stop"><span>Moved stop</span></label>
+                                <label class="review-chip"><input type="checkbox" value="Early exit"><span>Early exit</span></label>
+                                <label class="review-chip"><input type="checkbox" value="Oversized"><span>Oversized</span></label>
+                                <label class="review-chip"><input type="checkbox" value="Ignored plan"><span>Ignored plan</span></label>
+                                <label class="review-chip"><input type="checkbox" value="News risk"><span>News risk</span></label>
+                            </div>
+                            <input type="text" id="editor-mistake-tags-custom" placeholder="Add custom tags, comma separated">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group fg-wide">
+                            <label>Review Notes</label>
+                            <textarea id="editor-review-notes" rows="2" placeholder="What should change on the next similar setup?"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Chart Attachments -->
+                <div class="editor-section">
+                    <h4><i class="fas fa-image"></i> Chart Attachments</h4>
+                    <div class="attachment-uploader">
+                        <label class="attachment-dropzone" for="editor-attachment-file">
+                            <input type="file" id="editor-attachment-file" accept="image/png,image/jpeg,image/webp,image/gif">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span id="editor-attachment-file-label">Choose chart image</span>
+                            <small>PNG, JPG, WEBP, or GIF</small>
+                        </label>
+                        <div class="attachment-fields">
+                            <input type="text" id="editor-attachment-caption" placeholder="Caption, setup note, or timeframe">
+                            <button type="button" class="btn btn-outline btn-sm" id="editor-attachment-upload-btn" onclick="uploadTradeAttachment()">
+                                <i class="fas fa-upload"></i> Upload
+                            </button>
+                        </div>
+                    </div>
+                    <div class="attachment-gallery" id="editor-attachment-gallery">
+                        <div class="empty-state compact">No chart images attached.</div>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button class="btn btn-primary" id="editor-save-btn" onclick="saveTradeEditor()">
                         <i class="fas fa-save"></i> Save Changes
@@ -992,6 +1282,111 @@
                         <tr><td colspan="12" class="empty-state">No open trades.</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Center View -->
+    <div class="view" id="view-review-center">
+        <div class="review-hero">
+            <div>
+                <span class="section-tag">Review Loop</span>
+                <h3>Turn closed trades into one concrete adjustment.</h3>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="loadReviewCenter()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+
+        <div class="overview-grid mt-4">
+            <div class="stat-card">
+                <div class="stat-card-icon blue"><i class="fas fa-inbox"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Pending Reviews</span>
+                    <span class="stat-card-value" id="rv-pending">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon cyan"><i class="fas fa-gauge-high"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Discipline Score</span>
+                    <span class="stat-card-value" id="rv-discipline">0%</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon green"><i class="fas fa-star-half-stroke"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Avg Execution</span>
+                    <span class="stat-card-value" id="rv-execution">0/5</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon orange"><i class="fas fa-list-check"></i></div>
+                <div class="stat-card-info">
+                    <span class="stat-card-label">Rule Follow Rate</span>
+                    <span class="stat-card-value" id="rv-rule-rate">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="review-layout mt-4">
+            <div class="card review-main">
+                <div class="card-header">
+                    <h3><i class="fas fa-calendar-days"></i> Daily Outcome Map</h3>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-heatmap" id="review-calendar-heatmap"></div>
+                    <div class="calendar-legend">
+                        <span><i class="legend-box loss"></i> Loss day</span>
+                        <span><i class="legend-box flat"></i> Flat/no trade</span>
+                        <span><i class="legend-box win"></i> Profit day</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card review-side">
+                <div class="card-header">
+                    <h3><i class="fas fa-compass"></i> Next Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div class="review-actions" id="review-action-items"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="review-layout mt-4">
+            <div class="card review-main">
+                <div class="card-header">
+                    <h3><i class="fas fa-clipboard-list"></i> Trades Waiting for Review</h3>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Instrument</th>
+                                <th>Setup</th>
+                                <th>P&amp;L</th>
+                                <th>R</th>
+                                <th>Exit</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="review-queue-tbody">
+                            <tr><td colspan="7" class="empty-state">No closed trades waiting for review.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card review-side">
+                <div class="card-header">
+                    <h3><i class="fas fa-triangle-exclamation"></i> Mistake Cost</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mistake-summary" id="review-mistake-total">No tagged mistake cost yet.</div>
+                    <div class="mistake-list" id="review-mistake-list"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1145,9 +1540,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Base URL prefix for API calls (handles /TradeVault reverse proxy)
-    window.TRADEVAULT_BASE = {{ request.script_root|tojson }};
-</script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+	<script>
+	    // Base URL prefix for API calls (handles /TradeVault reverse proxy)
+	    window.TRADEVAULT_BASE = {{ request.script_root|tojson }};
+	    window.TRADEVAULT_CSRF_TOKEN = {{ csrf_token()|tojson }};
+	</script>
+<script src="{{ static_url('js/app.js') }}"></script>
 {% endblock %}

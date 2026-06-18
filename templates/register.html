@@ -3,21 +3,16 @@
 {% block body_class %}auth-page{% endblock %}
 
 {% block content %}
-<div class="auth-bg">
-    <div class="grid-overlay"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-</div>
-
 <div class="auth-container">
     <div class="auth-card">
         <a href="{{ url_for('landing') }}" class="auth-back"><i class="fas fa-arrow-left"></i> Back</a>
         <div class="auth-header">
             <div class="auth-logo"><i class="fas fa-chart-line"></i></div>
             <h1>Create Account</h1>
-            <p>Start tracking your trading journey</p>
+            <p>Create your workspace and set up authenticator recovery</p>
         </div>
         <form method="POST" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><i class="fas fa-user"></i> Username</label>
                 <input type="text" name="username" required placeholder="Choose a username" autofocus>
@@ -31,7 +26,7 @@
                 <input type="password" name="confirm_password" required placeholder="Re-enter password">
             </div>
             <button type="submit" class="btn btn-primary btn-full">
-                <i class="fas fa-user-plus"></i> Register & Setup TOTP
+                <i class="fas fa-user-plus"></i> Register & Set Up Recovery
             </button>
         </form>
         <div class="auth-footer">

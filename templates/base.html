@@ -3,11 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}TradeVault{% endblock %}</title>
+    <script>
+        (() => {
+            try {
+                const stored = localStorage.getItem('tradevault-theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.dataset.theme = stored || (prefersDark ? 'dark' : 'light');
+            } catch {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -24,19 +36,48 @@
     {% endif %}
     {% endwith %}
 
-    <div id="free-server-notice" class="free-server-notice" hidden>
-        <div class="free-server-dot"></div>
-        <div class="free-server-copy">
-            <strong>Running on free hosting.</strong>
-            First request after inactivity may take a little longer while server wakes up.
-        </div>
-        <button id="free-server-notice-close" class="free-server-close" aria-label="Close notice">&times;</button>
-    </div>
-
     {% block content %}{% endblock %}
+
+    {% if not inline_theme_toggle|default(false) %}
+    <button class="theme-toggle theme-toggle-floating" data-theme-toggle type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <i class="fas fa-moon"></i>
+    </button>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
     <script>
+        (() => {
+            const root = document.documentElement;
+            const buttons = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+            if (!buttons.length) return;
+
+            const updateButtons = (theme) => {
+                const isDark = theme === 'dark';
+                buttons.forEach((button) => {
+                    button.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+                    button.setAttribute('title', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+                    button.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+                });
+            };
+
+            const applyTheme = (theme, persist = true) => {
+                const nextTheme = theme === 'dark' ? 'dark' : 'light';
+                root.dataset.theme = nextTheme;
+                if (persist) {
+                    try { localStorage.setItem('tradevault-theme', nextTheme); } catch {}
+                }
+                updateButtons(nextTheme);
+                if (persist) {
+                    window.dispatchEvent(new CustomEvent('tradevault-theme-change', { detail: { theme: nextTheme } }));
+                }
+            };
+
+            applyTheme(root.dataset.theme || 'light', false);
+            buttons.forEach((button) => button.addEventListener('click', () => {
+                applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+            }));
+        })();
+
         // Auto-dismiss flashes
         setTimeout(() => {
             document.querySelectorAll('.flash').forEach(el => {
@@ -44,22 +85,6 @@
                 setTimeout(() => el.remove(), 400);
             });
         }, 4000);
-
-        // Show free-hosting note until dismissed by user.
-        (() => {
-            const storageKey = 'tradevault_free_notice_dismissed_v1';
-            const notice = document.getElementById('free-server-notice');
-            const closeBtn = document.getElementById('free-server-notice-close');
-            if (!notice || !closeBtn) return;
-
-            const isDismissed = localStorage.getItem(storageKey) === '1';
-            if (!isDismissed) notice.hidden = false;
-
-            closeBtn.addEventListener('click', () => {
-                notice.remove();
-                localStorage.setItem(storageKey, '1');
-            });
-        })();
     </script>
 </body>
 </html>
