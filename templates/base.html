@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}TradeVault{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ static_url('img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ static_url('img/favicon-16.png') }}">
+    <link rel="icon" href="{{ static_url('img/favicon.ico') }}" sizes="any">
+    <link rel="apple-touch-icon" href="{{ static_url('img/apple-touch-icon.png') }}">
+    <meta name="theme-color" content="#f6f8f8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#11181c" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="{% block meta_description %}TradeVault — a private, manual trading journal and post-trade review workspace with playbooks, R-multiple risk tracking, and performance analytics.{% endblock %}">
+    <meta property="og:title" content="TradeVault — Private Trading Journal">
+    <meta property="og:description" content="Capture every trade, review execution quality, and track performance — a premium manual trading journal.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="{{ url_for('static', filename='img/wordmark-light.png', _external=True) }}">
+    <meta name="twitter:card" content="summary_large_image">
     <script>
         (() => {
             try {

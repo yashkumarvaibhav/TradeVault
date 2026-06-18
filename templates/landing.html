@@ -6,10 +6,10 @@
 {% block content %}
 <!-- Navbar -->
 <nav class="landing-nav">
-    <div class="nav-brand">
-        <i class="fas fa-chart-line"></i>
-        <span>TradeVault</span>
-    </div>
+    <a class="nav-brand" href="{{ url_for('landing') }}" aria-label="TradeVault home">
+        <img class="brand-wordmark brand-wordmark--light" src="{{ static_url('img/wordmark-light.png') }}" alt="TradeVault" width="653" height="128">
+        <img class="brand-wordmark brand-wordmark--dark" src="{{ static_url('img/wordmark-dark.png') }}" alt="TradeVault" width="653" height="128">
+    </a>
     <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#categories">Markets</a>
@@ -224,7 +224,8 @@
 <footer class="landing-footer">
     <div class="footer-content">
         <div class="footer-brand">
-            <i class="fas fa-chart-line"></i> TradeVault
+            <img class="brand-wordmark brand-wordmark--light" src="{{ static_url('img/wordmark-light.png') }}" alt="TradeVault" width="653" height="128">
+            <img class="brand-wordmark brand-wordmark--dark" src="{{ static_url('img/wordmark-dark.png') }}" alt="TradeVault" width="653" height="128">
         </div>
         <p>&copy; 2026 TradeVault. Private trading journal and performance review workspace.</p>
     </div>
