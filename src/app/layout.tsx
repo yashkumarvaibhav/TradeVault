@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -14,6 +15,10 @@ export const metadata: Metadata = {
   title: "TradeVault — private trade journal & review",
   description:
     "A private, disciplined trading journal and post-trade review workspace.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 // Set the persisted theme before paint to avoid a flash of the wrong theme.
@@ -31,9 +36,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+        <Script id="theme-init" strategy="beforeInteractive">{themeInit}</Script>
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

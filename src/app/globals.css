@@ -144,6 +144,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; }
+
 h1, h2, h3, h4 {
   font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
   color: var(--ink);
@@ -159,6 +162,14 @@ h1, h2, h3, h4 {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .theme-icon-sun { display: block; }
   :root:not([data-theme="light"]) .theme-icon-moon { display: none; }
+}
+
+.brand-wordmark-dark { display: none; }
+[data-theme="dark"] .brand-wordmark-light { display: none; }
+[data-theme="dark"] .brand-wordmark-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-wordmark-light { display: none; }
+  :root:not([data-theme="light"]) .brand-wordmark-dark { display: block; }
 }
 
 /* ── Accessibility baseline (app-wide) ── */
