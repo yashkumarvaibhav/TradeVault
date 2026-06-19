@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:verify": "tsx scripts/verify-db-baseline.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.17",
