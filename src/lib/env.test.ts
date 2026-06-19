@@ -6,6 +6,8 @@ describe("environment contract", () => {
   it("keeps database and telemetry optional for static builds", () => {
     expect(readServerEnvironment({})).toEqual({
       databaseUrl: null,
+      betterAuthSecret: null,
+      betterAuthUrl: null,
       sentryDsn: null,
       posthogProjectToken: null,
       posthogHost: null,
@@ -14,6 +16,7 @@ describe("environment contract", () => {
 
   it("validates configured URLs and paired PostHog settings", () => {
     expect(() => readServerEnvironment({ DATABASE_URL: "sqlite:///tmp/test.db" })).toThrow("postgres:");
+    expect(() => readServerEnvironment({ BETTER_AUTH_SECRET: "too-short" })).toThrow("BETTER_AUTH_SECRET");
     expect(() => readServerEnvironment({ NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: "ph_test" })).toThrow("NEXT_PUBLIC_POSTHOG_HOST");
     expect(readServerEnvironment({
       DATABASE_URL: "postgresql://localhost/tradevault",
