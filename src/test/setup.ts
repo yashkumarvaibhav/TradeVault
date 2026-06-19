@@ -11,3 +11,11 @@ Object.defineProperties(Element.prototype, {
   releasePointerCapture: { value: () => undefined },
   scrollIntoView: { value: () => undefined },
 });
+
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+globalThis.ResizeObserver = ResizeObserverMock;
