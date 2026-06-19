@@ -36,6 +36,14 @@ class TradeVaultSmokeTest(unittest.TestCase):
     def setUp(self):
         tradevault.app.config['TESTING'] = True
 
+    def test_public_metric_copy_uses_payoff_terminology(self):
+        with tradevault.app.test_client() as client:
+            landing_html = client.get('/').data.decode()
+            self.assertIn('Payoff Ratio', landing_html)
+            self.assertIn('Win-Rate Adjusted Payoff', landing_html)
+            self.assertNotIn('W/L Ratio', landing_html)
+            self.assertNotIn('Win/Loss Ratio', landing_html)
+
     def test_auth_password_change_validation_and_lot_pnl(self):
         with tradevault.app.test_client() as client:
             token = csrf_from(client.get('/register'))
@@ -61,6 +69,9 @@ class TradeVaultSmokeTest(unittest.TestCase):
 
             api_token = csrf_from(client.get('/dashboard'))
             headers = {'X-CSRF-Token': api_token}
+            dashboard_html = client.get('/dashboard').data.decode()
+            self.assertIn('Payoff Ratio', dashboard_html)
+            self.assertIn('Win-Rate Adjusted Payoff', dashboard_html)
 
             playbook = client.post('/api/playbooks', json={
                 'name': 'Opening Range Breakout',
@@ -137,6 +148,7 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(trade['playbook_name'], 'Opening Range Breakout')
             analytics = client.get('/api/analytics').get_json()
             self.assertTrue(analytics['return_distribution'])
+            self.assertIsNone(analytics['payoff_ratio'])
             self.assertEqual(analytics['avg_execution_score'], 4)
             self.assertEqual(analytics['playbook_pnl']['Opening Range Breakout'], 1000)
             review = client.get('/api/review/summary').get_json()
@@ -176,6 +188,41 @@ class TradeVaultSmokeTest(unittest.TestCase):
             )
             self.assertEqual(deleted_attachment.status_code, 200)
             self.assertEqual(client.get(f'/api/trades/{trade_id}/attachments').get_json(), [])
+
+            losing_trade = client.post('/api/trades', json={
+                'asset_category': 'Equity',
+                'subcategory': 'Large Cap',
+                'trading_style': 'Intraday',
+                'instrument': 'LOSS TEST',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-18T12:00',
+                'stop_loss': 90,
+                'position_size': 1,
+                'direction': 'Long',
+                'currency': 'INR',
+            }, headers=headers)
+            self.assertEqual(losing_trade.status_code, 201)
+            losing_trade_id = losing_trade.get_json()['id']
+            closed_loss = client.patch(f'/api/trades/{losing_trade_id}', json={
+                'asset_category': 'Equity',
+                'subcategory': 'Large Cap',
+                'trading_style': 'Intraday',
+                'instrument': 'LOSS TEST',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-18T12:00',
+                'stop_loss': 90,
+                'position_size': 1,
+                'direction': 'Long',
+                'currency': 'INR',
+                'exit_price': 80,
+                'exit_datetime': '2026-06-18T13:00',
+                'status': 'closed',
+            }, headers=headers)
+            self.assertEqual(closed_loss.status_code, 200)
+            analytics = client.get('/api/analytics').get_json()
+            self.assertEqual(analytics['payoff_ratio'], 50)
+            self.assertEqual(analytics['payoff_ratio'], analytics['win_loss_ratio'])
+            self.assertEqual(analytics['adjusted_payoff_ratio'], analytics['adjusted_wl_ratio'])
 
             token = csrf_from(client.get('/change-password'))
             changed = client.post('/change-password', data={

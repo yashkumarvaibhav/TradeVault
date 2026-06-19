@@ -18,13 +18,21 @@
 
 ## Current checkpoint
 
-**Active task:** `UX-P0-001` — Correct payoff-ratio terminology.  
-**State:** `IN PROGRESS`  
-**Owner:** Codex  
-**Baseline:** `1602f3657807add3366b534f5b25451ea8280165`  
-**Working tree at claim:** Clean.  
-**Baseline verification:** Python compile, smoke suite, and JavaScript syntax all pass on 2026-06-19 UTC.  
-**Next exact action:** Introduce an explicit `payoff_ratio` analytics field while retaining `win_loss_ratio` as a compatibility alias, update Overview/Analytics labels and JavaScript consumers, add smoke assertions, then run standard verification.
+**Active task:** None; the last bounded slice is complete and safe to hand off.
+
+**State:** `READY`
+
+**Last owner:** Codex
+
+**Last completed task:** `UX-P0-001` — Correct payoff-ratio terminology.
+
+**Implementation baseline:** `a9f89c0` (continuity bootstrap). The completion is the commit with subject `Correct payoff ratio terminology`.
+
+**Working tree expectation:** Clean after the checkpoint commit. Investigate before editing if it is not.
+
+**Verification:** Python compile, 2-test smoke suite, JavaScript syntax, and diff check pass on 2026-06-19 UTC.
+
+**Next exact action:** Inspect the `UX-P0-001` checkpoint commit, then claim `UX-P0-002`. Audit the analytics response and Overview chart consumers for every raw cross-currency aggregation before designing the compatible per-currency response shape. Do not patch the UI before the data contract and mixed-currency tests are defined.
 
 ## Execution order
 
@@ -34,7 +42,7 @@ Do not begin a later phase merely because it is visually exciting. Finish trust 
 
 | ID | Status | Scope | Acceptance summary |
 |---|---|---|---|
-| `UX-P0-001` | IN PROGRESS | Correct payoff-ratio terminology | UI says Payoff Ratio; API exposes `payoff_ratio`; compatibility retained; tests cover formula/label contract. |
+| `UX-P0-001` | DONE | Correct payoff-ratio terminology | UI says Payoff Ratio; API exposes `payoff_ratio`; compatibility retained; tests cover formula/label contract. |
 | `UX-P0-002` | TODO | Eliminate raw mixed-currency aggregation | Overview and Analytics money totals/series split by currency or require currency scope; warnings appear wherever needed; tests cover INR+USD. |
 | `UX-P0-003` | TODO | Split Close / Review / Edit intent | Close and Review lead with relevant fields; historical entry data is read-only by default; Edit retains full form. |
 | `UX-P0-004` | TODO | Live Close Preview | Direction-aware realized P&L and realized R update before submit; Forex manual-P&L path retained and tested. |
@@ -106,4 +114,3 @@ git diff --check
 ```
 
 Visual slices additionally require recorded desktop/mobile and light/dark inspection. Deployment verification is separate and only occurs when explicitly authorized.
-

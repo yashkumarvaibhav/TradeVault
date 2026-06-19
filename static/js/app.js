@@ -76,6 +76,10 @@ function formatCurrencyAmount(currency, value) {
     return `${symbol}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatRatio(value) {
+    return value === null || value === undefined ? '—' : value;
+}
+
 // ─── View Management ─────────────────────────────────────────
 
 const VIEW_SLUGS = {
@@ -747,7 +751,8 @@ async function loadOverview() {
         document.getElementById('ov-wins').textContent = analytics.winning_trades;
         document.getElementById('ov-losses').textContent = analytics.losing_trades;
         document.getElementById('ov-winrate').textContent = analytics.win_pct + '%';
-        document.getElementById('ov-wlratio').textContent = analytics.win_loss_ratio;
+        const payoffRatio = analytics.payoff_ratio !== undefined ? analytics.payoff_ratio : analytics.win_loss_ratio;
+        document.getElementById('ov-wlratio').textContent = formatRatio(payoffRatio);
         renderEquityCurve('overviewEquityCurve', analytics.equity_curve || []);
         renderMonthlyPnl('overviewMonthlyPnl', analytics.monthly_pnl || []);
     }
@@ -1637,8 +1642,10 @@ async function loadAnalytics() {
     document.getElementById('an-winpct').textContent = data.win_pct + '%';
     document.getElementById('an-avgwin').textContent = sym + data.avg_win.toLocaleString();
     document.getElementById('an-avgloss').textContent = sym + data.avg_loss.toLocaleString();
-    document.getElementById('an-wlratio').textContent = data.win_loss_ratio;
-    document.getElementById('an-adjwl').textContent = data.adjusted_wl_ratio;
+    const payoffRatio = data.payoff_ratio !== undefined ? data.payoff_ratio : data.win_loss_ratio;
+    const adjustedPayoffRatio = data.adjusted_payoff_ratio !== undefined ? data.adjusted_payoff_ratio : data.adjusted_wl_ratio;
+    document.getElementById('an-wlratio').textContent = formatRatio(payoffRatio);
+    document.getElementById('an-adjwl').textContent = formatRatio(adjustedPayoffRatio);
     document.getElementById('an-profit-factor').textContent = data.profit_factor === null ? '∞' : data.profit_factor;
     document.getElementById('an-expectancy').textContent = sym + data.expectancy.toLocaleString();
     document.getElementById('an-planned-rr').textContent = data.avg_planned_rr ? `${data.avg_planned_rr}R` : '0';

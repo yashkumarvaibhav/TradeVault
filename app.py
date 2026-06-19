@@ -2124,6 +2124,7 @@ def api_analytics():
         return jsonify({
             'total_trades': 0, 'winning_trades': 0, 'losing_trades': 0,
             'win_pct': 0, 'avg_win': 0, 'avg_loss': 0,
+            'payoff_ratio': 0, 'adjusted_payoff_ratio': 0,
             'win_loss_ratio': 0, 'adjusted_wl_ratio': 0,
             'largest_win': 0, 'largest_loss': 0,
             'avg_win_duration_hrs': 0, 'avg_loss_duration_hrs': 0,
@@ -2240,7 +2241,7 @@ def api_analytics():
     avg_win = (sum(w['pnl'] for w in wins) / win_count) if wins else 0
     avg_loss = (sum(l['pnl'] for l in losses) / loss_count) if losses else 0
 
-    win_loss_ratio = (avg_win / abs(avg_loss)) if avg_loss != 0 else (avg_win if avg_win else 0)
+    payoff_ratio = (avg_win / abs(avg_loss)) if avg_loss != 0 else None
     gross_profit = sum(w['pnl'] for w in wins)
     gross_loss = abs(sum(l['pnl'] for l in losses))
     profit_factor = (gross_profit / gross_loss) if gross_loss else (None if gross_profit else 0)
@@ -2258,7 +2259,7 @@ def api_analytics():
     if loss_pct > 0 and avg_loss != 0:
         adjusted = (win_pct / 100 * avg_win) / (loss_pct / 100 * abs(avg_loss))
     else:
-        adjusted = win_loss_ratio
+        adjusted = None
 
     largest_win = max((w['pnl'] for w in wins), default=0)
     largest_loss = min((l['pnl'] for l in losses), default=0)
@@ -2283,8 +2284,11 @@ def api_analytics():
         'win_pct': round(win_pct, 2),
         'avg_win': round(avg_win, 2),
         'avg_loss': round(avg_loss, 2),
-        'win_loss_ratio': round(win_loss_ratio, 2),
-        'adjusted_wl_ratio': round(adjusted, 2),
+        'payoff_ratio': round(payoff_ratio, 2) if payoff_ratio is not None else None,
+        'adjusted_payoff_ratio': round(adjusted, 2) if adjusted is not None else None,
+        # Compatibility aliases for older clients. New UI code uses the explicit payoff names.
+        'win_loss_ratio': round(payoff_ratio, 2) if payoff_ratio is not None else None,
+        'adjusted_wl_ratio': round(adjusted, 2) if adjusted is not None else None,
         'largest_win': round(largest_win, 2),
         'largest_loss': round(largest_loss, 2),
         'avg_win_duration_hrs': round(avg_win_dur, 2),
