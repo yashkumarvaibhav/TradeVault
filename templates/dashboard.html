@@ -149,6 +149,13 @@
             </div>
         </div>
 
+        <div class="intl-info mt-4" id="overview-currency-warning" role="status" style="display:none">
+            <i class="fas fa-triangle-exclamation"></i>
+            Multiple currencies are present. Money charts use separate currency series and axes; select one currency for a focused view.
+        </div>
+
+        <div class="intl-info mt-4" id="overview-currency-summary" role="status" style="display:none"></div>
+
         <!-- Overview Filters -->
         <div class="card mt-4">
             <div class="card-header">
@@ -776,12 +783,12 @@
         </div>
 
         <!-- Metrics Cards -->
-        <div class="intl-info mt-4" id="analytics-currency-warning" style="display:none">
+        <div class="intl-info mt-4" id="analytics-currency-warning" role="status" style="display:none">
             <i class="fas fa-triangle-exclamation"></i>
-            Multiple currencies are present. Monetary totals are grouped by currency; select one currency for ratio-style review.
+            Multiple currencies are present. Money metrics and trend charts are split by currency; select one currency for category, strategy, and playbook comparisons.
         </div>
 
-        <div class="intl-info mt-4" id="analytics-currency-summary" style="display:none"></div>
+        <div class="intl-info mt-4" id="analytics-currency-summary" role="status" style="display:none"></div>
 
         <div class="metrics-grid mt-4">
             <div class="metric-card">

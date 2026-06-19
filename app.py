@@ -2043,6 +2043,122 @@ def api_delete_trade(trade_id):
 
 # ─── Routes: Analytics API ───────────────────────────────────────
 
+def build_currency_analytics(trades):
+    """Build every money-derived analytic inside an explicit currency scope."""
+    grouped = {}
+    for trade in trades:
+        currency = trade.get('currency') or 'INR'
+        grouped.setdefault(currency, []).append(trade)
+
+    result = {}
+    for currency, currency_trades in sorted(grouped.items()):
+        wins = []
+        losses = []
+        equity_curve = []
+        category_pnl = {}
+        monthly_pnl = {}
+        strategy_pnl = {}
+        playbook_pnl = {}
+        mistake_cost_by_tag = {}
+
+        for trade in currency_trades:
+            pnl = calculate_trade_pnl(trade)
+            if pnl is None:
+                continue
+
+            if pnl >= 0:
+                wins.append(pnl)
+            else:
+                losses.append(pnl)
+
+            exit_date = trade.get('exit_datetime') or trade.get('entry_datetime') or ''
+            equity_curve.append({
+                'date': exit_date,
+                'pnl': round(pnl, 2),
+                'instrument': trade.get('instrument', ''),
+                'currency': currency,
+            })
+
+            category = trade.get('asset_category') or 'Other'
+            category_pnl[category] = round(category_pnl.get(category, 0) + pnl, 2)
+
+            if exit_date:
+                month_key = exit_date[:7]
+                monthly_pnl[month_key] = round(monthly_pnl.get(month_key, 0) + pnl, 2)
+
+            strategy = trade.get('strategy') or 'No Strategy'
+            strategy_pnl[strategy] = round(strategy_pnl.get(strategy, 0) + pnl, 2)
+            playbook = trade.get('playbook_name') or 'No Playbook'
+            playbook_pnl[playbook] = round(playbook_pnl.get(playbook, 0) + pnl, 2)
+
+            if pnl < 0:
+                tags = [tag.strip() for tag in (trade.get('mistake_tags') or '').split(',') if tag.strip()]
+                for tag in tags:
+                    mistake_cost_by_tag[tag] = round(mistake_cost_by_tag.get(tag, 0) + abs(pnl), 2)
+
+        equity_curve.sort(key=lambda point: point['date'])
+        cumulative = 0
+        peak = 0
+        max_drawdown = 0
+        for point in equity_curve:
+            cumulative += point['pnl']
+            point['cumulative'] = round(cumulative, 2)
+            peak = max(peak, cumulative)
+            max_drawdown = min(max_drawdown, cumulative - peak)
+
+        total = len(currency_trades)
+        win_count = len(wins)
+        loss_count = len(losses)
+        win_pct = (win_count / total * 100) if total else 0
+        loss_pct = 100 - win_pct
+        avg_win = (sum(wins) / win_count) if wins else 0
+        avg_loss = (sum(losses) / loss_count) if losses else 0
+        payoff_ratio = (avg_win / abs(avg_loss)) if avg_loss else None
+        adjusted_payoff_ratio = (
+            (win_pct / 100 * avg_win) / (loss_pct / 100 * abs(avg_loss))
+            if loss_pct > 0 and avg_loss else None
+        )
+        gross_profit = sum(wins)
+        gross_loss = abs(sum(losses))
+        profit_factor = (gross_profit / gross_loss) if gross_loss else (None if gross_profit else 0)
+        net_pnl = sum(point['pnl'] for point in equity_curve)
+        expectancy = (net_pnl / total) if total else 0
+
+        result[currency] = {
+            'currency': currency,
+            'total_trades': total,
+            'winning_trades': win_count,
+            'losing_trades': loss_count,
+            'win_pct': round(win_pct, 2),
+            'net_pnl': round(net_pnl, 2),
+            'avg_win': round(avg_win, 2),
+            'avg_loss': round(avg_loss, 2),
+            'payoff_ratio': round(payoff_ratio, 2) if payoff_ratio is not None else None,
+            'adjusted_payoff_ratio': (
+                round(adjusted_payoff_ratio, 2) if adjusted_payoff_ratio is not None else None
+            ),
+            'profit_factor': round(profit_factor, 2) if profit_factor is not None else None,
+            'expectancy': round(expectancy, 2),
+            'max_drawdown': round(max_drawdown, 2),
+            'largest_win': round(max(wins, default=0), 2),
+            'largest_loss': round(min(losses, default=0), 2),
+            'equity_curve': equity_curve,
+            'monthly_pnl': [
+                {'month': month, 'pnl': value}
+                for month, value in sorted(monthly_pnl.items())
+            ],
+            'category_pnl': category_pnl,
+            'strategy_pnl': strategy_pnl,
+            'playbook_pnl': playbook_pnl,
+            'mistake_cost_by_tag': [
+                {'tag': tag, 'cost': cost}
+                for tag, cost in sorted(mistake_cost_by_tag.items(), key=lambda item: item[1], reverse=True)
+            ],
+        }
+
+    return result
+
+
 @app.route('/api/analytics')
 @login_required
 def api_analytics():
@@ -2134,6 +2250,7 @@ def api_analytics():
             'rule_follow_rate': 0, 'discipline_score': 0, 'mistake_cost_by_tag': [],
             'equity_curve': [], 'category_pnl': {}, 'monthly_pnl': [],
             'strategy_pnl': {}, 'playbook_pnl': {}, 'pnl_by_currency': {}, 'currencies': [],
+            'currency_analytics': {}, 'money_scope': 'empty',
             'mixed_currency': False, 'return_distribution': []
         })
 
@@ -2146,14 +2263,10 @@ def api_analytics():
     reviewed_trades = 0
     rule_review_count = 0
     rule_followed_count = 0
-    mistake_cost_by_tag = {}
-    equity_curve = []  # For cumulative P&L chart
-    category_pnl = {}  # P&L breakdown by asset category
-    monthly_pnl = {}   # P&L breakdown by month
-    strategy_pnl = {}  # P&L breakdown by strategy
-    playbook_pnl = {}  # P&L breakdown by playbook
-    pnl_by_currency = {}
+    result_events = []
     currencies = sorted({t.get('currency') or 'INR' for t in trades})
+    currency_analytics = build_currency_analytics(trades)
+    mixed_currency = not currency_filter and len(currencies) > 1
 
     for t in trades:
         pnl = calculate_trade_pnl(t)
@@ -2176,76 +2289,29 @@ def api_analytics():
             rule_review_count += 1
             if normalize_bool(t.get('rule_followed')):
                 rule_followed_count += 1
-        tags = [tag.strip() for tag in (t.get('mistake_tags') or '').split(',') if tag.strip()]
-        if pnl < 0 and tags:
-            for tag in tags:
-                mistake_cost_by_tag[tag] = round(mistake_cost_by_tag.get(tag, 0) + abs(pnl), 2)
-        currency = t.get('currency') or 'INR'
-        pnl_by_currency[currency] = round(pnl_by_currency.get(currency, 0) + pnl, 2)
-
-        # Equity curve point
-        exit_date = t.get('exit_datetime', t.get('entry_datetime', ''))
-        equity_curve.append({'date': exit_date, 'pnl': round(pnl, 2), 'instrument': t.get('instrument', '')})
-
-        # Category breakdown
-        cat = t.get('asset_category', 'Other')
-        category_pnl[cat] = round(category_pnl.get(cat, 0) + pnl, 2)
-
-        # Monthly breakdown
-        try:
-            month_key = exit_date[:7]  # YYYY-MM
-            monthly_pnl[month_key] = round(monthly_pnl.get(month_key, 0) + pnl, 2)
-        except:
-            pass
-
-        # Strategy breakdown
-        strat = t.get('strategy', '') or 'No Strategy'
-        strategy_pnl[strat] = round(strategy_pnl.get(strat, 0) + pnl, 2)
-        playbook = t.get('playbook_name') or 'No Playbook'
-        playbook_pnl[playbook] = round(playbook_pnl.get(playbook, 0) + pnl, 2)
 
         try:
             entry_dt = datetime.fromisoformat(t['entry_datetime'])
             exit_dt = datetime.fromisoformat(t['exit_datetime'])
             duration_hrs = (exit_dt - entry_dt).total_seconds() / 3600
-        except:
+        except (TypeError, ValueError):
             duration_hrs = 0
 
+        result_events.append({
+            'date': t.get('exit_datetime') or t.get('entry_datetime') or '',
+            'pnl': pnl,
+        })
         if pnl >= 0:
-            wins.append({'pnl': pnl, 'pct': pnl_pct, 'duration': duration_hrs})
+            wins.append({'duration': duration_hrs})
         else:
-            losses.append({'pnl': pnl, 'pct': pnl_pct, 'duration': duration_hrs})
+            losses.append({'duration': duration_hrs})
 
-    # Sort equity curve by date and compute cumulative P&L
-    equity_curve.sort(key=lambda x: x['date'])
-    cumulative = 0
-    peak = 0
-    max_drawdown = 0
-    for point in equity_curve:
-        cumulative += point['pnl']
-        point['cumulative'] = round(cumulative, 2)
-        peak = max(peak, cumulative)
-        drawdown = cumulative - peak
-        max_drawdown = min(max_drawdown, drawdown)
-
-    # Sort monthly P&L by month
-    sorted_monthly = sorted(monthly_pnl.items())
-    monthly_chart = [{'month': m, 'pnl': v} for m, v in sorted_monthly]
     return_distribution = build_return_distribution(pct_returns)
 
     total = len(trades)
     win_count = len(wins)
     loss_count = len(losses)
     win_pct = (win_count / total * 100) if total else 0
-
-    avg_win = (sum(w['pnl'] for w in wins) / win_count) if wins else 0
-    avg_loss = (sum(l['pnl'] for l in losses) / loss_count) if losses else 0
-
-    payoff_ratio = (avg_win / abs(avg_loss)) if avg_loss != 0 else None
-    gross_profit = sum(w['pnl'] for w in wins)
-    gross_loss = abs(sum(l['pnl'] for l in losses))
-    profit_factor = (gross_profit / gross_loss) if gross_loss else (None if gross_profit else 0)
-    expectancy = (sum((calculate_trade_pnl(t) or 0) for t in trades) / total) if total else 0
     avg_planned_rr = (sum(planned_rr_values) / len(planned_rr_values)) if planned_rr_values else 0
     avg_realized_r = (sum(realized_r_values) / len(realized_r_values)) if realized_r_values else 0
     avg_execution_score = (sum(execution_scores) / len(execution_scores)) if execution_scores else 0
@@ -2254,21 +2320,12 @@ def api_analytics():
     discipline_components = [value for value in (execution_component, rule_follow_rate) if value]
     discipline_score = (sum(discipline_components) / len(discipline_components)) if discipline_components else 0
 
-    # Adjusted win-loss ratio: (win_pct * avg_win) / ((1-win_pct) * |avg_loss|)
-    loss_pct = 100 - win_pct
-    if loss_pct > 0 and avg_loss != 0:
-        adjusted = (win_pct / 100 * avg_win) / (loss_pct / 100 * abs(avg_loss))
-    else:
-        adjusted = None
-
-    largest_win = max((w['pnl'] for w in wins), default=0)
-    largest_loss = min((l['pnl'] for l in losses), default=0)
-
     avg_win_dur = (sum(w['duration'] for w in wins) / win_count) if wins else 0
     avg_loss_dur = (sum(l['duration'] for l in losses) / loss_count) if losses else 0
     current_streak_count = 0
     current_streak_type = ''
-    for point in reversed(equity_curve):
+    result_events.sort(key=lambda point: point['date'])
+    for point in reversed(result_events):
         point_type = 'W' if point['pnl'] >= 0 else 'L'
         if not current_streak_type:
             current_streak_type = point_type
@@ -2277,45 +2334,64 @@ def api_analytics():
         current_streak_count += 1
     current_streak = f'{current_streak_count}{current_streak_type}' if current_streak_count else ''
 
+    single_money = next(iter(currency_analytics.values())) if len(currency_analytics) == 1 else None
+
+    def legacy_money(field, default=None):
+        if mixed_currency:
+            return None
+        if single_money is None:
+            return default
+        return single_money[field]
+
+    legacy_equity = single_money['equity_curve'] if single_money and not mixed_currency else []
+    legacy_monthly = single_money['monthly_pnl'] if single_money and not mixed_currency else []
+    legacy_category = single_money['category_pnl'] if single_money and not mixed_currency else {}
+    legacy_strategy = single_money['strategy_pnl'] if single_money and not mixed_currency else {}
+    legacy_playbook = single_money['playbook_pnl'] if single_money and not mixed_currency else {}
+    legacy_mistakes = single_money['mistake_cost_by_tag'] if single_money and not mixed_currency else []
+    pnl_by_currency = {
+        currency: analytics['net_pnl']
+        for currency, analytics in currency_analytics.items()
+    }
+
     return jsonify({
         'total_trades': total,
         'winning_trades': win_count,
         'losing_trades': loss_count,
         'win_pct': round(win_pct, 2),
-        'avg_win': round(avg_win, 2),
-        'avg_loss': round(avg_loss, 2),
-        'payoff_ratio': round(payoff_ratio, 2) if payoff_ratio is not None else None,
-        'adjusted_payoff_ratio': round(adjusted, 2) if adjusted is not None else None,
-        # Compatibility aliases for older clients. New UI code uses the explicit payoff names.
-        'win_loss_ratio': round(payoff_ratio, 2) if payoff_ratio is not None else None,
-        'adjusted_wl_ratio': round(adjusted, 2) if adjusted is not None else None,
-        'largest_win': round(largest_win, 2),
-        'largest_loss': round(largest_loss, 2),
+        'avg_win': legacy_money('avg_win', 0),
+        'avg_loss': legacy_money('avg_loss', 0),
+        'payoff_ratio': legacy_money('payoff_ratio', 0),
+        'adjusted_payoff_ratio': legacy_money('adjusted_payoff_ratio', 0),
+        # Compatibility aliases remain valid only when the request resolves to one currency.
+        'win_loss_ratio': legacy_money('payoff_ratio', 0),
+        'adjusted_wl_ratio': legacy_money('adjusted_payoff_ratio', 0),
+        'largest_win': legacy_money('largest_win', 0),
+        'largest_loss': legacy_money('largest_loss', 0),
         'avg_win_duration_hrs': round(avg_win_dur, 2),
         'avg_loss_duration_hrs': round(avg_loss_dur, 2),
-        'profit_factor': round(profit_factor, 2) if profit_factor is not None else None,
-        'expectancy': round(expectancy, 2),
+        'profit_factor': legacy_money('profit_factor', 0),
+        'expectancy': legacy_money('expectancy', 0),
         'avg_planned_rr': round(avg_planned_rr, 2),
         'avg_realized_r': round(avg_realized_r, 2),
-        'max_drawdown': round(max_drawdown, 2),
+        'max_drawdown': legacy_money('max_drawdown', 0),
         'current_streak': current_streak,
         'reviewed_trades': reviewed_trades,
         'review_pending': max(total - reviewed_trades, 0),
         'avg_execution_score': round(avg_execution_score, 2),
         'rule_follow_rate': round(rule_follow_rate, 2),
         'discipline_score': round(discipline_score, 2),
-        'mistake_cost_by_tag': [
-            {'tag': tag, 'cost': cost}
-            for tag, cost in sorted(mistake_cost_by_tag.items(), key=lambda item: item[1], reverse=True)
-        ],
-        'equity_curve': equity_curve,
-        'category_pnl': category_pnl,
-        'monthly_pnl': monthly_chart,
-        'strategy_pnl': strategy_pnl,
-        'playbook_pnl': playbook_pnl,
+        'mistake_cost_by_tag': legacy_mistakes,
+        'equity_curve': legacy_equity,
+        'category_pnl': legacy_category,
+        'monthly_pnl': legacy_monthly,
+        'strategy_pnl': legacy_strategy,
+        'playbook_pnl': legacy_playbook,
         'pnl_by_currency': pnl_by_currency,
         'currencies': currencies,
-        'mixed_currency': not currency_filter and len(currencies) > 1,
+        'currency_analytics': currency_analytics,
+        'money_scope': 'per_currency' if mixed_currency else 'single_currency',
+        'mixed_currency': mixed_currency,
         'return_distribution': return_distribution
     })
 

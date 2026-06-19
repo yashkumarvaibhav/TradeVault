@@ -73,11 +73,70 @@ function formatReviewBadge(trade) {
 function formatCurrencyAmount(currency, value) {
     const num = Number(value || 0);
     const symbol = CURRENCY_SYMBOLS[currency] || `${currency || ''} `;
-    return `${symbol}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const sign = num < 0 ? '-' : '';
+    return `${sign}${symbol}${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatRatio(value) {
     return value === null || value === undefined ? '—' : value;
+}
+
+function currencyAnalyticsEntries(data) {
+    return Object.entries(data?.currency_analytics || {}).sort(([a], [b]) => a.localeCompare(b));
+}
+
+function chartCurrencyAnalytics(data, currencyHint = 'INR') {
+    if (currencyAnalyticsEntries(data).length) return data.currency_analytics;
+    const hasLegacyChartData = (data?.equity_curve || []).length || (data?.monthly_pnl || []).length;
+    if (!hasLegacyChartData) return {};
+    return {
+        [currencyHint]: {
+            equity_curve: data.equity_curve || [],
+            monthly_pnl: data.monthly_pnl || [],
+            category_pnl: data.category_pnl || {},
+            strategy_pnl: data.strategy_pnl || {},
+            playbook_pnl: data.playbook_pnl || {},
+        }
+    };
+}
+
+function formatCurrencyMetric(data, field, currencyHint = 'INR') {
+    const entries = currencyAnalyticsEntries(data);
+    if (!entries.length) return formatCurrencyAmount(currencyHint, data?.[field] ?? 0);
+    return entries.map(([currency, analytics]) => formatCurrencyAmount(currency, analytics[field])).join(' · ');
+}
+
+function formatCurrencyRatioMetric(data, field, nullText = '—') {
+    const entries = currencyAnalyticsEntries(data);
+    if (!entries.length) {
+        const value = data?.[field];
+        return value === null || value === undefined ? nullText : value;
+    }
+    const includeCurrency = entries.length > 1;
+    return entries.map(([currency, analytics]) => {
+        const value = analytics[field];
+        const numeric = Number(value);
+        const formatted = value === null || value === undefined
+            ? nullText
+            : (Number.isFinite(numeric) ? numeric.toLocaleString(undefined, { maximumFractionDigits: 2 }) : value);
+        return includeCurrency ? `${currency} ${formatted}` : formatted;
+    }).join(' · ');
+}
+
+function renderCurrencyDisclosure(data, warningId, summaryId) {
+    const warning = document.getElementById(warningId);
+    if (warning) warning.style.display = data.mixed_currency ? '' : 'none';
+    const summary = document.getElementById(summaryId);
+    if (!summary) return;
+    const parts = Object.entries(data.pnl_by_currency || {}).map(([currency, amount]) => {
+        const value = Number(amount || 0);
+        const cls = value >= 0 ? 'pnl-positive' : 'pnl-negative';
+        return `<span class="${cls}">${formatCurrencyAmount(currency, value)}</span>`;
+    });
+    summary.innerHTML = parts.length
+        ? `<i class="fas fa-coins"></i> Net P&amp;L by currency: ${parts.join(' ')}`
+        : '';
+    summary.style.display = parts.length ? '' : 'none';
 }
 
 // ─── View Management ─────────────────────────────────────────
@@ -751,10 +810,12 @@ async function loadOverview() {
         document.getElementById('ov-wins').textContent = analytics.winning_trades;
         document.getElementById('ov-losses').textContent = analytics.losing_trades;
         document.getElementById('ov-winrate').textContent = analytics.win_pct + '%';
-        const payoffRatio = analytics.payoff_ratio !== undefined ? analytics.payoff_ratio : analytics.win_loss_ratio;
-        document.getElementById('ov-wlratio').textContent = formatRatio(payoffRatio);
-        renderEquityCurve('overviewEquityCurve', analytics.equity_curve || []);
-        renderMonthlyPnl('overviewMonthlyPnl', analytics.monthly_pnl || []);
+        document.getElementById('ov-wlratio').textContent = formatCurrencyRatioMetric(analytics, 'payoff_ratio');
+        renderCurrencyDisclosure(analytics, 'overview-currency-warning', 'overview-currency-summary');
+        const currencyHint = document.getElementById('ov-filter-currency')?.value || analytics.currencies?.[0] || 'INR';
+        const chartsByCurrency = chartCurrencyAnalytics(analytics, currencyHint);
+        renderEquityCurve('overviewEquityCurve', chartsByCurrency);
+        renderMonthlyPnl('overviewMonthlyPnl', chartsByCurrency);
     }
     if (trades) {
         document.getElementById('ov-open').textContent = trades.length;
@@ -1617,51 +1678,42 @@ async function loadAnalytics() {
     const data = await apiGet(`/api/analytics?${params.toString()}`);
     if (!data) return;
 
-    // Determine currency symbol based on selected currency filter
-    const currVal = document.getElementById('analytics-currency')?.value;
-    const sym = data.mixed_currency ? '' : (currVal ? (CURRENCY_SYMBOLS[currVal] || currVal) : (data.currencies?.length === 1 ? (CURRENCY_SYMBOLS[data.currencies[0]] || data.currencies[0]) : ''));
-    const warning = document.getElementById('analytics-currency-warning');
-    if (warning) warning.style.display = data.mixed_currency ? '' : 'none';
-    const currencySummary = document.getElementById('analytics-currency-summary');
-    if (currencySummary) {
-        const parts = Object.entries(data.pnl_by_currency || {}).map(([cur, val]) => {
-            const value = Number(val || 0);
-            const curSym = CURRENCY_SYMBOLS[cur] || `${escapeHTML(cur)} `;
-            const cls = value >= 0 ? 'pnl-positive' : 'pnl-negative';
-            return `<span class="${cls}">${curSym}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
-        });
-        currencySummary.innerHTML = parts.length
-            ? `<i class="fas fa-coins"></i> Net P&L by currency: ${parts.join(' ')}`
-            : '';
-        currencySummary.style.display = parts.length ? '' : 'none';
-    }
+    const currVal = document.getElementById('analytics-currency')?.value || data.currencies?.[0] || 'INR';
+    renderCurrencyDisclosure(data, 'analytics-currency-warning', 'analytics-currency-summary');
 
     document.getElementById('an-total').textContent = data.total_trades;
     document.getElementById('an-wins').textContent = data.winning_trades;
     document.getElementById('an-losses').textContent = data.losing_trades;
     document.getElementById('an-winpct').textContent = data.win_pct + '%';
-    document.getElementById('an-avgwin').textContent = sym + data.avg_win.toLocaleString();
-    document.getElementById('an-avgloss').textContent = sym + data.avg_loss.toLocaleString();
-    const payoffRatio = data.payoff_ratio !== undefined ? data.payoff_ratio : data.win_loss_ratio;
-    const adjustedPayoffRatio = data.adjusted_payoff_ratio !== undefined ? data.adjusted_payoff_ratio : data.adjusted_wl_ratio;
-    document.getElementById('an-wlratio').textContent = formatRatio(payoffRatio);
-    document.getElementById('an-adjwl').textContent = formatRatio(adjustedPayoffRatio);
-    document.getElementById('an-profit-factor').textContent = data.profit_factor === null ? '∞' : data.profit_factor;
-    document.getElementById('an-expectancy').textContent = sym + data.expectancy.toLocaleString();
+    document.getElementById('an-avgwin').textContent = formatCurrencyMetric(data, 'avg_win', currVal);
+    document.getElementById('an-avgloss').textContent = formatCurrencyMetric(data, 'avg_loss', currVal);
+    document.getElementById('an-wlratio').textContent = formatCurrencyRatioMetric(data, 'payoff_ratio');
+    document.getElementById('an-adjwl').textContent = formatCurrencyRatioMetric(data, 'adjusted_payoff_ratio');
+    document.getElementById('an-profit-factor').textContent = formatCurrencyRatioMetric(data, 'profit_factor', '∞');
+    document.getElementById('an-expectancy').textContent = formatCurrencyMetric(data, 'expectancy', currVal);
     document.getElementById('an-planned-rr').textContent = data.avg_planned_rr ? `${data.avg_planned_rr}R` : '0';
     document.getElementById('an-realized-r').textContent = data.avg_realized_r ? `${data.avg_realized_r}R` : '0R';
-    document.getElementById('an-max-dd').textContent = sym + data.max_drawdown.toLocaleString();
+    document.getElementById('an-max-dd').textContent = formatCurrencyMetric(data, 'max_drawdown', currVal);
     document.getElementById('an-streak').textContent = data.current_streak || '--';
-    document.getElementById('an-lgwin').textContent = sym + data.largest_win.toLocaleString();
-    document.getElementById('an-lgloss').textContent = sym + data.largest_loss.toLocaleString();
+    document.getElementById('an-lgwin').textContent = formatCurrencyMetric(data, 'largest_win', currVal);
+    document.getElementById('an-lgloss').textContent = formatCurrencyMetric(data, 'largest_loss', currVal);
     document.getElementById('an-windur').textContent = data.avg_win_duration_hrs + 'h';
     document.getElementById('an-lossdur').textContent = data.avg_loss_duration_hrs + 'h';
 
-    renderEquityCurve('analyticsEquityCurve', data.equity_curve || []);
-    renderMonthlyPnl('analyticsMonthlyPnl', data.monthly_pnl || []);
-    renderCategoryPnl('analyticsCategoryPnl', data.category_pnl || {});
-    renderStrategyPnl('analyticsStrategyPnl', data.strategy_pnl || {});
-    renderStrategyPnl('analyticsPlaybookPnl', data.playbook_pnl || {}, 'No playbook P&L yet', 'Link trades to playbooks to compare setups.');
+    const chartsByCurrency = chartCurrencyAnalytics(data, currVal);
+    renderEquityCurve('analyticsEquityCurve', chartsByCurrency);
+    renderMonthlyPnl('analyticsMonthlyPnl', chartsByCurrency);
+    const scopedEntries = Object.entries(chartsByCurrency);
+    if (data.mixed_currency) {
+        renderEmptyChart('analyticsCategoryPnl', 'Choose one currency', 'Category P&L requires a single currency scope.');
+        renderEmptyChart('analyticsStrategyPnl', 'Choose one currency', 'Strategy P&L requires a single currency scope.');
+        renderEmptyChart('analyticsPlaybookPnl', 'Choose one currency', 'Playbook P&L requires a single currency scope.');
+    } else {
+        const [currency, scoped] = scopedEntries[0] || [currVal, {}];
+        renderCategoryPnl('analyticsCategoryPnl', scoped.category_pnl || data.category_pnl || {}, currency);
+        renderStrategyPnl('analyticsStrategyPnl', scoped.strategy_pnl || data.strategy_pnl || {}, undefined, undefined, currency);
+        renderStrategyPnl('analyticsPlaybookPnl', scoped.playbook_pnl || data.playbook_pnl || {}, 'No playbook P&L yet', 'Link trades to playbooks to compare setups.', currency);
+    }
     renderReturnDistribution('analyticsReturnDistribution', data.return_distribution || []);
 }
 
@@ -1727,6 +1779,7 @@ function chartTooltip() {
 }
 
 function renderEmptyChart(canvasId, title, detail) {
+    destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
 
@@ -1770,138 +1823,159 @@ function renderEmptyChart(canvasId, title, detail) {
 
 // ─── Equity Curve ────────────────────────────────────────
 
-function renderEquityCurve(canvasId, equityData) {
+function formatCompactCurrencyAmount(currency, value) {
+    const symbol = CURRENCY_SYMBOLS[currency] || `${currency} `;
+    const formatted = new Intl.NumberFormat(undefined, {
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(Number(value || 0));
+    return `${symbol}${formatted}`;
+}
+
+function currencyChartScales(entries) {
+    const scales = {
+        x: { display: true, ticks: { ...chartTick(), maxRotation: 45, maxTicksLimit: 12 }, grid: chartGrid() }
+    };
+    entries.forEach(([currency], index) => {
+        scales[`currency-${index}`] = {
+            type: 'linear',
+            position: index === 0 ? 'left' : 'right',
+            ticks: {
+                ...chartTick(),
+                callback: (value) => formatCompactCurrencyAmount(currency, value),
+            },
+            grid: {
+                ...chartGrid(),
+                drawOnChartArea: index === 0,
+            },
+            title: {
+                display: true,
+                text: currency,
+                color: cssVar('--chart-tick', '#61706f'),
+            },
+        };
+    });
+    return scales;
+}
+
+function renderEquityCurve(canvasId, analyticsByCurrency) {
     destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-    if (!equityData.length) {
+    const entries = Object.entries(analyticsByCurrency || {})
+        .filter(([, analytics]) => (analytics.equity_curve || []).length);
+    if (!entries.length) {
         renderEmptyChart(canvasId, 'No closed trades yet', 'Close a trade to build the equity curve.');
         return;
     }
 
-    const labels = equityData.map((d, i) => {
-        if (d.date) {
-            const dt = d.date.replace('T', ' ').substring(0, 10);
-            return dt;
-        }
-        return `#${i + 1}`;
-    });
-    const cumData = equityData.map(d => d.cumulative);
-    const perTradePnl = equityData.map(d => d.pnl);
-
-    // Determine gradient: green above 0, red below
-    const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.parentElement?.clientHeight || 300);
-    const lastVal = cumData[cumData.length - 1] || 0;
-    if (lastVal >= 0) {
-        gradient.addColorStop(0, 'rgba(34,197,94,0.25)');
-        gradient.addColorStop(1, 'rgba(34,197,94,0.01)');
-    } else {
-        gradient.addColorStop(0, 'rgba(239,68,68,0.01)');
-        gradient.addColorStop(1, 'rgba(239,68,68,0.25)');
-    }
+    const maxPoints = Math.max(...entries.map(([, analytics]) => analytics.equity_curve.length));
+    const labels = Array.from({ length: maxPoints }, (_, index) => `Trade ${index + 1}`);
+    const colors = [CHART_COLORS.teal, CHART_COLORS.blue, CHART_COLORS.orange, CHART_COLORS.purple];
+    const datasets = entries.map(([currency, analytics], index) => ({
+        label: `${currency} cumulative P&L`,
+        data: analytics.equity_curve.map(point => point.cumulative),
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length].replace('0.88', '0.12'),
+        borderWidth: 2.5,
+        fill: entries.length === 1,
+        tension: 0.3,
+        pointRadius: analytics.equity_curve.length > 30 ? 0 : 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: colors[index % colors.length],
+        yAxisID: `currency-${index}`,
+        currency,
+        points: analytics.equity_curve,
+    }));
 
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Cumulative P&L',
-                data: cumData,
-                borderColor: lastVal >= 0 ? CHART_COLORS.green : CHART_COLORS.red,
-                backgroundColor: gradient,
-                borderWidth: 2.5,
-                fill: true,
-                tension: 0.3,
-                pointRadius: cumData.length > 30 ? 0 : 3,
-                pointHoverRadius: 5,
-                pointBackgroundColor: lastVal >= 0 ? CHART_COLORS.green : CHART_COLORS.red
-            }]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
+            interaction: { mode: 'nearest', intersect: false },
             plugins: {
-                legend: { display: false },
+                legend: { display: entries.length > 1, labels: { color: cssVar('--chart-tick', '#61706f') } },
                 tooltip: {
                     ...chartTooltip(),
                     callbacks: {
                         title: (items) => {
-                            const i = items[0].dataIndex;
-                            const inst = equityData[i]?.instrument || '';
-                            return `Trade #${i + 1}${inst ? ' – ' + inst : ''}`;
+                            const item = items[0];
+                            const point = item.dataset.points?.[item.dataIndex];
+                            const instrument = point?.instrument || '';
+                            return `${item.dataset.currency} trade ${item.dataIndex + 1}${instrument ? ' – ' + instrument : ''}`;
                         },
-                        afterTitle: (items) => labels[items[0].dataIndex],
-                        label: (item) => `Cumulative: ${item.raw >= 0 ? '+' : ''}${item.raw.toLocaleString()}`,
+                        afterTitle: (items) => items[0].dataset.points?.[items[0].dataIndex]?.date || '',
+                        label: (item) => `Cumulative: ${formatCurrencyAmount(item.dataset.currency, item.raw)}`,
                         afterLabel: (item) => {
-                            const pnl = perTradePnl[item.dataIndex];
-                            return `This trade: ${pnl >= 0 ? '+' : ''}${pnl.toLocaleString()}`;
+                            const pnl = item.dataset.points?.[item.dataIndex]?.pnl;
+                            return `This trade: ${formatCurrencyAmount(item.dataset.currency, pnl)}`;
                         }
                     }
                 }
             },
-            scales: {
-                x: { display: true, ticks: { ...chartTick(), maxRotation: 45, maxTicksLimit: 12 }, grid: chartGrid() },
-                y: { ticks: chartTick(), grid: chartGrid() }
-            }
+            scales: currencyChartScales(entries),
         }
     });
 }
 
 // ─── Monthly P&L Bar Chart ───────────────────────────────
 
-function renderMonthlyPnl(canvasId, monthlyData) {
+function renderMonthlyPnl(canvasId, analyticsByCurrency) {
     destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-    if (!monthlyData.length) {
+    const entries = Object.entries(analyticsByCurrency || {})
+        .filter(([, analytics]) => (analytics.monthly_pnl || []).length);
+    if (!entries.length) {
         renderEmptyChart(canvasId, 'No monthly P&L yet', 'Closed trades will group by month here.');
         return;
     }
 
-    const labels = monthlyData.map(d => {
-        const parts = d.month.split('-');
+    const months = [...new Set(entries.flatMap(([, analytics]) => analytics.monthly_pnl.map(row => row.month)))].sort();
+    const labels = months.map(month => {
+        const parts = month.split('-');
         const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         return monthNames[parseInt(parts[1]) - 1] + ' ' + parts[0].slice(2);
     });
-    const values = monthlyData.map(d => d.pnl);
-    const colors = values.map(v => v >= 0 ? CHART_COLORS.green : CHART_COLORS.red);
+    const colors = [CHART_COLORS.teal, CHART_COLORS.blue, CHART_COLORS.orange, CHART_COLORS.purple];
+    const datasets = entries.map(([currency, analytics], index) => {
+        const byMonth = Object.fromEntries(analytics.monthly_pnl.map(row => [row.month, row.pnl]));
+        return {
+            label: `${currency} monthly P&L`,
+            data: months.map(month => byMonth[month] ?? null),
+            backgroundColor: colors[index % colors.length],
+            borderColor: colors[index % colors.length].replace('0.88', '1'),
+            borderWidth: 1,
+            borderRadius: 6,
+            barPercentage: entries.length > 1 ? 0.55 : 0.7,
+            yAxisID: `currency-${index}`,
+            currency,
+        };
+    });
 
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Monthly P&L',
-                data: values,
-                backgroundColor: colors,
-                borderColor: colors.map(c => c.replace('0.88', '1')),
-                borderWidth: 1,
-                borderRadius: 6,
-                barPercentage: 0.7
-            }]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { display: entries.length > 1, labels: { color: cssVar('--chart-tick', '#61706f') } },
                 tooltip: {
                     ...chartTooltip(),
                     callbacks: {
-                        label: (item) => `P&L: ${item.raw >= 0 ? '+' : ''}${item.raw.toLocaleString()}`
+                        label: (item) => `${item.dataset.currency}: ${formatCurrencyAmount(item.dataset.currency, item.raw)}`
                     }
                 }
             },
-            scales: {
-                x: { ticks: chartTick(), grid: chartGrid() },
-                y: { ticks: chartTick(), grid: chartGrid() }
-            }
+            scales: currencyChartScales(entries),
         }
     });
 }
 
 // ─── Category P&L Horizontal Bar ─────────────────────────
 
-function renderCategoryPnl(canvasId, categoryData) {
+function renderCategoryPnl(canvasId, categoryData, currency = 'INR') {
     destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
@@ -1936,12 +2010,15 @@ function renderCategoryPnl(canvasId, categoryData) {
                 tooltip: {
                     ...chartTooltip(),
                     callbacks: {
-                        label: (item) => `P&L: ${item.raw >= 0 ? '+' : ''}${item.raw.toLocaleString()}`
+                        label: (item) => `P&L: ${formatCurrencyAmount(currency, item.raw)}`
                     }
                 }
             },
             scales: {
-                x: { ticks: chartTick(), grid: chartGrid() },
+                x: {
+                    ticks: { ...chartTick(), callback: (value) => formatCompactCurrencyAmount(currency, value) },
+                    grid: chartGrid(),
+                },
                 y: { ticks: { ...chartTick(), font: { size: 12, weight: 600 } }, grid: { display: false } }
             }
         }
@@ -1950,7 +2027,7 @@ function renderCategoryPnl(canvasId, categoryData) {
 
 // ─── Strategy P&L Doughnut ───────────────────────────────
 
-function renderStrategyPnl(canvasId, strategyData, emptyTitle = 'No strategy P&L yet', emptyDetail = 'Tag trades with strategies to compare them.') {
+function renderStrategyPnl(canvasId, strategyData, emptyTitle = 'No strategy P&L yet', emptyDetail = 'Tag trades with strategies to compare them.', currency = 'INR') {
     destroyChart(canvasId);
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
@@ -1985,12 +2062,15 @@ function renderStrategyPnl(canvasId, strategyData, emptyTitle = 'No strategy P&L
                 tooltip: {
                     ...chartTooltip(),
                     callbacks: {
-                        label: (item) => `P&L: ${item.raw >= 0 ? '+' : ''}${item.raw.toLocaleString()}`
+                        label: (item) => `P&L: ${formatCurrencyAmount(currency, item.raw)}`
                     }
                 }
             },
             scales: {
-                x: { ticks: chartTick(), grid: chartGrid() },
+                x: {
+                    ticks: { ...chartTick(), callback: (value) => formatCompactCurrencyAmount(currency, value) },
+                    grid: chartGrid(),
+                },
                 y: { ticks: { ...chartTick(), font: { size: 12, weight: 600 } }, grid: { display: false } }
             }
         }

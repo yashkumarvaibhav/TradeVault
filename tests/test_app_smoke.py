@@ -72,6 +72,8 @@ class TradeVaultSmokeTest(unittest.TestCase):
             dashboard_html = client.get('/dashboard').data.decode()
             self.assertIn('Payoff Ratio', dashboard_html)
             self.assertIn('Win-Rate Adjusted Payoff', dashboard_html)
+            self.assertIn('overview-currency-warning', dashboard_html)
+            self.assertIn('analytics-currency-warning', dashboard_html)
 
             playbook = client.post('/api/playbooks', json={
                 'name': 'Opening Range Breakout',
@@ -223,6 +225,71 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(analytics['payoff_ratio'], 50)
             self.assertEqual(analytics['payoff_ratio'], analytics['win_loss_ratio'])
             self.assertEqual(analytics['adjusted_payoff_ratio'], analytics['adjusted_wl_ratio'])
+            self.assertEqual(analytics['currency_analytics']['INR']['net_pnl'], 980)
+            self.assertEqual(analytics['currency_analytics']['INR']['expectancy'], 490)
+
+            usd_trade = client.post('/api/trades', json={
+                'asset_category': 'US Index',
+                'subcategory': 'S&P 500',
+                'trading_style': 'Swing',
+                'instrument': 'USD TEST',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-19T12:00',
+                'stop_loss': 90,
+                'position_size': 1,
+                'lot_size': 1,
+                'direction': 'Long',
+                'currency': 'USD',
+            }, headers=headers)
+            self.assertEqual(usd_trade.status_code, 201)
+            usd_trade_id = usd_trade.get_json()['id']
+            closed_usd = client.patch(f'/api/trades/{usd_trade_id}', json={
+                'asset_category': 'US Index',
+                'subcategory': 'S&P 500',
+                'trading_style': 'Swing',
+                'instrument': 'USD TEST',
+                'entry_price': 100,
+                'entry_datetime': '2026-06-19T12:00',
+                'stop_loss': 90,
+                'position_size': 1,
+                'lot_size': 1,
+                'direction': 'Long',
+                'currency': 'USD',
+                'exit_price': 150,
+                'exit_datetime': '2026-06-19T13:00',
+                'status': 'closed',
+            }, headers=headers)
+            self.assertEqual(closed_usd.status_code, 200)
+
+            mixed = client.get('/api/analytics').get_json()
+            self.assertTrue(mixed['mixed_currency'])
+            self.assertEqual(mixed['money_scope'], 'per_currency')
+            self.assertEqual(mixed['pnl_by_currency'], {'INR': 980, 'USD': 50})
+            self.assertEqual(set(mixed['currency_analytics']), {'INR', 'USD'})
+            self.assertEqual(mixed['currency_analytics']['INR']['monthly_pnl'], [
+                {'month': '2026-06', 'pnl': 980}
+            ])
+            self.assertEqual(mixed['currency_analytics']['USD']['net_pnl'], 50)
+            self.assertEqual(mixed['currency_analytics']['USD']['expectancy'], 50)
+            self.assertEqual(mixed['currency_analytics']['USD']['equity_curve'][0]['cumulative'], 50)
+            for field in (
+                'avg_win', 'avg_loss', 'payoff_ratio', 'adjusted_payoff_ratio',
+                'win_loss_ratio', 'adjusted_wl_ratio', 'profit_factor', 'expectancy',
+                'max_drawdown', 'largest_win', 'largest_loss',
+            ):
+                self.assertIsNone(mixed[field], field)
+            for field in ('equity_curve', 'monthly_pnl'):
+                self.assertEqual(mixed[field], [], field)
+            for field in ('category_pnl', 'strategy_pnl', 'playbook_pnl'):
+                self.assertEqual(mixed[field], {}, field)
+
+            usd_only = client.get('/api/analytics?currency=USD').get_json()
+            self.assertFalse(usd_only['mixed_currency'])
+            self.assertEqual(usd_only['money_scope'], 'single_currency')
+            self.assertEqual(usd_only['expectancy'], 50)
+            self.assertEqual(usd_only['largest_win'], 50)
+            self.assertEqual(usd_only['pnl_by_currency'], {'USD': 50})
+            self.assertEqual(set(usd_only['currency_analytics']), {'USD'})
 
             token = csrf_from(client.get('/change-password'))
             changed = client.post('/change-password', data={
