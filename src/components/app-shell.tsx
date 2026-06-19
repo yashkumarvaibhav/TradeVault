@@ -1,21 +1,11 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
-import {
-  BarChart3,
-  BookOpenText,
-  CalendarDays,
-  ChartNoAxesCombined,
-  FileText,
-  LayoutDashboard,
-  Menu,
-  Plus,
-  Search,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
 
+import { CommandPalette } from "@/components/command-palette";
+import { navItems } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -24,26 +14,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Toaster, toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Overview", icon: LayoutDashboard, active: true },
-  { label: "My trades", icon: BarChart3 },
-  { label: "Analytics", icon: ChartNoAxesCombined },
-  { label: "Review center", icon: ShieldCheck },
-  { label: "Calendar", icon: CalendarDays },
-  { label: "Notes", icon: BookOpenText },
-  { label: "Reports", icon: FileText },
-];
-
-function Wordmark() {
+function Wordmark({ widthClass = "w-44" }: { widthClass?: string }) {
   return (
-    <div className="relative h-10 w-44" aria-label="TradeVault">
+    <div className={cn("relative h-10", widthClass)} aria-label="TradeVault">
       <Image
         src="/brand/wordmark-light.png"
         alt="TradeVault"
         width={700}
         height={116}
         priority
-        className="brand-wordmark-light h-auto w-44"
+        className={cn("brand-wordmark-light h-auto", widthClass)}
       />
       <Image
         src="/brand/wordmark-dark.png"
@@ -52,7 +32,7 @@ function Wordmark() {
         height={116}
         priority
         aria-hidden="true"
-        className="brand-wordmark-dark absolute inset-0 h-auto w-44"
+        className={cn("brand-wordmark-dark absolute inset-0 h-auto", widthClass)}
       />
     </div>
   );
@@ -67,11 +47,11 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
       </div>
 
       <nav className="flex-1 space-y-1 p-3" aria-label="Primary navigation">
-        {navItems.map(({ label, icon: Icon, active }) =>
+        {navItems.map(({ label, icon: Icon, href, active }) =>
           active ? (
             <a
               key={label}
-              href="#overview"
+              href={href}
               aria-current="page"
               className="flex min-h-11 items-center gap-3 rounded-md border border-line-strong bg-accent-soft px-3 text-sm font-semibold text-ink"
             >
@@ -111,6 +91,20 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+
+  // Cmd/Ctrl+K toggles the command palette from anywhere in the app.
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <TooltipProvider>
       <div className="min-h-svh bg-page md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
@@ -136,18 +130,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Sheet>
 
             <div className="mr-auto md:hidden">
-              <Wordmark />
+              <Wordmark widthClass="w-36" />
             </div>
+
+            <Button
+              variant="outline"
+              className="hidden w-64 justify-start text-muted lg:inline-flex"
+              onClick={() => setPaletteOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <Search aria-hidden="true" />
+              Search your vault
+              <kbd className="ml-auto rounded-sm border border-line px-1.5 py-0.5 text-[10px] text-faint">⌘ K</kbd>
+            </Button>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" className="hidden w-64 justify-start text-muted lg:inline-flex" disabled>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  onClick={() => setPaletteOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-label="Open command palette"
+                >
                   <Search aria-hidden="true" />
-                  Search your vault
-                  <kbd className="ml-auto rounded-sm border border-line px-1.5 py-0.5 text-[10px] text-faint">⌘ K</kbd>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Global search arrives with the command palette.</TooltipContent>
+              <TooltipContent>Search &amp; commands (⌘K)</TooltipContent>
             </Tooltip>
 
             <Chip tone="accent" className="hidden sm:inline-flex">
@@ -156,11 +166,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
             <Button
               size="compact"
+              aria-label="Add trade"
               onClick={() => toast.info("Add Trade workspace is next", { description: "The foundation preview does not write journal data." })}
             >
               <Plus aria-hidden="true" />
               <span className="hidden sm:inline">Add trade</span>
-              <span className="sm:hidden">Add</span>
             </Button>
           </header>
 
@@ -169,6 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <Toaster />
     </TooltipProvider>
   );
