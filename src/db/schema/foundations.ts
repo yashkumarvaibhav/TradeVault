@@ -41,13 +41,21 @@ export function moneyColumns(prefix: string) {
 }
 
 /**
- * Product user record. Better Auth core/session tables land in P1 after its
- * generated schema is reconciled with this username-first migration contract.
+ * Product user record — also Better Auth's `user` model (mapped via `user.modelName`).
+ * Property keys mirror Better Auth field names (camelCase) so the Drizzle adapter resolves
+ * columns; DB columns stay snake_case. `email` is a synthesized, non-user-facing identifier
+ * (`<username>@users.tradevault.local`) — login stays username-only; email is never shown or
+ * used for verification. See `auth.ts` for the session/account/verification tables.
  */
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   username: text("username").notNull(),
   displayUsername: text("display_username").notNull(),
+  // Better Auth core fields. `name` defaults to the display username at sign-up.
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
   displayName: text("display_name"),
   legacyPasswordHash: text("legacy_password_hash"),
   legacyPasswordSalt: text("legacy_password_salt"),
@@ -59,8 +67,10 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("users_username_unique").on(table.username),
+  uniqueIndex("users_email_unique").on(table.email),
   check("users_username_normalized_check", sql`${table.username} = lower(${table.username})`),
   check("users_username_not_blank_check", sql`length(trim(${table.username})) >= 3`),
+  check("users_email_not_blank_check", sql`length(trim(${table.email})) > 0`),
   check("users_failed_login_attempts_nonnegative_check", sql`${table.failedLoginAttempts} >= 0`),
 ]);
 

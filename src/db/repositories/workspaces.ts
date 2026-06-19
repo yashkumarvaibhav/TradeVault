@@ -25,6 +25,16 @@ export function normalizeUsername(username: string) {
   return username.trim().toLowerCase();
 }
 
+const SYNTHETIC_EMAIL_DOMAIN = "users.tradevault.local";
+
+/**
+ * Non-user-facing identifier that satisfies Better Auth's required `email` field while
+ * login stays username-only. Never shown to users and never used for verification.
+ */
+export function synthesizeAuthEmail(username: string) {
+  return `${normalizeUsername(username)}@${SYNTHETIC_EMAIL_DOMAIN}`;
+}
+
 export function normalizeTenantSlug(slug: string) {
   return slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -43,10 +53,14 @@ export async function provisionWorkspace(db: Database, input: {
   if (!tenantSlug) throw new Error("Tenant slug cannot be empty.");
   if (!input.tenantName.trim()) throw new Error("Tenant name cannot be empty.");
 
+  const displayUsername = input.displayUsername?.trim() || input.username.trim();
+
   return db.transaction(async (tx) => {
     const [user] = await tx.insert(users).values({
       username,
-      displayUsername: input.displayUsername?.trim() || input.username.trim(),
+      displayUsername,
+      name: displayUsername,
+      email: synthesizeAuthEmail(username),
       displayName: input.displayName?.trim() || null,
     }).returning();
 

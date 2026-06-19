@@ -58,6 +58,8 @@ try {
   });
 
   assert.equal(yash.user.username, "yashkumarvaibhav");
+  assert.equal(yash.user.name, "YashKumarVaibhav");
+  assert.equal(yash.user.email, "yashkumarvaibhav@users.tradevault.local");
   assert.equal(yash.account.name, "Main");
   assert.equal(yash.account.defaultCurrency, "INR");
 
@@ -97,7 +99,10 @@ try {
     "22P02",
   );
   await expectPostgresError(
-    () => rawQuery("insert into users (username, display_username) values ('UpperCase', 'UpperCase')"),
+    () => rawQuery(
+      "insert into users (username, display_username, name, email) " +
+      "values ('UpperCase', 'UpperCase', 'UpperCase', 'uppercase@users.tradevault.local')",
+    ),
     "23514",
   );
 
@@ -110,7 +115,7 @@ try {
   });
 
   const migrationCount = await rawQuery('select count(*) from drizzle."__tradevault_migrations"');
-  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 1);
+  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 2);
 
   const engine = nodePostgres ? "external disposable PostgreSQL" : "in-process PostgreSQL (PGlite)";
   console.log(`Database baseline verified on ${engine}: migration, ownership constraints, tenant isolation, and currency guards are green.`);
