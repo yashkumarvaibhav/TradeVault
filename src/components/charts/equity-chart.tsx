@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { AxisBottom } from "@visx/axis";
 import { curveMonotoneX } from "@visx/curve";
 import { GridRows } from "@visx/grid";
@@ -8,6 +9,7 @@ import { scaleLinear } from "@visx/scale";
 import { AreaClosed, LinePath } from "@visx/shape";
 
 import type { Currency } from "@/lib/domain/types";
+import { ChartStatePanel, type ChartRenderState } from "@/components/charts/chart-state";
 
 export interface EquityDatum {
   label: string;
@@ -18,7 +20,23 @@ const width = 760;
 const height = 286;
 const margin = { top: 18, right: 18, bottom: 38, left: 18 };
 
-export function EquityChart({ points, currency }: { points: EquityDatum[]; currency: Currency }) {
+export function EquityChart({
+  points,
+  currency,
+  mode = "equity",
+  state = "ready",
+  stateMessage,
+}: {
+  points: EquityDatum[];
+  currency: Currency;
+  mode?: "equity" | "drawdown";
+  state?: ChartRenderState;
+  stateMessage?: string;
+}) {
+  const id = React.useId();
+  const effectiveState = state === "ready" && points.length === 0 ? "empty" : state;
+  if (effectiveState !== "ready") return <ChartStatePanel state={effectiveState} message={stateMessage} />;
+
   const values = points.map(({ value }) => value);
   const low = Math.min(0, ...values);
   const high = Math.max(0, ...values);
@@ -30,6 +48,10 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
     currency,
     maximumFractionDigits: currency === "INR" ? 0 : 2,
   });
+  const metric = mode === "equity" ? "Cumulative net P&L" : "Underwater drawdown";
+  const chartTitle = mode === "equity" ? `${currency} cumulative net P&L equity curve` : `${currency} underwater drawdown curve`;
+  const lineColor = mode === "equity" ? "var(--accent)" : "var(--loss)";
+  const fillColor = mode === "equity" ? "var(--accent-soft)" : "color-mix(in srgb, var(--loss) 12%, transparent)";
 
   return (
     <figure>
@@ -37,10 +59,10 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
         viewBox={`0 0 ${width} ${height}`}
         className="h-auto w-full overflow-visible"
         role="img"
-        aria-labelledby={`equity-${currency}-title equity-${currency}-desc`}
+        aria-labelledby={`${id}-title ${id}-desc`}
       >
-        <title id={`equity-${currency}-title`}>{`${currency} cumulative net P&L equity curve`}</title>
-        <desc id={`equity-${currency}-desc`}>{`Preview sample of ${points.length} closed-trade checkpoints. Values range from ${format.format(low)} to ${format.format(high)}.`}</desc>
+        <title id={`${id}-title`}>{chartTitle}</title>
+        <desc id={`${id}-desc`}>{`${metric}, measured in ${currency}, for closed preview trades over 30 days. ${points.length} checkpoints. Values range from ${format.format(low)} to ${format.format(high)}.`}</desc>
         <Group>
           <GridRows
             scale={yScale}
@@ -50,6 +72,7 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
             numTicks={4}
           />
           <line
+            data-zero-line="true"
             x1={margin.left}
             x2={width - margin.right}
             y1={yScale(0)}
@@ -64,7 +87,7 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
             y={({ value }) => yScale(value)}
             yScale={yScale}
             curve={curveMonotoneX}
-            fill="var(--accent-soft)"
+            fill={fillColor}
             stroke="transparent"
           />
           <LinePath
@@ -72,7 +95,7 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
             x={(_, index) => xScale(index)}
             y={({ value }) => yScale(value)}
             curve={curveMonotoneX}
-            stroke="var(--accent)"
+            stroke={lineColor}
             strokeWidth={3}
           />
           {points.map((point, index) => (
@@ -82,10 +105,10 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
               cy={yScale(point.value)}
               r={4}
               fill="var(--raised)"
-              stroke="var(--accent)"
+              stroke={lineColor}
               strokeWidth={2}
               tabIndex={0}
-              aria-label={`${point.label}: ${format.format(point.value)} cumulative ${currency} net P&L`}
+              aria-label={`${point.label}: ${format.format(point.value)} ${metric} in ${currency}`}
             >
               <title>{`${point.label}: ${format.format(point.value)}`}</title>
             </circle>
@@ -102,9 +125,16 @@ export function EquityChart({ points, currency }: { points: EquityDatum[]; curre
         </Group>
       </svg>
       <figcaption className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-        <span>Cumulative net P&amp;L · {currency} · closed trades · preview sample</span>
+        <span>{metric} · {currency} · closed trades · 30 days</span>
         <span>Zero line shown · {points.length} checkpoints</span>
       </figcaption>
+      <div className="sr-only">
+        <table className="w-px max-w-px table-fixed break-all whitespace-normal">
+          <caption>{metric} values in {currency} for the preview sample</caption>
+          <thead><tr><th>Checkpoint</th><th>{currency}</th></tr></thead>
+          <tbody>{points.map((point) => <tr key={point.label}><td>{point.label}</td><td>{format.format(point.value)}</td></tr>)}</tbody>
+        </table>
+      </div>
     </figure>
   );
 }

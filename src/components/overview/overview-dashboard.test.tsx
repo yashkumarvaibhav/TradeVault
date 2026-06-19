@@ -10,14 +10,21 @@ describe("overview visual milestone", () => {
     const user = userEvent.setup();
     render(<OverviewDashboard />);
 
-    expect(screen.getByText("₹18,420")).toBeVisible();
+    expect(screen.getAllByText("₹18,420")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("INR");
+
+    await user.click(screen.getByRole("radio", { name: "Drawdown" }));
+    expect(screen.getByRole("img", { name: /INR underwater drawdown curve/i })).toBeVisible();
+    await user.click(screen.getByRole("radio", { name: "Equity" }));
+
+    await user.click(screen.getByRole("tab", { name: "Return distribution" }));
+    expect(screen.getByRole("img", { name: /Return distribution histogram/i })).toBeVisible();
 
     const currency = screen.getByRole("combobox", { name: "Currency scope" });
     await user.click(currency);
     await user.click(screen.getByRole("option", { name: "USD" }));
 
-    expect(screen.getByText("$486.75")).toBeVisible();
+    expect(screen.getAllByText("$486.75")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("USD");
     expect(screen.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
     expect(screen.queryByText("₹18,420")).not.toBeInTheDocument();
