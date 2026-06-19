@@ -1,0 +1,38 @@
+# Dedicated, persistent PostgreSQL for TradeVault v2.
+#
+# Isolation contract (see AI_HANDOFF.md):
+#   - Loopback-only on host port 5544. The unrelated placement-tracker-postgres
+#     owns 127.0.0.1:5433 and must never be touched.
+#   - Credentials live in the gitignored infra/tradevault-db.env (never committed).
+#   - Data persists in the named volume tradevault_pgdata across restarts.
+#
+# Usage:
+#   docker compose up -d            # start (auto-creates the volume on first run)
+#   docker compose ps              # status + health
+#   docker compose logs -f postgres
+#   docker compose down            # stop (volume is preserved)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: tradevault-postgres
+    restart: unless-stopped
+    # Bind ONLY to loopback so the database is never exposed off-box.
+    ports:
+      - "127.0.0.1:5544:5432"
+    env_file:
+      - infra/tradevault-db.env
+    volumes:
+      - tradevault_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready against the configured role/db; container is "healthy" once it answers.
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 30s
+
+volumes:
+  tradevault_pgdata:
+    name: tradevault_pgdata

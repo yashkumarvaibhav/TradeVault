@@ -20,6 +20,10 @@ test-results/
 .env
 .env.*
 !.env.example
+# Dedicated Postgres credentials + systemd runtime env (never commit real secrets)
+/infra/*.env
+# Local database dumps
+/infra/backups/
 
 # Local databases and exports
 *.db
