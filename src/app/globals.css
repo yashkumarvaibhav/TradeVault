@@ -1,26 +1,170 @@
 @import "tailwindcss";
 
+/* ───────────────────────────────────────────────────────────
+   TradeVault design tokens — graphic-identity.md
+   Editorial system: IIITD teal + Newsreader/Arial, hairline
+   borders, restrained elevation, complete light/dark.
+   Teal = brand/interaction. Green/red = outcome only.
+   ─────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Brand / accent */
+  --accent: #3fada8;
+  --accent-hover: #359a95;
+  --accent-soft: rgba(63, 173, 168, 0.12);
+  --accent-contrast: #ffffff;
+
+  /* Ink / text */
+  --ink: #333333;
+  --body: #4d4d4d;
+  --muted: #666666;
+  --faint: #808080;
+
+  /* Surfaces */
+  --page: #ffffff;
+  --raised: #ffffff;
+  --sidebar: #f5f6f6;
+  --code: #f4f6f6;
+  --hover: rgba(51, 51, 51, 0.05);
+
+  /* Lines */
+  --line: rgba(51, 51, 51, 0.10);
+  --line-strong: rgba(63, 173, 168, 0.35);
+
+  /* Outcome + status semantics */
+  --profit: #2f9e6f;
+  --loss: #c0392b;
+  --warn: #d9822b;
+  --info: #3b6fb0;
+  --danger: #8d2a2a;
+
+  /* Shape & elevation */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(51, 51, 51, 0.06);
+  --shadow: 0 8px 24px rgba(51, 51, 51, 0.08);
+  --shadow-lg: 0 18px 42px rgba(51, 51, 51, 0.12);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Dark — manual override (data-theme="dark") OR system preference (unless forced light) */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --accent: #7ce4de;
+  --accent-hover: #66dcd5;
+  --accent-soft: rgba(124, 228, 222, 0.14);
+  --accent-contrast: #0c1416;
+  --ink: #f5f8f8;
+  --body: rgba(245, 248, 248, 0.84);
+  --muted: #a7b2b3;
+  --faint: #94a3a4;
+  --page: #10191b;
+  --raised: #152325;
+  --sidebar: #0d1517;
+  --code: #152325;
+  --hover: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(124, 228, 222, 0.35);
+  --profit: #46c98b;
+  --loss: #ef6a5a;
+  --warn: #e0a35a;
+  --info: #6ea8e0;
+  --danger: #e06b6b;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
 }
-
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --accent: #7ce4de;
+    --accent-hover: #66dcd5;
+    --accent-soft: rgba(124, 228, 222, 0.14);
+    --accent-contrast: #0c1416;
+    --ink: #f5f8f8;
+    --body: rgba(245, 248, 248, 0.84);
+    --muted: #a7b2b3;
+    --faint: #94a3a4;
+    --page: #10191b;
+    --raised: #152325;
+    --sidebar: #0d1517;
+    --code: #152325;
+    --hover: rgba(255, 255, 255, 0.06);
+    --line: rgba(255, 255, 255, 0.10);
+    --line-strong: rgba(124, 228, 222, 0.35);
+    --profit: #46c98b;
+    --loss: #ef6a5a;
+    --warn: #e0a35a;
+    --info: #6ea8e0;
+    --danger: #e06b6b;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55);
   }
 }
 
+/* Map tokens to Tailwind utilities (inline = resolve live CSS vars, so theme switches at runtime) */
+@theme inline {
+  --color-page: var(--page);
+  --color-raised: var(--raised);
+  --color-sidebar: var(--sidebar);
+  --color-code: var(--code);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-profit: var(--profit);
+  --color-loss: var(--loss);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+
+  --font-sans: Arial, "Helvetica Neue", "Segoe UI", Geneva, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--body);
+  font-family: Arial, "Helvetica Neue", "Segoe UI", Geneva, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+/* Tabular figures for data/metrics */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ── Accessibility baseline (app-wide) ── */
+:where(a, button, [role="button"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
