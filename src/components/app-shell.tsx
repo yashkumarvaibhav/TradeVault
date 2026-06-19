@@ -113,7 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-40 flex h-16 items-center gap-2 border-b border-line bg-page/95 px-4 backdrop-blur md:px-6">
+          <header className="sticky top-0 z-40 flex h-16 items-center gap-1.5 border-b border-line bg-page/95 px-3 backdrop-blur sm:gap-2 md:px-6">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
@@ -130,7 +130,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Sheet>
 
             <div className="mr-auto md:hidden">
-              <Wordmark widthClass="w-36" />
+              {/* Branding still appears in the hamburger drawer on the very smallest screens. */}
+              <div className="hidden min-[360px]:block">
+                <Wordmark widthClass="w-32 min-[400px]:w-36" />
+              </div>
             </div>
 
             <Button

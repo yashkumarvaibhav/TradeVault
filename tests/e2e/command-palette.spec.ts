@@ -39,3 +39,19 @@ test("command palette opens, searches, and is keyboard-operable", async ({ page 
   await expect(palette).toBeHidden();
   await expect(page).toHaveURL(/#overview$/);
 });
+
+test("chrome stays overflow-free on very narrow viewports, palette open or closed", async ({ page }) => {
+  const overflow = () =>
+    page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+  for (const width of [320, 360, 375]) {
+    await page.setViewportSize({ width, height: 760 });
+    await page.goto("/");
+    expect(await overflow(), `closed @ ${width}px`).toBeLessThanOrEqual(0);
+
+    await page.getByRole("button", { name: "Open command palette" }).click();
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+    expect(await overflow(), `palette open @ ${width}px`).toBeLessThanOrEqual(0);
+    await page.keyboard.press("Escape");
+  }
+});

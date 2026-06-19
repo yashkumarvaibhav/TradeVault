@@ -12,10 +12,19 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 
 function CommandInput({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
-    <div className="flex h-11 items-center gap-2 border-b border-line px-3" cmdk-input-wrapper="">
+    // Focus is shown by tinting the row's bottom divider teal — a contained indicator
+    // that won't be clipped by the palette's rounded `overflow-hidden` container the way
+    // an offset outline ring is. The input itself opts out of the global focus outline.
+    <div
+      className="flex h-11 items-center gap-2 border-b border-line px-3 transition-colors focus-within:border-accent focus-within:bg-accent-soft"
+      cmdk-input-wrapper=""
+    >
       <Search className="size-4 shrink-0 text-muted" aria-hidden="true" />
       <CommandPrimitive.Input
-        className={cn("h-11 w-full bg-transparent text-sm text-ink outline-none placeholder:text-faint disabled:opacity-50", className)}
+        className={cn(
+          "h-11 w-full bg-transparent text-sm text-ink placeholder:text-faint disabled:opacity-50 focus-visible:outline-none!",
+          className,
+        )}
         {...props}
       />
     </div>
