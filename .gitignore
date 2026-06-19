@@ -21,3 +21,13 @@ tradevault_export_*.json
 .DS_Store
 .vscode/
 .idea/
+
+# Local AI collaboration and product-planning state
+# These files coordinate Codex/Claude sessions on this workspace only.
+/AGENTS.md
+/CLAUDE.md
+/AI_HANDOFF.md
+/SESSION_START_PROMPT.md
+/docs/PREMIUM_UX_REVIEW.md
+/docs/PREMIUM_UX_IMPLEMENTATION.md
+/docs/PREMIUM_UX_WORKLOG.md
