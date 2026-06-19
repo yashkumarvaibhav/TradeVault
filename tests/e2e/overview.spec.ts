@@ -39,6 +39,10 @@ test("overview preview is scoped, responsive, and visually reviewable", async ({
 
   await page.getByRole("tab", { name: "Return distribution" }).click();
   await expect(page.getByRole("img", { name: /Return distribution histogram/i })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Long vs Short donut chart/i })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Outcome intensity" }).click();
+  await expect(page.getByRole("img", { name: /Daily outcome intensity heatmap/i })).toBeVisible();
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath("overview-full.png"), fullPage: true, animations: "disabled" });

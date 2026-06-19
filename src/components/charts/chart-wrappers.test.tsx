@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { BarChart } from "./bar-chart";
+import { DonutChart } from "./donut-chart";
+import { HeatmapChart } from "./heatmap-chart";
 import { HistogramChart } from "./histogram-chart";
 
 describe("accessible chart wrappers", () => {
@@ -47,5 +49,44 @@ describe("accessible chart wrappers", () => {
     expect(screen.getByRole("img", { name: /Return distribution histogram/ })).toBeVisible();
     expect(screen.getByRole("table", { name: /Return distribution buckets/i })).toHaveTextContent("5");
     expect(screen.getByText(/Frequency = trade count/)).toBeVisible();
+  });
+
+  it("labels donut segments and exposes their exact shares as data", () => {
+    render(
+      <DonutChart
+        data={[{ label: "Long", value: 6 }, { label: "Short", value: 4 }]}
+        metric="Long vs Short"
+        unit="closed trades"
+        scope="USD · 30 days"
+        sampleSize={10}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: /Long vs Short donut chart/ })).toBeVisible();
+    expect(screen.getByLabelText("Long: 6 closed trades, 60.0%")).toBeVisible();
+    expect(screen.getByRole("table", { name: /Long vs Short values/i })).toHaveTextContent("40.0%");
+  });
+
+  it("distinguishes heatmap gains, losses, and no-trade cells", () => {
+    render(
+      <HeatmapChart
+        data={[
+          { row: "W1", column: "Mon", label: "June 1", value: 80 },
+          { row: "W1", column: "Tue", label: "June 2", value: -20 },
+          { row: "W1", column: "Wed", label: "June 3", value: null },
+        ]}
+        rows={["W1"]}
+        columns={["Mon", "Tue", "Wed"]}
+        metric="Daily outcome intensity"
+        unit="USD"
+        scope="June preview"
+        sampleSize={2}
+        formatValue={(value) => `$${value}`}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: /Daily outcome intensity heatmap/ })).toBeVisible();
+    expect(screen.getByLabelText("June 3: no trades")).toBeVisible();
+    expect(screen.getByRole("table", { name: /Daily outcome intensity values/i })).toHaveTextContent("$-20");
   });
 });

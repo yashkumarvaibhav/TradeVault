@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 
 import { BarChart, type BarDatum } from "@/components/charts/bar-chart";
+import { DonutChart, type DonutDatum } from "@/components/charts/donut-chart";
 import { EquityChart, type EquityDatum } from "@/components/charts/equity-chart";
+import { HeatmapChart, type HeatmapDatum } from "@/components/charts/heatmap-chart";
 import { HistogramChart, type HistogramDatum } from "@/components/charts/histogram-chart";
 import { PageHeader } from "@/components/layout/page-header";
 import { ScopeField, ScopeToolbar } from "@/components/layout/scope-toolbar";
@@ -51,6 +53,7 @@ interface PreviewData {
   equity: EquityDatum[];
   monthlyPnl: BarDatum[];
   returnDistribution: HistogramDatum[];
+  directions: DonutDatum[];
   strategies: StrategyPreview[];
   trades: TradePreview[];
   calendar: Record<number, number>;
@@ -99,6 +102,7 @@ const preview: Record<Currency, PreviewData> = {
       { range: "2%–4%", count: 3 },
       { range: "4%–6%", count: 1 },
     ],
+    directions: [{ label: "Long", value: 9 }, { label: "Short", value: 5 }],
     strategies: [
       { name: "Opening breakout", trades: 5, winRate: 80, expectancy: 1900 },
       { name: "Trend continuation", trades: 4, winRate: 75, expectancy: 1210 },
@@ -146,6 +150,7 @@ const preview: Record<Currency, PreviewData> = {
       { range: "2%–4%", count: 2 },
       { range: "4%–6%", count: 1 },
     ],
+    directions: [{ label: "Long", value: 6 }, { label: "Short", value: 4 }],
     strategies: [
       { name: "US open momentum", trades: 4, winRate: 75, expectancy: 72.5 },
       { name: "Trend continuation", trades: 3, winRate: 66.7, expectancy: 54.25 },
@@ -164,6 +169,8 @@ const preview: Record<Currency, PreviewData> = {
 };
 
 const calendarDays = Array.from({ length: 30 }, (_, index) => index + 1);
+const heatmapColumns = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const heatmapRows = ["W1", "W2", "W3", "W4", "W5"];
 const assetOptions = [
   { value: "all", label: "All assets" },
   { value: "equity", label: "Equity", keywords: ["cash", "stocks"] },
@@ -185,6 +192,18 @@ function buildDrawdown(points: EquityDatum[]): EquityDatum[] {
     peak = Math.max(peak, point.value);
     return { label: point.label, value: point.value - peak };
   });
+}
+
+function buildOutcomeHeatmap(calendar: Record<number, number>): HeatmapDatum[] {
+  return heatmapRows.flatMap((row, rowIndex) => heatmapColumns.map((column, columnIndex) => {
+    const day = rowIndex * 7 + columnIndex + 1;
+    return {
+      row,
+      column,
+      label: day <= 30 ? `June ${day}` : "Outside June preview",
+      value: day <= 30 ? calendar[day] ?? null : null,
+    };
+  }));
 }
 
 function moneyFormatter(currency: Currency) {
@@ -234,6 +253,7 @@ export function OverviewDashboard() {
   const data = preview[currency];
   const formatMoney = moneyFormatter(currency);
   const equityPoints = equityMode === "equity" ? data.equity : buildDrawdown(data.equity);
+  const outcomeHeatmap = buildOutcomeHeatmap(data.calendar);
 
   function resetScope() {
     setCurrency("INR");
@@ -476,6 +496,15 @@ export function OverviewDashboard() {
               </TableBody>
               <TableCaption>{currency} strategy results · preview sample · insufficient-data labels follow with real queries.</TableCaption>
             </Table>
+            <div className="mt-5 border-t border-line pt-5">
+              <DonutChart
+                data={data.directions}
+                metric="Long vs Short"
+                unit="closed trades"
+                scope={`${currency} · 30 days`}
+                sampleSize={data.totalTrades}
+              />
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -517,34 +546,54 @@ export function OverviewDashboard() {
             <CalendarClock className="size-5 text-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="mb-2 grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wider text-faint" aria-hidden="true">
-              {['M','T','W','T','F','S','S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((day) => {
-                const result = data.calendar[day];
-                return (
-                  <button
-                    type="button"
-                    key={day}
-                    className={cn(
-                      "tnum flex aspect-square min-h-11 flex-col items-center justify-center rounded-sm border border-line text-xs text-muted transition-colors hover:border-line-strong",
-                      result > 0 && "border-profit/20 bg-profit/10 text-profit",
-                      result < 0 && "border-loss/20 bg-loss/10 text-loss",
-                    )}
-                    aria-label={result == null ? `June ${day}: no trades` : `June ${day}: ${formatMoney.format(result)} closed P&L in ${currency}`}
-                  >
-                    <span>{day}</span>
-                    {result != null && <span className="hidden text-[8px] font-semibold 2xl:block">{result > 0 ? "+" : ""}{Math.round(result)}</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted">
-              <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full bg-profit" /> Profit</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full bg-loss" /> Loss</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full border border-line bg-raised" /> No trade</span>
-            </div>
+            <Tabs defaultValue="month">
+              <TabsList aria-label="Calendar view" className="w-full">
+                <TabsTrigger value="month" className="flex-1">Month</TabsTrigger>
+                <TabsTrigger value="intensity" className="flex-1">Outcome intensity</TabsTrigger>
+              </TabsList>
+              <TabsContent value="month">
+                <div className="mb-2 grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wider text-faint" aria-hidden="true">
+                  {['M','T','W','T','F','S','S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {calendarDays.map((day) => {
+                    const result = data.calendar[day];
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        className={cn(
+                          "tnum flex aspect-square min-h-11 flex-col items-center justify-center rounded-sm border border-line text-xs text-muted transition-colors hover:border-line-strong",
+                          result > 0 && "border-profit/20 bg-profit/10 text-profit",
+                          result < 0 && "border-loss/20 bg-loss/10 text-loss",
+                        )}
+                        aria-label={result == null ? `June ${day}: no trades` : `June ${day}: ${formatMoney.format(result)} closed P&L in ${currency}`}
+                      >
+                        <span>{day}</span>
+                        {result != null && <span className="hidden text-[8px] font-semibold 2xl:block">{result > 0 ? "+" : ""}{Math.round(result)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted">
+                  <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full bg-profit" /> Profit</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full bg-loss" /> Loss</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="size-2 rounded-full border border-line bg-raised" /> No trade</span>
+                </div>
+              </TabsContent>
+              <TabsContent value="intensity">
+                <HeatmapChart
+                  data={outcomeHeatmap}
+                  rows={heatmapRows}
+                  columns={heatmapColumns}
+                  metric="Daily outcome intensity"
+                  unit={currency}
+                  scope="June preview · closed trades"
+                  sampleSize={data.totalTrades}
+                  formatValue={formatMoney.format}
+                />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </section>

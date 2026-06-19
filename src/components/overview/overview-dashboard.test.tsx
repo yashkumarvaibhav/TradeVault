@@ -19,6 +19,10 @@ describe("overview visual milestone", () => {
 
     await user.click(screen.getByRole("tab", { name: "Return distribution" }));
     expect(screen.getByRole("img", { name: /Return distribution histogram/i })).toBeVisible();
+    expect(screen.getByRole("img", { name: /Long vs Short donut chart/i })).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "Outcome intensity" }));
+    expect(screen.getByRole("img", { name: /Daily outcome intensity heatmap/i })).toBeVisible();
 
     const currency = screen.getByRole("combobox", { name: "Currency scope" });
     await user.click(currency);
