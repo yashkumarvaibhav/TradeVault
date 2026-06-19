@@ -923,8 +923,8 @@
         </div>
     </div>
 
-    <!-- Unified Trade Editor Modal (for closing open trades AND editing any trade) -->
-    <div class="modal-overlay" id="trade-editor-modal">
+    <!-- Mode-aware Trade Editor Modal: Close, Review, or full Edit -->
+    <div class="modal-overlay editor-mode-edit" id="trade-editor-modal" data-editor-mode="edit">
         <div class="modal modal-lg">
             <div class="modal-header">
                 <h3 id="trade-editor-title"><i class="fas fa-edit"></i> Edit Trade #<span id="editor-trade-id-label"></span></h3>
@@ -934,8 +934,32 @@
                 <input type="hidden" id="editor-trade-id">
                 <input type="hidden" id="editor-trade-status">
 
+                <section class="editor-trade-summary" id="editor-trade-summary" aria-label="Read-only trade summary">
+                    <div class="editor-summary-head">
+                        <div>
+                            <span class="editor-summary-eyebrow" id="editor-summary-eyebrow">Trade context</span>
+                            <h4 id="editor-summary-instrument">—</h4>
+                            <p id="editor-summary-context">—</p>
+                        </div>
+                        <div class="editor-summary-result" id="editor-summary-result">—</div>
+                    </div>
+                    <dl class="editor-summary-grid">
+                        <div><dt>Entry</dt><dd id="editor-summary-entry">—</dd></div>
+                        <div><dt>Stop / Target</dt><dd id="editor-summary-risk">—</dd></div>
+                        <div><dt>Position</dt><dd id="editor-summary-size">—</dd></div>
+                        <div><dt>Entry time</dt><dd id="editor-summary-entry-time">—</dd></div>
+                        <div><dt>Exit</dt><dd id="editor-summary-exit">Open</dd></div>
+                        <div><dt>Close context</dt><dd id="editor-summary-close-context">Not closed</dd></div>
+                        <div><dt>Strategy / Playbook</dt><dd id="editor-summary-plan">—</dd></div>
+                        <div><dt>Notes</dt><dd id="editor-summary-notes">—</dd></div>
+                    </dl>
+                    <button type="button" class="btn btn-outline btn-sm editor-summary-edit" onclick="switchTradeEditorToEdit()">
+                        <i class="fas fa-pen"></i> <span id="editor-summary-edit-label">Edit trade details</span>
+                    </button>
+                </section>
+
                 <!-- Section: Asset & Instrument -->
-                <div class="editor-section">
+                <div class="editor-section" id="editor-asset-section">
                     <h4><i class="fas fa-tag"></i> Asset &amp; Instrument</h4>
                     <div class="form-row">
                         <div class="form-group">
@@ -1004,7 +1028,7 @@
                 </div>
 
                 <!-- Section: Entry Details -->
-                <div class="editor-section">
+                <div class="editor-section" id="editor-entry-section">
                     <h4><i class="fas fa-sign-in-alt"></i> Entry Details</h4>
                     <div class="form-row">
                         <div class="form-group">
@@ -1092,8 +1116,8 @@
                 </div>
 
                 <!-- Section: Close & Psychology -->
-                <div class="editor-section">
-                    <h4><i class="fas fa-brain"></i> Close Reason &amp; Psychology</h4>
+                <div class="editor-section" id="editor-close-section">
+                    <h4><i class="fas fa-brain"></i> Why are you closing?</h4>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Closing Because Of</label>
@@ -1137,7 +1161,7 @@
                 </div>
 
                 <!-- Section: Trade Review -->
-                <div class="editor-section">
+                <div class="editor-section" id="editor-review-section">
                     <h4><i class="fas fa-clipboard-check"></i> Trade Review</h4>
                     <div class="form-row">
                         <div class="form-group">
@@ -1193,7 +1217,7 @@
                 </div>
 
                 <!-- Section: Chart Attachments -->
-                <div class="editor-section">
+                <div class="editor-section" id="editor-attachments-section">
                     <h4><i class="fas fa-image"></i> Chart Attachments</h4>
                     <div class="attachment-uploader">
                         <label class="attachment-dropzone" for="editor-attachment-file">

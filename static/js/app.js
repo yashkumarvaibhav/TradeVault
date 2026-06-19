@@ -1082,7 +1082,7 @@ function closeModal(modalId) {
 // ─── Unified Trade Editor Modal ──────────────────────────────
 
 let editorTradeCache = null;
-let editorMode = 'edit'; // 'close' or 'edit'
+let editorMode = 'edit'; // 'close', 'review', or 'edit'
 let editorAttachments = [];
 
 function formatFileSize(bytes) {
@@ -1235,25 +1235,100 @@ function ensurePlaybookOption(selectId, playbookId, playbookName) {
     select.appendChild(option);
 }
 
+function renderTradeEditorSummary(trade) {
+    const currency = trade.currency || 'INR';
+    const symbol = CURRENCY_SYMBOLS[currency] || `${currency} `;
+    const price = (value) => value === null || value === undefined || value === ''
+        ? '—'
+        : `${symbol}${formatPrice(value, trade.asset_category)}`;
+    const result = formatPnl(trade);
+    const realizedR = trade.realized_r === null || trade.realized_r === undefined
+        ? ''
+        : `${trade.realized_r}R`;
+    const resultEl = document.getElementById('editor-summary-result');
+
+    document.getElementById('editor-summary-instrument').textContent = trade.instrument || 'Unnamed trade';
+    document.getElementById('editor-summary-context').textContent = [
+        trade.asset_category,
+        trade.direction || 'Long',
+        trade.trading_style,
+        currency,
+    ].filter(Boolean).join(' · ');
+    document.getElementById('editor-summary-entry').textContent = price(trade.entry_price);
+    document.getElementById('editor-summary-risk').textContent = `${price(trade.stop_loss)} / ${price(trade.planned_target)}`;
+    document.getElementById('editor-summary-size').textContent = formatPositionSize(trade);
+    document.getElementById('editor-summary-entry-time').textContent = formatDateLabel(trade.entry_datetime);
+    document.getElementById('editor-summary-exit').textContent = trade.status === 'closed'
+        ? `${price(trade.exit_price)} · ${formatDateLabel(trade.exit_datetime)}`
+        : 'Open position';
+    document.getElementById('editor-summary-close-context').textContent = trade.status === 'closed'
+        ? [trade.close_reason, trade.psychology].filter(Boolean).join(' · ') || 'No close context'
+        : 'Not closed';
+    document.getElementById('editor-summary-plan').textContent = [
+        trade.strategy,
+        trade.playbook_name,
+    ].filter(Boolean).join(' · ') || 'No strategy or playbook';
+    document.getElementById('editor-summary-notes').textContent = [
+        trade.entry_notes,
+        trade.exit_notes,
+    ].filter(Boolean).join(' · ') || 'No notes';
+
+    if (trade.status === 'closed') {
+        resultEl.textContent = [result.value, realizedR].filter(Boolean).join(' · ');
+        resultEl.className = `editor-summary-result ${result.className}`.trim();
+    } else {
+        resultEl.textContent = 'Open position';
+        resultEl.className = 'editor-summary-result';
+    }
+}
+
+function configureTradeEditorMode(requestedMode, trade) {
+    const isOpen = trade.status === 'open';
+    editorMode = requestedMode === 'close' && isOpen
+        ? 'close'
+        : (requestedMode === 'review' && !isOpen ? 'review' : 'edit');
+
+    const modal = document.getElementById('trade-editor-modal');
+    modal.dataset.editorMode = editorMode;
+    modal.classList.remove('editor-mode-close', 'editor-mode-review', 'editor-mode-edit');
+    modal.classList.add(`editor-mode-${editorMode}`);
+
+    const titleEl = document.getElementById('trade-editor-title');
+    const saveBtn = document.getElementById('editor-save-btn');
+    const eyebrow = document.getElementById('editor-summary-eyebrow');
+    const editLabel = document.getElementById('editor-summary-edit-label');
+    if (editorMode === 'close') {
+        titleEl.innerHTML = `<i class="fas fa-door-closed"></i> Close Trade #<span id="editor-trade-id-label">${trade.id}</span>`;
+        saveBtn.innerHTML = '<i class="fas fa-door-closed"></i> Close Trade';
+        eyebrow.textContent = 'Entry facts · read only';
+        editLabel.textContent = 'Edit entry details';
+    } else if (editorMode === 'review') {
+        titleEl.innerHTML = `<i class="fas fa-clipboard-check"></i> Review Trade #<span id="editor-trade-id-label">${trade.id}</span>`;
+        saveBtn.innerHTML = '<i class="fas fa-clipboard-check"></i> Save Review';
+        eyebrow.textContent = 'Result context · read only';
+        editLabel.textContent = 'Edit trade details';
+    } else {
+        titleEl.innerHTML = `<i class="fas fa-edit"></i> Edit Trade #<span id="editor-trade-id-label">${trade.id}</span>`;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    }
+}
+
+function switchTradeEditorToEdit() {
+    if (editorTradeCache?.id) openTradeEditor(editorTradeCache.id, 'edit');
+}
+
 async function openTradeEditor(tradeId, mode) {
   try {
     await Promise.all([loadStrategies(), loadCloseReasons(), loadInstruments(), loadPlaybooks()]);
     const trade = await apiGet(`/api/trades/${tradeId}`);
     if (!trade) { showToast('Trade not found', 'error'); return; }
     editorTradeCache = trade;
-    editorMode = mode;
+    configureTradeEditorMode(mode, trade);
+    renderTradeEditorSummary(trade);
 
     const isForex = trade.asset_category === 'Forex';
     const isOpen = trade.status === 'open';
-    const isClosing = mode === 'close' && isOpen;
-
-    // Set title
-    const titleEl = document.getElementById('trade-editor-title');
-    if (isClosing) {
-        titleEl.innerHTML = `<i class="fas fa-door-closed"></i> Close Trade #<span id="editor-trade-id-label">${trade.id}</span>`;
-    } else {
-        titleEl.innerHTML = `<i class="fas fa-edit"></i> Edit Trade #<span id="editor-trade-id-label">${trade.id}</span>`;
-    }
+    const isClosing = editorMode === 'close' && isOpen;
 
     // Populate all fields
     document.getElementById('editor-trade-id').value = trade.id;
@@ -1355,15 +1430,14 @@ async function openTradeEditor(tradeId, mode) {
     resetAttachmentInputs();
     await loadTradeAttachments(trade.id);
 
-    // Button text
-    const saveBtn = document.getElementById('editor-save-btn');
-    if (isClosing) {
-        saveBtn.innerHTML = '<i class="fas fa-door-closed"></i> Close Trade';
-    } else {
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-    }
-
     document.getElementById('trade-editor-modal').classList.add('active');
+    document.getElementById('trade-editor-body').scrollTop = 0;
+    requestAnimationFrame(() => {
+        const focusId = editorMode === 'close'
+            ? (isForex ? 'editor-pnl-amount' : 'editor-exit-price')
+            : (editorMode === 'review' ? 'editor-execution-score' : 'editor-instrument');
+        document.getElementById(focusId)?.focus();
+    });
   } catch (err) {
     console.error('openTradeEditor error:', err);
     showToast('Error opening trade editor: ' + err.message, 'error');
@@ -1403,39 +1477,57 @@ async function saveTradeEditor() {
     const tradeId = document.getElementById('editor-trade-id').value;
     const isOpen = document.getElementById('editor-trade-status').value === 'open';
     const isClosing = editorMode === 'close' && isOpen;
+    const isReviewing = editorMode === 'review';
     const isForex = document.getElementById('editor-category').value === 'Forex';
 
     let closeReason = document.getElementById('editor-close-reason').value;
     if (closeReason === '__custom__') closeReason = document.getElementById('editor-close-reason-custom').value.trim();
 
-    const data = {
-        instrument: document.getElementById('editor-instrument').value.trim(),
-        asset_category: document.getElementById('editor-category').value,
-        subcategory: document.getElementById('editor-subcategory').value,
-        trading_style: document.getElementById('editor-style').value,
-        direction: document.getElementById('editor-direction').value,
-        instrument_type: document.getElementById('editor-instrument-type').value,
-        platform: document.getElementById('editor-platform').value.trim(),
-        currency: document.getElementById('editor-currency').value,
-        strategy: document.getElementById('editor-strategy').value.trim(),
-        playbook_id: document.getElementById('editor-playbook').value || '',
-        entry_price: document.getElementById('editor-entry-price').value,
-        entry_datetime: document.getElementById('editor-entry-dt').value,
-        stop_loss: document.getElementById('editor-stop-loss').value,
-        planned_target: document.getElementById('editor-planned-target').value || '',
-        lot_size: document.getElementById('editor-lot-size').value,
-        position_size: document.getElementById('editor-position-size').value,
-        entry_notes: document.getElementById('editor-entry-notes').value.trim(),
-        close_reason: closeReason,
-        psychology: document.getElementById('editor-psychology').value,
-        psychology_detail: document.getElementById('editor-psychology-detail').value,
-        exit_notes: document.getElementById('editor-exit-notes').value.trim(),
+    const reviewData = {
         execution_score: document.getElementById('editor-execution-score').value,
         setup_quality: document.getElementById('editor-setup-quality').value,
         rule_followed: document.getElementById('editor-rule-followed').checked,
         mistake_tags: getReviewTags(),
         review_notes: document.getElementById('editor-review-notes').value.trim()
     };
+
+    let data = reviewData;
+    if (!isReviewing) {
+        data = {
+            instrument: document.getElementById('editor-instrument').value.trim(),
+            asset_category: document.getElementById('editor-category').value,
+            subcategory: document.getElementById('editor-subcategory').value,
+            trading_style: document.getElementById('editor-style').value,
+            direction: document.getElementById('editor-direction').value,
+            instrument_type: document.getElementById('editor-instrument-type').value,
+            platform: document.getElementById('editor-platform').value.trim(),
+            currency: document.getElementById('editor-currency').value,
+            strategy: document.getElementById('editor-strategy').value.trim(),
+            playbook_id: document.getElementById('editor-playbook').value || '',
+            entry_price: document.getElementById('editor-entry-price').value,
+            entry_datetime: document.getElementById('editor-entry-dt').value,
+            stop_loss: document.getElementById('editor-stop-loss').value,
+            planned_target: document.getElementById('editor-planned-target').value || '',
+            lot_size: document.getElementById('editor-lot-size').value,
+            position_size: document.getElementById('editor-position-size').value,
+            entry_notes: document.getElementById('editor-entry-notes').value.trim(),
+            close_reason: closeReason,
+            psychology: document.getElementById('editor-psychology').value,
+            psychology_detail: document.getElementById('editor-psychology-detail').value,
+            exit_notes: document.getElementById('editor-exit-notes').value.trim(),
+            ...reviewData,
+        };
+    }
+
+    if (isClosing) {
+        data = {
+            close_reason: closeReason,
+            psychology: document.getElementById('editor-psychology').value,
+            psychology_detail: document.getElementById('editor-psychology-detail').value,
+            exit_notes: document.getElementById('editor-exit-notes').value.trim(),
+            ...reviewData,
+        };
+    }
 
     // Handle exit fields
     if (isClosing) {
@@ -1459,7 +1551,7 @@ async function saveTradeEditor() {
             }
         }
         data.status = 'closed';
-    } else if (editorTradeCache && editorTradeCache.status === 'closed') {
+    } else if (editorMode === 'edit' && editorTradeCache && editorTradeCache.status === 'closed') {
         // Editing a closed trade — preserve/update exit fields
         if (isForex) {
             const pnlType = document.getElementById('editor-pnl-type').value;
@@ -1478,7 +1570,8 @@ async function saveTradeEditor() {
 	    const result = await apiPatch(`/api/trades/${tradeId}`, data);
 	    if (result && result.message) {
 	        closeModal('trade-editor-modal');
-	        showToast(isClosing ? 'Trade closed!' : 'Trade updated!', 'success');
+	        const successMessage = isClosing ? 'Trade closed' : (isReviewing ? 'Review saved' : 'Trade updated');
+	        showToast(successMessage, 'success');
 	        await loadCloseReasons();
 	        await loadStrategies();
 	        loadTrades();
@@ -1612,7 +1705,7 @@ function renderReviewQueue(queue) {
             <td class="${pnl.className}">${pnl.value}</td>
             <td>${escapeHTML(realizedR)}</td>
             <td>${escapeHTML(exitAt)}</td>
-            <td><button class="btn btn-outline btn-sm" onclick="openTradeEditor(${trade.id}, 'edit')"><i class="fas fa-clipboard-check"></i> Review</button></td>
+            <td><button class="btn btn-outline btn-sm" onclick="openTradeEditor(${trade.id}, 'review')"><i class="fas fa-clipboard-check"></i> Review</button></td>
         </tr>`;
     }).join('');
 }

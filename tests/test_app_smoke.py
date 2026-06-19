@@ -74,6 +74,12 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertIn('Win-Rate Adjusted Payoff', dashboard_html)
             self.assertIn('overview-currency-warning', dashboard_html)
             self.assertIn('analytics-currency-warning', dashboard_html)
+            self.assertIn('id="editor-trade-summary"', dashboard_html)
+            self.assertIn('id="editor-asset-section"', dashboard_html)
+            self.assertIn('id="editor-review-section"', dashboard_html)
+            app_js = (Path(__file__).resolve().parents[1] / 'static/js/app.js').read_text()
+            self.assertIn("openTradeEditor(${trade.id}, 'review')", app_js)
+            self.assertIn("editorMode === 'review'", app_js)
 
             playbook = client.post('/api/playbooks', json={
                 'name': 'Opening Range Breakout',
@@ -119,19 +125,6 @@ class TradeVaultSmokeTest(unittest.TestCase):
             trade_id = created.get_json()['id']
 
             closed = client.patch(f'/api/trades/{trade_id}', json={
-                'asset_category': 'Index',
-                'subcategory': 'Nifty',
-                'trading_style': 'Intraday',
-                'instrument': 'NIFTY FUT',
-                'entry_price': 100,
-                'entry_datetime': '2026-06-18T10:00',
-                'stop_loss': 90,
-                'planned_target': 130,
-                'position_size': 2,
-                'lot_size': 50,
-                'direction': 'Long',
-                'currency': 'INR',
-                'playbook_id': playbook_id,
                 'exit_price': 110,
                 'exit_datetime': '2026-06-18T11:00',
                 'execution_score': 4,
@@ -148,6 +141,8 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(trade['realized_r'], 1)
             self.assertTrue(trade['reviewed'])
             self.assertEqual(trade['playbook_name'], 'Opening Range Breakout')
+            self.assertEqual(trade['instrument'], 'NIFTY FUT')
+            self.assertEqual(trade['entry_price'], 100)
             analytics = client.get('/api/analytics').get_json()
             self.assertTrue(analytics['return_distribution'])
             self.assertIsNone(analytics['payoff_ratio'])
@@ -191,6 +186,20 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(deleted_attachment.status_code, 200)
             self.assertEqual(client.get(f'/api/trades/{trade_id}/attachments').get_json(), [])
 
+            review_only = client.patch(f'/api/trades/{trade_id}', json={
+                'execution_score': 5,
+                'setup_quality': 'A+',
+                'rule_followed': True,
+                'mistake_tags': 'Early exit, Follow-up review',
+                'review_notes': 'Review mode changed review fields only.',
+            }, headers=headers)
+            self.assertEqual(review_only.status_code, 200)
+            reviewed_trade = client.get(f'/api/trades/{trade_id}').get_json()
+            self.assertEqual(reviewed_trade['execution_score'], 5)
+            self.assertEqual(reviewed_trade['instrument'], 'NIFTY FUT')
+            self.assertEqual(reviewed_trade['entry_price'], 100)
+            self.assertEqual(reviewed_trade['exit_price'], 110)
+
             losing_trade = client.post('/api/trades', json={
                 'asset_category': 'Equity',
                 'subcategory': 'Large Cap',
@@ -206,16 +215,6 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(losing_trade.status_code, 201)
             losing_trade_id = losing_trade.get_json()['id']
             closed_loss = client.patch(f'/api/trades/{losing_trade_id}', json={
-                'asset_category': 'Equity',
-                'subcategory': 'Large Cap',
-                'trading_style': 'Intraday',
-                'instrument': 'LOSS TEST',
-                'entry_price': 100,
-                'entry_datetime': '2026-06-18T12:00',
-                'stop_loss': 90,
-                'position_size': 1,
-                'direction': 'Long',
-                'currency': 'INR',
                 'exit_price': 80,
                 'exit_datetime': '2026-06-18T13:00',
                 'status': 'closed',
@@ -244,17 +243,6 @@ class TradeVaultSmokeTest(unittest.TestCase):
             self.assertEqual(usd_trade.status_code, 201)
             usd_trade_id = usd_trade.get_json()['id']
             closed_usd = client.patch(f'/api/trades/{usd_trade_id}', json={
-                'asset_category': 'US Index',
-                'subcategory': 'S&P 500',
-                'trading_style': 'Swing',
-                'instrument': 'USD TEST',
-                'entry_price': 100,
-                'entry_datetime': '2026-06-19T12:00',
-                'stop_loss': 90,
-                'position_size': 1,
-                'lot_size': 1,
-                'direction': 'Long',
-                'currency': 'USD',
                 'exit_price': 150,
                 'exit_datetime': '2026-06-19T13:00',
                 'status': 'closed',
