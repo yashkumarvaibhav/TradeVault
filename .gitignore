@@ -1,12 +1,20 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
 
-# Virtual environments
-.venv/
-venv/
+# Next.js / build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing / coverage
+coverage/
+playwright-report/
+test-results/
 
 # Local env and secrets
 .env
@@ -17,17 +25,29 @@ venv/
 *.db
 tradevault_export_*.json
 
+# Logs
+*.log
+npm-debug.log*
+
 # Editor/system
 .DS_Store
 .vscode/
 .idea/
 
-# Local AI collaboration and product-planning state
-# These files coordinate Codex/Claude sessions on this workspace only.
+# ── Local AI collaboration & product-planning state ──
+# These coordinate Opus/Codex relay sessions on this workspace only. Never commit.
 /AGENTS.md
 /CLAUDE.md
 /AI_HANDOFF.md
 /SESSION_START_PROMPT.md
+/docs/BUILD_STATE.md
+/docs/BUILD_WORKLOG.md
 /docs/PREMIUM_UX_REVIEW.md
 /docs/PREMIUM_UX_IMPLEMENTATION.md
 /docs/PREMIUM_UX_WORKLOG.md
+
+# ── Legacy Python (v1, being removed) ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
