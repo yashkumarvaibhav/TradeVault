@@ -241,7 +241,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: 
                 <p className="text-xs text-muted">{data.reviewedCount ? `Reviewed sample · ${data.reviewedCount} trades` : "Complete reviews before judging discipline"}</p>
               </div>
             </div>
-            <Button asChild variant="outline" className="w-full"><Link href="/trades?status=closed">Review closed trades<ArrowUpRight aria-hidden="true" /></Link></Button>
+            <Button asChild variant="outline" className="w-full"><Link href="/review#review-queue">Review closed trades<ArrowUpRight aria-hidden="true" /></Link></Button>
           </CardContent>
         </Card>
       </section>

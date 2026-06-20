@@ -51,7 +51,7 @@ describe("overview visual milestone", () => {
     render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" scope={{ period: "30d", asset: "Forex", month: "2026-06" }} />);
     expect(screen.getByRole("link", { name: /TEST/ })).toHaveAttribute("href", "/trades/trade-1");
     expect(screen.getByRole("link", { name: /OPENPOS/ })).toHaveAttribute("href", "/trades/open-1");
-    expect(screen.getByRole("link", { name: "Review closed trades" })).toHaveAttribute("href", "/trades?status=closed");
+    expect(screen.getByRole("link", { name: "Review closed trades" })).toHaveAttribute("href", "/review#review-queue");
     expect(screen.getAllByText("Last 30 days").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Forex").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Reset scope" })).toHaveAttribute("href", "/");

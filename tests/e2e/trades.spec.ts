@@ -69,7 +69,7 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(page.getByRole("heading", { name: symbol, level: 1 })).toBeVisible();
   // Close is enabled for open trades (P4 lifecycle).
   await expect(page.getByRole("link", { name: "Close" })).toBeVisible();
-  await page.getByRole("link", { name: "Review" }).click();
+  await page.getByRole("link", { name: "Review", exact: true }).click();
   await page.getByLabel("Review note").fill("E2E review: waited for confirmation.");
   await page.getByRole("button", { name: "Save review" }).first().click();
   await expect(page.getByRole("status")).toContainText("Review saved");

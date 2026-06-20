@@ -62,7 +62,8 @@ test("overview uses scoped journal data and is visually reviewable", async ({ pa
 
   // P5: deep links — review attention and a recent trade both reach My Trades / the detail.
   await page.getByRole("link", { name: /Review closed trades/i }).click();
-  await expect(page).toHaveURL(/\/trades\?status=closed/);
+  await expect(page).toHaveURL(/\/review#review-queue/);
+  await expect(page.getByRole("heading", { name: "Trades waiting for review" })).toBeVisible();
   await page.goto("/");
   // First trade-detail deep link in the recent-trades / open-positions strips (symbol-agnostic: the
   // shared e2e account is mutated by other specs concurrently). Excludes /trades/new and /trades?…

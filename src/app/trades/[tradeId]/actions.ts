@@ -48,6 +48,8 @@ export async function closeTradeAction(_prev: CloseTradeState, formData: FormDat
   if (result.status === "missing") redirect("/trades?close=missing");
   if (result.status === "already-closed") redirect(`/trades/${tradeId}?close=already`);
   revalidatePath("/trades");
+  revalidatePath("/review");
+  revalidatePath("/");
   revalidatePath(`/trades/${tradeId}`);
   redirect(`/trades/${tradeId}?closed=1`);
 }
@@ -67,6 +69,8 @@ export async function saveTradeReviewAction(formData: FormData) {
   });
   if (!reviewed) redirect("/trades?review=missing");
   revalidatePath("/trades");
+  revalidatePath("/review");
+  revalidatePath("/");
   revalidatePath(`/trades/${tradeId}`);
   redirect(`/trades/${tradeId}?reviewed=1`);
 }
