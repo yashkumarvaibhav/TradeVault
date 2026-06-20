@@ -52,9 +52,12 @@ test("chrome stays overflow-free on very narrow viewports, palette open or close
   for (const width of [320, 360, 375]) {
     await page.setViewportSize({ width, height: 760 });
     await page.goto("/");
+    // Wait for the header to render before measuring, so layout has settled.
+    const trigger = page.getByRole("button", { name: "Open command palette" });
+    await expect(trigger).toBeVisible();
     expect(await overflow(), `closed @ ${width}px`).toBeLessThanOrEqual(0);
 
-    await page.getByRole("button", { name: "Open command palette" }).click();
+    await trigger.click();
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
     expect(await overflow(), `palette open @ ${width}px`).toBeLessThanOrEqual(0);
     await page.keyboard.press("Escape");

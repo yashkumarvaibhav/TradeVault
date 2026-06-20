@@ -36,7 +36,7 @@ describe("overview visual milestone", () => {
 
   it("opens an accessible mobile navigation dialog", async () => {
     const user = userEvent.setup();
-    render(<AppShell user={{ displayUsername: "TraderJoe", username: "traderjoe" }}><p>Dashboard body</p></AppShell>);
+    render(<AppShell user={{ displayName: "TraderJoe", username: "traderjoe" }}><p>Dashboard body</p></AppShell>);
 
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
     expect(screen.getByRole("dialog", { name: "TradeVault navigation" })).toBeVisible();

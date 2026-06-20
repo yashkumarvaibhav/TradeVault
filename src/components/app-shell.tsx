@@ -16,7 +16,7 @@ import { Toaster, toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
 export interface AppShellUser {
-  displayUsername: string;
+  displayName: string;
   username: string;
 }
 
@@ -60,17 +60,19 @@ function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boo
       </nav>
 
       <div className="border-t border-line p-3">
-        <div className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-muted">
+        <a
+          href="/settings"
+          className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-ink"
+        >
           <Settings className="size-[18px]" aria-hidden="true" />
           Settings
-          <span className="ml-auto text-[10px] uppercase tracking-wider text-faint">Soon</span>
-        </div>
+        </a>
         <div className="mt-2 flex items-center gap-3 rounded-md border border-line bg-raised p-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-ink">
-            {initialsFor(user.displayUsername)}
+            {initialsFor(user.displayName)}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-ink">{user.displayUsername}</span>
+            <span className="block truncate text-sm font-semibold text-ink">{user.displayName}</span>
             <span className="block text-xs text-muted">Private workspace</span>
           </span>
           <form action={signOutAction}>
