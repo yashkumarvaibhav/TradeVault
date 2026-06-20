@@ -62,3 +62,41 @@ test("Notes workspace surfaces trade notes linked to their source and filters by
   await page.locator("article").filter({ hasText: "Pre-trade thesis" }).getByRole("link").first().click();
   await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}$/);
 });
+
+test("Note editor creates from a template, saves rich text, surfaces it, and pins", async ({ page }, testInfo) => {
+  const title = `Journal ${testInfo.project.name}`;
+  const phrase = `unique body marker ${testInfo.project.name}`;
+
+  await page.goto("/notes/new");
+  await expect(page.getByRole("heading", { name: "New note", level: 1 })).toBeVisible();
+
+  // Quick-create from a built-in template prefills the folder and the rich body.
+  await page.getByRole("button", { name: "Pre-trade plan" }).click();
+  await expect(page.locator("#note-folder")).toHaveValue("pre-trade");
+
+  await page.getByLabel("Title").fill(title);
+  const body = page.getByRole("textbox", { name: "Note body" });
+  await body.click();
+  await page.keyboard.type(` ${phrase}`);
+  await page.locator("#note-collection").selectOption("risk-rules");
+
+  await page.getByRole("button", { name: "Create note" }).click();
+  await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}\?saved=1$/);
+  await expect(page.getByText("Note saved.")).toBeVisible();
+  await expect(page.getByLabel("Title")).toHaveValue(title);
+  await expect(page.getByRole("textbox", { name: "Note body" })).toContainText(phrase);
+
+  // The dedicated note is editable (not read-only) and findable in the index.
+  await page.goto(`/notes?q=${encodeURIComponent(phrase)}`);
+  const card = page.locator("article").filter({ hasText: title });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Pre-trade");
+  await expect(card).not.toContainText("READ-ONLY");
+  await page.screenshot({ path: testInfo.outputPath("notes-editor-index.png"), fullPage: true, animations: "disabled" });
+
+  // Open it and pin from the manage bar.
+  await card.getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}$/);
+  await page.getByRole("button", { name: "Pin", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Unpin" })).toBeVisible();
+});

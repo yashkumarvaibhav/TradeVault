@@ -13,20 +13,17 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { NOTE_COLLECTIONS, NOTE_TYPES } from "@/lib/domain/notes";
+import { NOTE_COLLECTIONS, NOTE_TYPES, type RichTextDoc } from "@/lib/domain/notes";
 
 import { tenantMemberships, tenants, tradingAccounts, users } from "./foundations";
 import { playbooks, trades } from "./trades";
 
-export type { NoteCollection, NoteType } from "@/lib/domain/notes";
+export type { NoteCollection, NoteType, RichTextDoc } from "@/lib/domain/notes";
 
 // Note "type" doubles as the S9 left-nav Folders axis; collections are the orthogonal axis.
 // Canonical value order lives in `@/lib/domain/notes` (the pure oracle) to avoid drift.
 export const noteType = pgEnum("note_type", NOTE_TYPES);
 export const noteCollection = pgEnum("note_collection", NOTE_COLLECTIONS);
-
-/** TipTap ProseMirror document JSON. Null for fast plain-text notes. */
-export type RichTextDoc = { type: "doc"; content?: unknown[] };
 
 /**
  * Tenant/account/creator-scoped journal note. `bodyText` is the always-present plain

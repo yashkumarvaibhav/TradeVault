@@ -16,6 +16,9 @@ export const NOTE_COLLECTIONS = ["none", "setups", "risk-rules", "mistakes", "ta
 export type NoteType = (typeof NOTE_TYPES)[number];
 export type NoteCollection = (typeof NOTE_COLLECTIONS)[number];
 
+/** TipTap / ProseMirror document JSON. Null for fast plain-text notes. */
+export type RichTextDoc = { type: "doc"; content?: unknown[] };
+
 /** Where a feed item originates. Only `note` items are editable in the Notes workspace. */
 export type NoteSource = "note" | "trade-entry-note" | "trade-review-note" | "playbook-note";
 

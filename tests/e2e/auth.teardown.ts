@@ -8,22 +8,15 @@ teardown("delete e2e test users", async () => {
   if (!connectionString) return;
   const pool = new Pool({ connectionString });
   try {
-    // Trades intentionally retain creator-membership integrity. Remove test journal rows
-    // before deleting their ephemeral workspace; production memberships are untouched.
-    await pool.query(
-      `delete from trades where tenant_id in (
-         select m.tenant_id from tenant_memberships m
+    // Trades and notes intentionally retain creator-membership integrity (no-action FK).
+    // Remove these test journal rows before deleting their ephemeral workspace; production
+    // memberships are untouched.
+    const testTenants = `select m.tenant_id from tenant_memberships m
          join users u on u.id = m.user_id
-         where u.username like 'pw_e2e_%'
-       )`,
-    );
-    await pool.query(
-      `delete from tenants where id in (
-         select m.tenant_id from tenant_memberships m
-         join users u on u.id = m.user_id
-         where u.username like 'pw_e2e_%'
-       )`,
-    );
+         where u.username like 'pw_e2e_%'`;
+    await pool.query(`delete from notes where tenant_id in (${testTenants})`);
+    await pool.query(`delete from trades where tenant_id in (${testTenants})`);
+    await pool.query(`delete from tenants where id in (${testTenants})`);
     await pool.query("delete from users where username like 'pw_e2e_%'");
   } finally {
     await pool.end();
