@@ -62,7 +62,7 @@ export function EquityChart({
         aria-labelledby={`${id}-title ${id}-desc`}
       >
         <title id={`${id}-title`}>{chartTitle}</title>
-        <desc id={`${id}-desc`}>{`${metric}, measured in ${currency}, for closed preview trades over 30 days. ${points.length} checkpoints. Values range from ${format.format(low)} to ${format.format(high)}.`}</desc>
+        <desc id={`${id}-desc`}>{`${metric}, measured in ${currency}, for closed trades in the selected scope. ${points.length} checkpoints. Values range from ${format.format(low)} to ${format.format(high)}.`}</desc>
         <Group>
           <GridRows
             scale={yScale}
@@ -125,12 +125,12 @@ export function EquityChart({
         </Group>
       </svg>
       <figcaption className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-        <span>{metric} · {currency} · closed trades · 30 days</span>
+        <span>{metric} · {currency} · closed trades · selected scope</span>
         <span>Zero line shown · {points.length} checkpoints</span>
       </figcaption>
       <div className="sr-only">
         <table className="w-px max-w-px table-fixed break-all whitespace-normal">
-          <caption>{metric} values in {currency} for the preview sample</caption>
+          <caption>{metric} values in {currency} for the selected journal scope</caption>
           <thead><tr><th>Checkpoint</th><th>{currency}</th></tr></thead>
           <tbody>{points.map((point) => <tr key={point.label}><td>{point.label}</td><td>{format.format(point.value)}</td></tr>)}</tbody>
         </table>

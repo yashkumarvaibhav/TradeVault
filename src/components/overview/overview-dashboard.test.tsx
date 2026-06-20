@@ -3,12 +3,23 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { AppShell } from "@/components/app-shell";
-import { OverviewDashboard } from "./overview-dashboard";
+import { OverviewDashboard, type PreviewData } from "./overview-dashboard";
+
+const base = (netPnl: number): PreviewData => ({
+  netPnl, winRate: 50, totalTrades: 2, expectancy: netPnl / 2, openRisk: 100, openPositions: 1, unreviewed: 1,
+  reviewedCount: 0, ruleFollowRate: null, oldestPendingDays: 2,
+  equity: [{ label: "1 Jun", value: netPnl }], monthlyPnl: [{ label: "Jun", value: netPnl }],
+  returnDistribution: [{ range: "0% to 2%", count: 2 }], directions: [{ label: "Long", value: 2 }],
+  strategies: [{ name: "Swing", trades: 2, winRate: 50, expectancy: netPnl / 2 }],
+  trades: [{ symbol: "TEST", side: "Long", result: netPnl, r: 1, when: "1 Jun" }], calendar: { 1: netPnl },
+  profitFactor: 2, avgR: 1, topSymbol: "TEST",
+});
+const dataByCurrency = { INR: base(18420), USD: base(486.75) };
 
 describe("overview visual milestone", () => {
   it("keeps money metrics in the selected currency and switches the whole view", async () => {
     const user = userEvent.setup();
-    render(<OverviewDashboard />);
+    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" />);
 
     expect(screen.getAllByText("₹18,420")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("INR");

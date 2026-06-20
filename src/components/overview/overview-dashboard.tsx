@@ -8,12 +8,13 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
-  Filter,
+  Plus,
   RotateCcw,
   ShieldAlert,
   Target,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 
 import { BarChart, type BarDatum } from "@/components/charts/bar-chart";
 import { DonutChart, type DonutDatum } from "@/components/charts/donut-chart";
@@ -25,17 +26,14 @@ import { ScopeField, ScopeToolbar } from "@/components/layout/scope-toolbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import { Combobox } from "@/components/ui/combobox";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/toaster";
 import type { Currency } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
-interface TradePreview {
+export interface TradePreview {
   symbol: string;
   side: "Long" | "Short";
   result: number;
@@ -43,13 +41,17 @@ interface TradePreview {
   when: string;
 }
 
-interface PreviewData {
+export interface PreviewData {
   netPnl: number;
   winRate: number;
   totalTrades: number;
   expectancy: number;
   openRisk: number;
+  openPositions: number;
   unreviewed: number;
+  reviewedCount: number;
+  ruleFollowRate: number | null;
+  oldestPendingDays: number | null;
   equity: EquityDatum[];
   monthlyPnl: BarDatum[];
   returnDistribution: HistogramDatum[];
@@ -62,130 +64,16 @@ interface PreviewData {
   topSymbol: string;
 }
 
-interface StrategyPreview {
+export interface StrategyPreview {
   name: string;
   trades: number;
   winRate: number;
   expectancy: number;
 }
 
-const preview: Record<Currency, PreviewData> = {
-  INR: {
-    netPnl: 18420,
-    winRate: 64.3,
-    totalTrades: 14,
-    expectancy: 1315.71,
-    openRisk: 6200,
-    unreviewed: 3,
-    equity: [
-      { label: "21 May", value: 0 },
-      { label: "25 May", value: 4200 },
-      { label: "29 May", value: 1800 },
-      { label: "2 Jun", value: 7600 },
-      { label: "6 Jun", value: 6400 },
-      { label: "10 Jun", value: 12100 },
-      { label: "14 Jun", value: 9800 },
-      { label: "18 Jun", value: 18420 },
-    ],
-    monthlyPnl: [
-      { label: "Jan", value: 2800 },
-      { label: "Feb", value: -1450 },
-      { label: "Mar", value: 4250 },
-      { label: "Apr", value: 3100 },
-      { label: "May", value: 6200 },
-      { label: "Jun", value: 12220 },
-    ],
-    returnDistribution: [
-      { range: "-4%–-2%", count: 1 },
-      { range: "-2%–0%", count: 4 },
-      { range: "0%–2%", count: 5 },
-      { range: "2%–4%", count: 3 },
-      { range: "4%–6%", count: 1 },
-    ],
-    directions: [{ label: "Long", value: 9 }, { label: "Short", value: 5 }],
-    strategies: [
-      { name: "Opening breakout", trades: 5, winRate: 80, expectancy: 1900 },
-      { name: "Trend continuation", trades: 4, winRate: 75, expectancy: 1210 },
-      { name: "Mean reversion", trades: 3, winRate: 33.3, expectancy: -420 },
-    ],
-    trades: [
-      { symbol: "NIFTY FUT", side: "Long", result: 6250, r: 1.8, when: "Today, 11:24" },
-      { symbol: "RELIANCE", side: "Short", result: -2180, r: -0.7, when: "Yesterday" },
-      { symbol: "BANKNIFTY", side: "Long", result: 4350, r: 1.2, when: "17 Jun" },
-    ],
-    calendar: { 2: 1800, 4: -950, 6: 3100, 9: 2250, 10: 3450, 13: -2300, 17: 4350, 18: 6250 },
-    profitFactor: 2.14,
-    avgR: 0.62,
-    topSymbol: "NIFTY FUT",
-  },
-  USD: {
-    netPnl: 486.75,
-    winRate: 60,
-    totalTrades: 10,
-    expectancy: 48.68,
-    openRisk: 140,
-    unreviewed: 2,
-    equity: [
-      { label: "21 May", value: 0 },
-      { label: "25 May", value: 85 },
-      { label: "29 May", value: 42 },
-      { label: "2 Jun", value: 185 },
-      { label: "6 Jun", value: 160 },
-      { label: "10 Jun", value: 335 },
-      { label: "14 Jun", value: 298 },
-      { label: "18 Jun", value: 486.75 },
-    ],
-    monthlyPnl: [
-      { label: "Jan", value: 82 },
-      { label: "Feb", value: -44.5 },
-      { label: "Mar", value: 116.25 },
-      { label: "Apr", value: 95 },
-      { label: "May", value: 142 },
-      { label: "Jun", value: 344.75 },
-    ],
-    returnDistribution: [
-      { range: "-4%–-2%", count: 1 },
-      { range: "-2%–0%", count: 3 },
-      { range: "0%–2%", count: 3 },
-      { range: "2%–4%", count: 2 },
-      { range: "4%–6%", count: 1 },
-    ],
-    directions: [{ label: "Long", value: 6 }, { label: "Short", value: 4 }],
-    strategies: [
-      { name: "US open momentum", trades: 4, winRate: 75, expectancy: 72.5 },
-      { name: "Trend continuation", trades: 3, winRate: 66.7, expectancy: 54.25 },
-      { name: "Mean reversion", trades: 3, winRate: 33.3, expectancy: -18.5 },
-    ],
-    trades: [
-      { symbol: "MNQ", side: "Long", result: 188.75, r: 1.5, when: "Today, 09:42" },
-      { symbol: "AAPL", side: "Long", result: 96, r: 0.8, when: "Yesterday" },
-      { symbol: "MES", side: "Short", result: -64.5, r: -0.6, when: "16 Jun" },
-    ],
-    calendar: { 1: 48, 3: -31, 5: 126, 8: 72, 11: -42, 14: 57, 16: -64.5, 18: 188.75 },
-    profitFactor: 1.82,
-    avgR: 0.48,
-    topSymbol: "MNQ",
-  },
-};
-
 const calendarDays = Array.from({ length: 30 }, (_, index) => index + 1);
 const heatmapColumns = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const heatmapRows = ["W1", "W2", "W3", "W4", "W5"];
-const assetOptions = [
-  { value: "all", label: "All assets" },
-  { value: "equity", label: "Equity", keywords: ["cash", "stocks"] },
-  { value: "index", label: "Index", keywords: ["futures", "options"] },
-  { value: "forex", label: "Forex", keywords: ["currency", "fx"] },
-  { value: "crypto", label: "Crypto", keywords: ["spot", "perpetual"] },
-];
-
-const strategyOptions = [
-  { value: "all", label: "All strategies" },
-  { value: "breakout", label: "Opening breakout" },
-  { value: "trend", label: "Trend continuation" },
-  { value: "reversion", label: "Mean reversion" },
-];
-
 function buildDrawdown(points: EquityDatum[]): EquityDatum[] {
   let peak = 0;
   return points.map((point) => {
@@ -200,7 +88,7 @@ function buildOutcomeHeatmap(calendar: Record<number, number>): HeatmapDatum[] {
     return {
       row,
       column,
-      label: day <= 30 ? `June ${day}` : "Outside June preview",
+      label: day <= 30 ? `Current month, day ${day}` : "Outside current month",
       value: day <= 30 ? calendar[day] ?? null : null,
     };
   }));
@@ -244,24 +132,17 @@ function MetricCard({
   );
 }
 
-export function OverviewDashboard() {
+export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
-  const [asset, setAsset] = React.useState("all");
-  const [strategy, setStrategy] = React.useState("all");
-  const [direction, setDirection] = React.useState("all");
   const [equityMode, setEquityMode] = React.useState<"equity" | "drawdown">("equity");
-  const data = preview[currency];
+  const data = dataByCurrency[currency];
   const formatMoney = moneyFormatter(currency);
   const equityPoints = equityMode === "equity" ? data.equity : buildDrawdown(data.equity);
   const outcomeHeatmap = buildOutcomeHeatmap(data.calendar);
 
   function resetScope() {
     setCurrency("INR");
-    setAsset("all");
-    setStrategy("all");
-    setDirection("all");
     setEquityMode("equity");
-    toast.success("Preview scope reset", { description: "Showing the INR foundation sample." });
   }
 
   return (
@@ -269,59 +150,18 @@ export function OverviewDashboard() {
       <PageHeader
         eyebrow={
           <>
-            <Chip tone="accent">Foundation preview</Chip>
-            <Chip>Sample data · not your journal</Chip>
+            <Chip tone="accent">Live journal</Chip>
+            <Chip>{dataByCurrency.INR.totalTrades + dataByCurrency.USD.totalTrades} closed trades</Chip>
           </>
         }
-        title="Good afternoon, Yash."
-        description="Friday, 19 June · A calm read on performance, risk, and unfinished review work."
+        title={`Good afternoon, ${displayName}.`}
+        description={`${asOf} · Metrics below come from the same scoped records as My Trades.`}
         actions={
           <>
             <Button variant="outline" size="compact" onClick={resetScope}>
               <RotateCcw aria-hidden="true" /> Reset scope
             </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="secondary" size="compact"><Filter aria-hidden="true" /> More filters</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>More preview filters</DialogTitle>
-                  <DialogDescription>These controls establish the interaction pattern. They will query real journal data after the data layer lands.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-5 py-2">
-                  <ScopeField label="Strategy">
-                    <Combobox
-                      ariaLabel="Strategy filter"
-                      options={strategyOptions}
-                      value={strategy}
-                      onValueChange={setStrategy}
-                      placeholder="All strategies"
-                      searchPlaceholder="Search strategies…"
-                    />
-                  </ScopeField>
-                  <ScopeField label="Direction">
-                    <SegmentedControl
-                      type="single"
-                      value={direction}
-                      onValueChange={(value) => value && setDirection(value)}
-                      aria-label="Direction filter"
-                      className="w-full"
-                    >
-                      <SegmentedControlItem value="all" className="flex-1">All</SegmentedControlItem>
-                      <SegmentedControlItem value="long" className="flex-1">Long</SegmentedControlItem>
-                      <SegmentedControlItem value="short" className="flex-1">Short</SegmentedControlItem>
-                    </SegmentedControl>
-                  </ScopeField>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                  <DialogClose asChild>
-                    <Button onClick={() => toast.info("Filter pattern saved", { description: "Real query wiring arrives with the Drizzle data layer." })}>Apply preview</Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button>
           </>
         }
       />
@@ -330,26 +170,7 @@ export function OverviewDashboard() {
         label="Dashboard scope"
         note={<>Money metrics are isolated to <strong className="text-ink">{currency}</strong>. INR and USD are never combined.</>}
       >
-          <ScopeField label="Period" className="flex-1">
-            <Select defaultValue="30d">
-              <SelectTrigger aria-label="Period scope" className="w-full sm:w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </ScopeField>
-          <ScopeField label="Asset" className="flex-1">
-            <Combobox
-              ariaLabel="Asset scope"
-              options={assetOptions}
-              value={asset}
-              onValueChange={(value) => {
-                setAsset(value);
-                if (value !== "all") toast.info("Asset control preview", { description: "The sample stays fixed until journal queries are connected." });
-              }}
-              className="sm:w-44"
-            />
-          </ScopeField>
+          <ScopeField label="Period" className="flex-1"><span className="flex h-11 items-center rounded-md border border-line bg-raised px-3 text-sm text-body">All journal history</span></ScopeField>
           <ScopeField label="Currency">
             <Select value={currency} onValueChange={(value) => setCurrency(value as Currency)}>
               <SelectTrigger aria-label="Currency scope" className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -362,7 +183,7 @@ export function OverviewDashboard() {
       </ScopeToolbar>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4" aria-label={`${currency} key performance indicators`}>
-        <MetricCard label="Net P&L" value={formatMoney.format(data.netPnl)} detail={`${currency} · closed trades · 30 days`} tone="profit" />
+        <MetricCard label="Net P&L" value={formatMoney.format(data.netPnl)} detail={`${currency} · all filtered closed trades`} tone={data.netPnl >= 0 ? "profit" : "warning"} />
         <MetricCard label="Win rate" value={`${data.winRate.toFixed(1)}%`} detail={`${Math.round((data.winRate / 100) * data.totalTrades)} of ${data.totalTrades} closed trades`} />
         <MetricCard label="Closed trades" value={String(data.totalTrades)} detail="Completed in selected scope" />
         <MetricCard label="Expectancy" value={formatMoney.format(data.expectancy)} detail={`${currency} per closed trade`} tone="profit" />
@@ -374,7 +195,7 @@ export function OverviewDashboard() {
           <CardHeader className="flex-col sm:flex-row sm:items-center">
             <div>
               <CardTitle>Performance curve</CardTitle>
-              <CardDescription>{equityMode === "equity" ? "Cumulative net P&L" : "Distance below the running peak"} · {currency} · 30 days</CardDescription>
+              <CardDescription>{equityMode === "equity" ? "Cumulative net P&L" : "Distance below the running peak"} · {currency} · full journal</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedControl
@@ -406,20 +227,20 @@ export function OverviewDashboard() {
                 <span className="text-sm font-semibold text-ink">Open 1R at risk</span>
                 <span className="tnum font-serif text-xl text-warn">{formatMoney.format(data.openRisk)}</span>
               </div>
-              <p className="mt-1 text-xs text-muted">Across 2 open positions · {currency}</p>
+              <p className="mt-1 text-xs text-muted">Across {data.openPositions} open positions · {currency}</p>
             </div>
             <div className="flex min-h-14 items-center gap-3 rounded-md border border-line p-3">
               <CircleAlert className="size-5 text-warn" aria-hidden="true" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-ink">{data.unreviewed} trades await review</p>
-                <p className="text-xs text-muted">Oldest pending for 3 days</p>
+                <p className="text-xs text-muted">{data.oldestPendingDays == null ? "No pending review age" : `Oldest pending for ${data.oldestPendingDays} days`}</p>
               </div>
             </div>
             <div className="flex min-h-14 items-center gap-3 rounded-md border border-line p-3">
               <CheckCircle2 className="size-5 text-profit" aria-hidden="true" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-ink">82% rule-follow rate</p>
-                <p className="text-xs text-muted">Reviewed sample · 11 trades</p>
+                <p className="text-sm font-semibold text-ink">{data.ruleFollowRate == null ? "No reviewed sample yet" : `${data.ruleFollowRate.toFixed(1)}% rule-follow rate`}</p>
+                <p className="text-xs text-muted">{data.reviewedCount ? `Reviewed sample · ${data.reviewedCount} trades` : "Complete reviews before judging discipline"}</p>
               </div>
             </div>
             <Button variant="outline" className="w-full" disabled>Open review queue · coming soon</Button>
@@ -432,7 +253,7 @@ export function OverviewDashboard() {
           <CardHeader>
             <div>
               <CardTitle>Performance diagnostics</CardTitle>
-              <CardDescription>One diagnostic at a time · {currency} · closed preview trades</CardDescription>
+              <CardDescription>One diagnostic at a time · {currency} · closed journal trades</CardDescription>
             </div>
             <Chip tone="accent">{data.totalTrades} trades</Chip>
           </CardHeader>
@@ -447,7 +268,7 @@ export function OverviewDashboard() {
                   data={data.monthlyPnl}
                   metric="Monthly net P&L"
                   unit={currency}
-                  scope="closed trades · preview history"
+                  scope="closed trades · full journal history"
                   sampleSize={data.totalTrades}
                   formatValue={formatMoney.format}
                 />
@@ -456,7 +277,7 @@ export function OverviewDashboard() {
                 <HistogramChart
                   data={data.returnDistribution}
                   metric="Return distribution"
-                  scope={`${currency} closed trades · 30 days`}
+                  scope={`${currency} closed trades · full journal`}
                   sampleSize={data.totalTrades}
                 />
               </TabsContent>
@@ -494,14 +315,14 @@ export function OverviewDashboard() {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableCaption>{currency} strategy results · preview sample · insufficient-data labels follow with real queries.</TableCaption>
+              <TableCaption>{currency} strategy results · grouped by the saved trading-style field.</TableCaption>
             </Table>
             <div className="mt-5 border-t border-line pt-5">
               <DonutChart
                 data={data.directions}
                 metric="Long vs Short"
                 unit="closed trades"
-                scope={`${currency} · 30 days`}
+                scope={`${currency} · full journal`}
                 sampleSize={data.totalTrades}
               />
             </div>
@@ -514,7 +335,7 @@ export function OverviewDashboard() {
           <CardHeader>
             <div>
               <CardTitle>Recent trades</CardTitle>
-              <CardDescription>Latest closed positions in the {currency} preview</CardDescription>
+              <CardDescription>Latest closed positions in the {currency} journal</CardDescription>
             </div>
             <Clock3 className="size-5 text-muted" aria-hidden="true" />
           </CardHeader>
@@ -541,7 +362,7 @@ export function OverviewDashboard() {
           <CardHeader>
             <div>
               <CardTitle>June activity</CardTitle>
-              <CardDescription>Daily closed P&amp;L · {currency} · preview</CardDescription>
+              <CardDescription>Daily closed P&amp;L · {currency} · current month</CardDescription>
             </div>
             <CalendarClock className="size-5 text-muted" aria-hidden="true" />
           </CardHeader>
@@ -588,7 +409,7 @@ export function OverviewDashboard() {
                   columns={heatmapColumns}
                   metric="Daily outcome intensity"
                   unit={currency}
-                  scope="June preview · closed trades"
+                  scope="Current month · closed journal trades"
                   sampleSize={data.totalTrades}
                   formatValue={formatMoney.format}
                 />

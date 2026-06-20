@@ -1,37 +1,21 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
 import { AppShell } from "@/components/app-shell";
 import { OverviewDashboard } from "@/components/overview/overview-dashboard";
-import { ensureWorkspaceForUser } from "@/db/repositories/workspaces";
+import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
-import { getAuth } from "@/lib/auth-server";
+import { buildOverviewData } from "@/lib/overview-data";
+import { requireWorkspaceSession } from "@/lib/workspace-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  let session = null;
-  try {
-    session = await getAuth().api.getSession({ headers: await headers() });
-  } catch {
-    session = null;
-  }
-  if (!session) redirect("/login");
-
-  const user = session.user;
-  const displayName = user.name || user.username || "Trader";
-  const username = user.username ?? "";
-
-  // Heal accounts created before onboarding existed (idempotent, no-op once provisioned).
-  await ensureWorkspaceForUser(getDb(), {
-    userId: user.id,
-    slugBase: username || user.name,
-    tenantName: `${displayName}'s vault`,
-  });
-
-  return (
-    <AppShell user={{ displayName, username }}>
-      <OverviewDashboard />
-    </AppShell>
-  );
+  const { shellUser, scope, account } = await requireWorkspaceSession();
+  const rows = await createTradeRepository(getDb(), scope).listAll(account.id);
+  const now = new Date();
+  return <AppShell user={shellUser}>
+    <OverviewDashboard
+      dataByCurrency={buildOverviewData(rows, now)}
+      displayName={shellUser.displayName}
+      asOf={now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+    />
+  </AppShell>;
 }

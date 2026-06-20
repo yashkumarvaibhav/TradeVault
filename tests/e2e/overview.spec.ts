@@ -5,11 +5,12 @@ import { AUTH_STATE } from "./auth-paths";
 // The overview lives behind auth; use the session created in auth.setup.
 test.use({ storageState: AUTH_STATE });
 
-test("overview preview is scoped, responsive, and visually reviewable", async ({ page }, testInfo) => {
+test("overview uses scoped journal data and is visually reviewable", async ({ page }, testInfo) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: /Good afternoon, Yash/i })).toBeVisible();
-  await expect(page.getByText("Sample data · not your journal")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Good afternoon, pw_e2e_/i })).toBeVisible();
+  await expect(page.getByText("Live journal")).toBeVisible();
+  await expect(page.getByText("Sample data · not your journal")).toHaveCount(0);
   await expect(page.getByText(/INR and USD are never combined/i)).toBeVisible();
   await expect(page.getByRole("img", { name: /INR cumulative net P&L equity curve/i })).toBeVisible();
   await expect(page.getByRole("img", { name: /Monthly net P&L bar chart/i })).toBeVisible();
@@ -35,7 +36,7 @@ test("overview preview is scoped, responsive, and visually reviewable", async ({
 
   await page.getByRole("combobox", { name: "Currency scope" }).click();
   await page.getByRole("option", { name: "USD" }).click();
-  await expect(page.getByText("$486.75", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("$5.00", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
 
   await page.getByRole("radio", { name: "Drawdown" }).click();
