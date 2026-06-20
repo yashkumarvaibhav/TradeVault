@@ -21,16 +21,16 @@ import { DonutChart, type DonutDatum } from "@/components/charts/donut-chart";
 import { EquityChart, type EquityDatum } from "@/components/charts/equity-chart";
 import { HeatmapChart, type HeatmapDatum } from "@/components/charts/heatmap-chart";
 import { HistogramChart, type HistogramDatum } from "@/components/charts/histogram-chart";
+import { ScopeControls } from "@/components/dashboard/scope-controls";
 import { PageHeader } from "@/components/layout/page-header";
-import { ScopeField, ScopeToolbar } from "@/components/layout/scope-toolbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Currency } from "@/lib/domain/types";
+import type { DashboardScope } from "@/lib/trade-scope";
 import { cn } from "@/lib/utils";
 
 export interface TradePreview {
@@ -50,13 +50,8 @@ export interface OpenPreview {
   when: string;
 }
 
-export type OverviewPeriod = "all" | "30d" | "90d" | "ytd";
-export type OverviewAsset = "Overall" | "Equity" | "Index" | "Forex" | "Commodity" | "US Index" | "Crypto";
-
-export interface OverviewScope {
-  period: OverviewPeriod;
-  asset: OverviewAsset;
-  /** Current calendar month as YYYY-MM, for day deep-links. */
+export interface OverviewScope extends DashboardScope {
+  /** Current calendar month as YYYY-MM, for the calendar label. */
   month: string;
 }
 
@@ -122,25 +117,6 @@ function moneyFormatter(currency: Currency) {
   });
 }
 
-const PERIOD_OPTIONS: { value: OverviewPeriod; label: string }[] = [
-  { value: "all", label: "All time" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "90d", label: "Last 90 days" },
-  { value: "ytd", label: "Year to date" },
-];
-const ASSET_OPTIONS: OverviewAsset[] = ["Overall", "Equity", "Index", "Forex", "Commodity", "US Index", "Crypto"];
-
-/** Build an Overview URL for the current scope with a patch (omitting defaults keeps URLs clean). */
-function scopeHref(scope: OverviewScope, patch: Partial<Pick<OverviewScope, "period" | "asset">>) {
-  const period = patch.period ?? scope.period;
-  const asset = patch.asset ?? scope.asset;
-  const params = new URLSearchParams();
-  if (period !== "all") params.set("period", period);
-  if (asset !== "Overall") params.set("asset", asset);
-  const query = params.toString();
-  return query ? `/?${query}` : "/";
-}
-
 function MetricCard({
   label,
   value,
@@ -178,7 +154,6 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: 
   const formatMoney = moneyFormatter(currency);
   const equityPoints = equityMode === "equity" ? data.equity : buildDrawdown(data.equity);
   const outcomeHeatmap = buildOutcomeHeatmap(data.calendar);
-  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === scope.period)?.label ?? "All time";
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
   const monthName = new Date(`${scope.month}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" });
 
@@ -203,62 +178,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: 
         }
       />
 
-      <ScopeToolbar
-        label="Dashboard scope"
-        note={
-          <>
-            Money metrics are isolated to <strong className="text-ink">{currency}</strong>. INR and USD are never combined.
-            {scopeActive ? (
-              <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Chip tone="accent">{periodLabel}</Chip>
-                {scope.asset !== "Overall" ? <Chip tone="accent">{scope.asset}</Chip> : null}
-                <Link href="/" className="text-xs font-semibold text-accent underline-offset-2 hover:underline">Clear</Link>
-              </span>
-            ) : null}
-          </>
-        }
-      >
-          <ScopeField label="Period" className="flex-1">
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Period scope">
-              {PERIOD_OPTIONS.map((option) => (
-                <Link
-                  key={option.value}
-                  href={scopeHref(scope, { period: option.value })}
-                  aria-current={scope.period === option.value ? "true" : undefined}
-                  className={cn(
-                    "inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition-colors",
-                    scope.period === option.value ? "border-line-strong bg-accent-soft text-ink" : "border-line bg-raised text-muted hover:bg-hover",
-                  )}
-                >
-                  {option.label}
-                </Link>
-              ))}
-            </div>
-          </ScopeField>
-          <ScopeField label="Asset">
-            <form action="/" method="get">
-              {scope.period !== "all" ? <input type="hidden" name="period" value={scope.period} /> : null}
-              <select
-                name="asset"
-                defaultValue={scope.asset}
-                aria-label="Asset class scope"
-                onChange={(event) => event.currentTarget.form?.requestSubmit()}
-                className="h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink sm:w-40"
-              >
-                {ASSET_OPTIONS.map((asset) => <option key={asset} value={asset}>{asset}</option>)}
-              </select>
-            </form>
-          </ScopeField>
-          <ScopeField label="Currency">
-            <Select value={currency} onValueChange={(value) => setCurrency(value as Currency)}>
-              <SelectTrigger aria-label="Currency scope" className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="INR">INR</SelectItem>
-                <SelectItem value="USD">USD</SelectItem>
-              </SelectContent>
-            </Select>
-          </ScopeField>
-      </ScopeToolbar>
+      <ScopeControls basePath="/" scope={scope} currency={currency} onCurrencyChange={setCurrency} />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4" aria-label={`${currency} key performance indicators`}>
         <MetricCard label="Net P&L" value={formatMoney.format(data.netPnl)} detail={`${currency} · all filtered closed trades`} tone={data.netPnl >= 0 ? "profit" : "warning"} />

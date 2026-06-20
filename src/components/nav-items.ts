@@ -23,7 +23,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, href: "/", active: true },
   { label: "My trades", icon: BarChart3, href: "/trades", active: true },
-  { label: "Analytics", icon: ChartNoAxesCombined, href: "#", soon: true },
+  { label: "Analytics", icon: ChartNoAxesCombined, href: "/analytics", active: true },
   { label: "Review center", icon: ShieldCheck, href: "#", soon: true },
   { label: "Calendar", icon: CalendarDays, href: "#", soon: true },
   { label: "Notes", icon: BookOpenText, href: "#", soon: true },
