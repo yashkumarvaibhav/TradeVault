@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -116,6 +117,7 @@ export const tradingAccounts = pgTable("trading_accounts", {
     foreignColumns: [tenantMemberships.tenantId, tenantMemberships.userId],
   }).onDelete("cascade"),
   uniqueIndex("trading_accounts_owner_name_unique").on(table.tenantId, table.ownerUserId, table.name),
+  unique("trading_accounts_tenant_id_unique").on(table.tenantId, table.id),
   uniqueIndex("trading_accounts_one_default_per_owner_unique")
     .on(table.tenantId, table.ownerUserId)
     .where(sql`${table.isDefault} = true`),
