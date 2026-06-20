@@ -198,7 +198,10 @@ function parsePlaybooks(value: unknown, errors: string[]): ImportPlaybook[] {
     return {
       name: item.name,
       marketScope: optionalString(raw?.market_scope ?? raw?.marketScope, 500),
-      setupRules: legacyStringList(raw?.setup_rules ?? raw?.setupRules ?? raw?.checklist, 200, 1_000),
+      setupRules: [...new Set([
+        ...legacyStringList(raw?.setup_rules ?? raw?.setupRules, 200, 1_000),
+        ...legacyStringList(raw?.checklist, 200, 1_000),
+      ])].slice(0, 200),
       notes: optionalString(raw?.notes),
     };
   });

@@ -147,7 +147,9 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
           name: playbook.name,
           market_scope: playbook.marketScope,
           setup_rules: playbook.setupRules.join("\n"),
+          checklist: "",
           notes: playbook.notes,
+          active: 1,
         })),
         notes: noteRows.map((note, index) => ({
           export_ref: `note-${index + 1}`,
