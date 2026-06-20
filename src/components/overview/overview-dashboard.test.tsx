@@ -52,6 +52,7 @@ describe("overview visual milestone", () => {
     expect(screen.getByRole("link", { name: /TEST/ })).toHaveAttribute("href", "/trades/trade-1");
     expect(screen.getByRole("link", { name: /OPENPOS/ })).toHaveAttribute("href", "/trades/open-1");
     expect(screen.getByRole("link", { name: "Review closed trades" })).toHaveAttribute("href", "/review#review-queue");
+    expect(screen.getByRole("link", { name: "Open calendar" })).toHaveAttribute("href", "/calendar?mode=month&month=2026-06");
     expect(screen.getAllByText("Last 30 days").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Forex").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Reset scope" })).toHaveAttribute("href", "/");

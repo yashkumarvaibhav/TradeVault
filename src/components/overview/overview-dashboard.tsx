@@ -380,7 +380,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: 
               <CardTitle>{monthName} activity</CardTitle>
               <CardDescription>Daily closed P&amp;L · {currency} · current month</CardDescription>
             </div>
-            <CalendarClock className="size-5 text-muted" aria-hidden="true" />
+            <Button asChild variant="ghost" size="compact"><Link href={`/calendar?mode=month&month=${scope.month}`}>Open calendar<CalendarClock aria-hidden="true" /></Link></Button>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="month">
