@@ -2,7 +2,7 @@ import "server-only";
 
 import { nextCookies } from "better-auth/next-js";
 
-import { createDatabase } from "@/db/client";
+import { getDb } from "@/db/server";
 import { createAuth, type Auth } from "@/lib/auth";
 
 let instance: Auth | null = null;
@@ -14,8 +14,7 @@ let instance: Auth | null = null;
  */
 export function getAuth(): Auth {
   if (!instance) {
-    const { db } = createDatabase();
-    instance = createAuth(db, { extraPlugins: [nextCookies()] });
+    instance = createAuth(getDb(), { extraPlugins: [nextCookies()] });
   }
   return instance;
 }

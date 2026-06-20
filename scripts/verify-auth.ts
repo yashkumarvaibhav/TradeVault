@@ -8,7 +8,7 @@ import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 
 import { createAuth } from "../src/lib/auth";
 import * as schema from "../src/db/schema";
-import { synthesizeAuthEmail } from "../src/db/repositories/workspaces";
+import { ensureWorkspaceForUser, synthesizeAuthEmail } from "../src/db/repositories/workspaces";
 
 /**
  * End-to-end oracle for the Better Auth ⇄ username-first schema reconciliation.
@@ -83,11 +83,29 @@ async function main() {
   }
   assert.equal(rejected, true, "wrong password rejected");
 
+  // Onboarding: ensureWorkspaceForUser provisions a tenant + default Main account, idempotently.
+  const userId = (((await rawQuery("select id from users limit 1")).rows[0]) as { id: string }).id;
+  const scope = await ensureWorkspaceForUser(db, { userId, slugBase: username, tenantName: "TraderJoe's vault" });
+  assert.ok(scope.tenantId, "workspace scope created");
+
+  const accounts = await rawQuery("select name, is_default, default_currency from trading_accounts");
+  assert.equal(accounts.rows.length, 1, "exactly one trading account provisioned");
+  const account = accounts.rows[0] as { name: string; is_default: boolean; default_currency: string };
+  assert.equal(account.name, "Main");
+  assert.equal(account.is_default, true);
+  assert.equal(account.default_currency, "INR");
+
+  const scopeAgain = await ensureWorkspaceForUser(db, { userId, slugBase: username, tenantName: "TraderJoe's vault" });
+  assert.equal(scopeAgain.tenantId, scope.tenantId, "ensureWorkspaceForUser is idempotent");
+  const accountCount = Number(((await rawQuery("select count(*) from trading_accounts")).rows[0] as { count: string | number }).count);
+  assert.equal(accountCount, 1, "re-provision did not duplicate the account");
+
   await db.execute(sql`select 1`);
   await pglite.close();
   console.log(
     "Auth runtime verified on PGlite: username sign-up created the reconciled users + auth_accounts (hashed) rows, " +
-      "and username sign-in issued an auth_sessions row while rejecting a wrong password.",
+      "username sign-in issued an auth_sessions row while rejecting a wrong password, and onboarding provisioned a " +
+      "single default workspace idempotently.",
   );
 }
 

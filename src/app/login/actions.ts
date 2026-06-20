@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APIError } from "better-auth/api";
 
-import { synthesizeAuthEmail } from "@/db/repositories/workspaces";
+import { ensureWorkspaceForUser, synthesizeAuthEmail } from "@/db/repositories/workspaces";
+import { getDb } from "@/db/server";
 import { getAuth } from "@/lib/auth-server";
 import { normalizeUsername, validatePassword, validateUsername } from "@/lib/auth-policy";
 
@@ -53,8 +54,9 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
 
   const username = normalizeUsername(rawUsername);
   const displayUsername = rawUsername.trim();
+  let userId: string;
   try {
-    await getAuth().api.signUpEmail({
+    const result = await getAuth().api.signUpEmail({
       body: {
         username,
         displayUsername,
@@ -65,8 +67,13 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
       },
       headers: await headers(),
     });
+    userId = result.user.id;
   } catch (error) {
     return { error: messageFor(error, "Could not create your account. Try a different username.") };
   }
+
+  // Provision the new user's personal tenant + default Main account (idempotent).
+  await ensureWorkspaceForUser(getDb(), { userId, slugBase: username, tenantName: `${displayUsername}'s vault` });
+
   redirect("/");
 }

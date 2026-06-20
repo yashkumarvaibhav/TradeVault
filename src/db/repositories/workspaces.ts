@@ -38,6 +38,34 @@ export function normalizeTenantSlug(slug: string) {
   return slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/** Transaction client compatible with `db` and a `db.transaction` callback argument. */
+type TransactionClient = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+/** Create a tenant + owner membership + default `Main` account for an existing user id. */
+async function insertTenantWithAccount(tx: TransactionClient, input: {
+  userId: string;
+  tenantSlug: string;
+  tenantName: string;
+  defaultCurrency: Currency;
+}) {
+  const [tenant] = await tx.insert(tenants).values({
+    slug: input.tenantSlug,
+    name: input.tenantName,
+  }).returning();
+
+  await tx.insert(tenantMemberships).values({ tenantId: tenant.id, userId: input.userId, role: "owner" });
+
+  const [account] = await tx.insert(tradingAccounts).values({
+    tenantId: tenant.id,
+    ownerUserId: input.userId,
+    name: "Main",
+    defaultCurrency: input.defaultCurrency,
+    isDefault: true,
+  }).returning();
+
+  return { tenant, account, scope: tenantScope({ tenantId: tenant.id, userId: input.userId }) };
+}
+
 export async function provisionWorkspace(db: Database, input: {
   username: string;
   displayUsername?: string;
@@ -63,23 +91,51 @@ export async function provisionWorkspace(db: Database, input: {
       displayName: input.displayName?.trim() || null,
     }).returning();
 
-    const [tenant] = await tx.insert(tenants).values({
-      slug: tenantSlug,
-      name: input.tenantName.trim(),
-    }).returning();
-
-    await tx.insert(tenantMemberships).values({ tenantId: tenant.id, userId: user.id, role: "owner" });
-
-    const [account] = await tx.insert(tradingAccounts).values({
-      tenantId: tenant.id,
-      ownerUserId: user.id,
-      name: "Main",
+    const workspace = await insertTenantWithAccount(tx, {
+      userId: user.id,
+      tenantSlug,
+      tenantName: input.tenantName.trim(),
       defaultCurrency: input.defaultCurrency ?? "INR",
-      isDefault: true,
-    }).returning();
+    });
 
-    return { user, tenant, account, scope: tenantScope({ tenantId: tenant.id, userId: user.id }) };
+    return { user, ...workspace };
   });
+}
+
+/**
+ * Idempotently ensure an existing user (created by Better Auth sign-up) has a personal
+ * tenant + default `Main` account. Safe to call on sign-up and on every gated page load.
+ * Returns the user's default account scope. The tenant slug is unique-by-construction
+ * (a short user-id suffix) so concurrent first-time provisions never collide.
+ */
+export async function ensureWorkspaceForUser(db: Database, input: {
+  userId: string;
+  slugBase: string;
+  tenantName: string;
+  defaultCurrency?: Currency;
+}): Promise<TenantScope> {
+  const existing = await db
+    .select({ tenantId: tradingAccounts.tenantId })
+    .from(tradingAccounts)
+    .where(and(eq(tradingAccounts.ownerUserId, input.userId), eq(tradingAccounts.isDefault, true)))
+    .limit(1);
+  if (existing[0]) {
+    return tenantScope({ tenantId: existing[0].tenantId, userId: input.userId });
+  }
+
+  const base = normalizeTenantSlug(input.slugBase) || "workspace";
+  const tenantSlug = `${base}-${input.userId.replace(/-/g, "").slice(0, 8)}`;
+  const tenantName = input.tenantName.trim() || "Workspace";
+
+  const workspace = await db.transaction((tx) =>
+    insertTenantWithAccount(tx, {
+      userId: input.userId,
+      tenantSlug,
+      tenantName,
+      defaultCurrency: input.defaultCurrency ?? "INR",
+    }),
+  );
+  return workspace.scope;
 }
 
 export function createTradingAccountRepository(db: Database, scope: TenantScope) {
