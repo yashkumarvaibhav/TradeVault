@@ -13,7 +13,7 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await page.getByLabel("Entry price").fill("100");
   await page.getByLabel("Quantity").fill("2");
   await page.getByLabel("Lot / contract multiplier").fill("5");
-  await page.getByLabel("Initial stop").fill("90");
+  await page.getByLabel("Initial stop", { exact: true }).fill("90");
   await page.getByLabel("Planned target").fill("130");
   await page.getByLabel("Strategy").selectOption({ label: "Breakout" });
   await expect(page.getByRole("group", { name: "Setup checklist" }).getByRole("checkbox")).toHaveCount(5);
@@ -30,17 +30,19 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await page.getByRole("button", { name: "Save trade" }).click();
   await expect(page).toHaveURL(/\/trades\?created=1$/);
   await expect(page.getByRole("status")).toContainText("Trade saved");
-  await expect(page.getByRole("cell", { name: new RegExp(symbol) })).toBeVisible();
+  await expect(page.locator(`:visible:text-is("${symbol}")`).first()).toBeVisible();
 
   await page.getByPlaceholder(/Search symbol, style/i).fill(symbol);
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(page).toHaveURL(new RegExp(`q=${symbol}`));
   await expect(page.getByText("1 matching records")).toBeVisible();
 
-  const header = page.getByRole("columnheader", { name: "Symbol" });
-  const firstRowCell = page.getByRole("cell", { name: new RegExp(symbol) });
-  const [headerBox, rowBox] = await Promise.all([header.boundingBox(), firstRowCell.boundingBox()]);
-  expect(headerBox && rowBox && headerBox.y + headerBox.height <= rowBox.y + 1, "header renders before and does not overlap the first row").toBeTruthy();
+  if ((page.viewportSize()?.width ?? 1280) >= 768) {
+    const header = page.getByRole("columnheader", { name: "Symbol" });
+    const firstRowLink = page.getByRole("link", { name: symbol });
+    const [headerBox, rowBox] = await Promise.all([header.boundingBox(), firstRowLink.boundingBox()]);
+    expect(headerBox && rowBox && headerBox.y + headerBox.height <= rowBox.y + 1, "header renders before and does not overlap the first row").toBeTruthy();
+  }
   await page.screenshot({ path: testInfo.outputPath("my-trades.png"), fullPage: true, animations: "disabled" });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -53,13 +55,25 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(page.getByRole("columnheader", { name: "Side" })).toHaveCount(0);
 
   const visibleSelection = page.locator('input[name="tradeId"]:visible').first();
+  const tradeId = await visibleSelection.getAttribute("value");
   await visibleSelection.check();
   if ((page.viewportSize()?.width ?? 1280) < 768) {
-    await page.locator("details:visible").filter({ hasText: symbol }).first().locator("summary").click();
-    await expect(page.getByText("Asset / side")).toBeVisible();
+    const mobileDetails = visibleSelection.locator("xpath=following-sibling::details");
+    await mobileDetails.locator("summary").click();
+    await expect(mobileDetails.getByText("Asset / side")).toBeVisible();
   }
   await page.getByRole("button", { name: "Mark reviewed" }).click();
   await expect(page.getByRole("status")).toContainText("Marked 1 selected trade reviewed");
+
+  await page.goto(`/trades/${tradeId}`);
+  await expect(page.getByRole("heading", { name: symbol, level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close" })).toBeDisabled();
+  await page.getByRole("link", { name: "Review" }).click();
+  await page.getByLabel("Review note").fill("E2E review: waited for confirmation.");
+  await page.getByRole("button", { name: "Save review" }).first().click();
+  await expect(page.getByRole("status")).toContainText("Review saved");
+  await expect(page.getByText("E2E review: waited for confirmation.")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("trade-detail.png"), fullPage: true, animations: "disabled" });
 
   await page.goto("/trades/new");
   await page.getByLabel("Instrument / symbol").fill(symbol);

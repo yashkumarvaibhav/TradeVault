@@ -73,6 +73,11 @@ async function main() {
     assert.equal(Number(created.realizedR), 1);
     assert.equal(created.strategyId, alphaLibraries.strategies[0].id);
     assert.equal(created.setupChecklist.length, 5);
+    const reviewed = await alphaTrades.saveReview({ accountId: alpha.account.id, tradeId: created.id, confidence: 5, emotion: "Calm", ruleViolations: null, notes: "Waited for confirmation.", completedChecklistIds: ["thesis", "invalidation"] });
+    assert.ok(reviewed?.reviewedAt);
+    assert.equal(reviewed?.confidence, 5);
+    assert.equal(reviewed?.setupChecklist.filter((item) => item.completed).length, 2);
+    assert.equal(await createTradeRepository(db, beta.scope).saveReview({ accountId: beta.account.id, tradeId: created.id, confidence: 1, emotion: "FOMO", ruleViolations: "foreign", notes: "foreign", completedChecklistIds: [] }), null, "foreign tenant cannot read or review a trade");
     assert.equal((await alphaTrades.list()).length, 1);
 
     for (let index = 0; index < 27; index += 1) {

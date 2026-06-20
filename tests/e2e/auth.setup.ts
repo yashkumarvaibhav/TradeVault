@@ -25,7 +25,7 @@ setup("create an authenticated session", async ({ page }) => {
     await page.getByLabel("Currency").selectOption(currency);
     await page.getByLabel("Entry date & time").fill("2026-06-10T09:00");
     await page.getByLabel("Entry price").fill(entry);
-    await page.getByLabel("Initial stop").fill(stop);
+    await page.getByLabel("Initial stop", { exact: true }).fill(stop);
     await page.getByLabel("Planned target").fill(target);
     await page.getByLabel("Status").selectOption("closed");
     await page.getByLabel("Exit date & time").fill("2026-06-10T10:00");

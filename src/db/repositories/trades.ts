@@ -117,6 +117,14 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
       .where(and(eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId)))
       .orderBy(asc(trades.entryAt), asc(trades.createdAt)),
 
+    getById: async (accountId: string, tradeId: string) => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tradeId)) return null;
+      const [trade] = await db.select().from(trades).where(and(
+        eq(trades.id, tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId),
+      )).limit(1);
+      return trade ?? null;
+    },
+
     filterOptions: async (accountId: string) => {
       const rows = await db.select({ symbol: trades.symbol, subcategory: trades.subcategory, tradingStyle: trades.tradingStyle, platform: trades.platform, emotion: trades.emotion })
         .from(trades).where(and(eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId)));
@@ -153,6 +161,26 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         inArray(trades.id, tradeIds),
       )).returning({ id: trades.id });
       return changed.length;
+    },
+
+    saveReview: async (input: { accountId: string; tradeId: string; confidence: number | null; emotion: string | null; ruleViolations: string | null; notes: string | null; completedChecklistIds: string[] }) => {
+      const existing = await db.select({ setupChecklist: trades.setupChecklist }).from(trades).where(and(
+        eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+      )).limit(1);
+      if (!existing[0]) return null;
+      const completed = new Set(input.completedChecklistIds);
+      const [reviewed] = await db.update(trades).set({
+        confidence: input.confidence && input.confidence >= 1 && input.confidence <= 5 ? input.confidence : null,
+        emotion: cleanOptional(input.emotion),
+        ruleViolations: cleanOptional(input.ruleViolations),
+        notes: cleanOptional(input.notes),
+        setupChecklist: existing[0].setupChecklist.map((item) => ({ ...item, completed: completed.has(item.id) })),
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(and(
+        eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+      )).returning();
+      return reviewed ?? null;
     },
 
     create: async (input: CreateTradeInput) => {
