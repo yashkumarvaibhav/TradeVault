@@ -57,6 +57,13 @@
       "when": 1781958373326,
       "tag": "0007_old_lifeguard",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781971297787,
+      "tag": "0008_fluffy_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

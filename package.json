@@ -20,6 +20,7 @@
     "auth:verify": "tsx scripts/verify-auth.ts",
     "trade:verify": "tsx scripts/verify-trades.ts",
     "library:verify": "tsx scripts/verify-libraries.ts",
+    "notes:verify": "tsx scripts/verify-notes.ts",
     "demo:seed": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
