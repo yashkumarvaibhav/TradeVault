@@ -33,6 +33,8 @@ export type SetupChecklistItem = {
   completed: boolean;
 };
 
+export type SetupChecklistTemplateItem = Omit<SetupChecklistItem, "completed">;
+
 export const instruments = pgTable("instruments", {
   id: uuid("id").defaultRandom().primaryKey(),
   tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
@@ -98,6 +100,20 @@ export const playbooks = pgTable("playbooks", {
   uniqueIndex("playbooks_tenant_name_unique").on(table.tenantId, table.name),
   unique("playbooks_tenant_id_unique").on(table.tenantId, table.id),
   check("playbooks_name_not_blank_check", sql`length(trim(${table.name})) > 0`),
+]);
+
+export const checklistTemplates = pgTable("checklist_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  items: jsonb("items").$type<SetupChecklistTemplateItem[]>().notNull().default([]),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("checklist_templates_tenant_name_unique").on(table.tenantId, table.name),
+  unique("checklist_templates_tenant_id_unique").on(table.tenantId, table.id),
+  check("checklist_templates_name_not_blank_check", sql`length(trim(${table.name})) > 0`),
 ]);
 
 export const trades = pgTable("trades", {
