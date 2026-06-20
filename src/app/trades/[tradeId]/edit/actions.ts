@@ -7,29 +7,30 @@ import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
 
-import { parseTradeDraftFromForm } from "../trade-form-parse";
+import type { TradeFormState } from "../../new/actions";
+import { parseTradeDraftFromForm } from "../../trade-form-parse";
 
-export interface TradeFormState {
-  error?: string;
-  fieldErrors?: Record<string, string>;
-}
-
-export async function createTradeAction(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
+export async function updateTradeAction(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
   const { scope, account } = await requireWorkspaceSession();
+  const tradeId = String(formData.get("tradeId") ?? "").trim();
   const draft = {
     accountId: account.id,
+    tradeId,
     ...parseTradeDraftFromForm(formData, account.defaultCurrency),
   };
 
+  let updated: Awaited<ReturnType<ReturnType<typeof createTradeRepository>["update"]>>;
   try {
-    await createTradeRepository(getDb(), scope).create(draft);
+    updated = await createTradeRepository(getDb(), scope).update(draft);
   } catch (error) {
     const fieldErrors = (error as { fieldErrors?: Record<string, string> }).fieldErrors;
     if (fieldErrors) return { error: "Review the highlighted fields.", fieldErrors };
-    console.error("create trade failed", error);
+    console.error("update trade failed", error);
     return { error: "The trade could not be saved. Try again." };
   }
 
+  if (!updated) redirect("/trades?edit=missing");
   revalidatePath("/trades");
-  redirect(formData.get("intent") === "another" ? "/trades/new?saved=1" : "/trades?created=1");
+  revalidatePath(`/trades/${tradeId}`);
+  redirect(`/trades/${tradeId}?updated=1`);
 }

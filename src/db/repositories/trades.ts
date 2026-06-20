@@ -348,5 +348,96 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         return trade;
       });
     },
+
+    /**
+     * Edit an existing open or closed trade. Re-validates and recomputes every
+     * derived metric through the same oracle as create; tenant/account scoped.
+     * Returns null when the trade is not in this workspace.
+     */
+    update: async (input: CreateTradeInput & { tradeId: string }) => {
+      const evaluated = evaluateTradeEntry(input);
+      if (Object.keys(evaluated.errors).length > 0) {
+        const error = new Error("Trade entry validation failed.");
+        Object.assign(error, { fieldErrors: evaluated.errors });
+        throw error;
+      }
+
+      const symbol = input.symbol.trim().toUpperCase();
+      const [owned] = await db.select({ id: trades.id }).from(trades).where(and(
+        eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+      )).limit(1);
+      if (!owned) return null;
+
+      return db.transaction(async (tx) => {
+        const linkedLibraries = await Promise.all([
+          input.strategyId ? tx.select({ id: strategies.id }).from(strategies).where(and(eq(strategies.id, input.strategyId), eq(strategies.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+          input.playbookId ? tx.select({ id: playbooks.id }).from(playbooks).where(and(eq(playbooks.id, input.playbookId), eq(playbooks.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+          input.closeReasonId ? tx.select({ id: closeReasons.id }).from(closeReasons).where(and(eq(closeReasons.id, input.closeReasonId), eq(closeReasons.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+        ]);
+        if ((input.strategyId && !linkedLibraries[0][0]) || (input.playbookId && !linkedLibraries[1][0]) || (input.closeReasonId && !linkedLibraries[2][0])) {
+          throw new Error("A selected trade library item is not available in this workspace.");
+        }
+        const [instrument] = await tx
+          .insert(instruments)
+          .values({
+            tenantId: scope.tenantId, symbol, assetClass: input.assetClass, instrumentType: input.instrumentType,
+            subcategory: cleanOptional(input.subcategory), defaultTradingStyle: cleanOptional(input.tradingStyle),
+            defaultQuantity: numeric(input.quantity), defaultMultiplier: numeric(input.multiplier),
+            defaultPlatform: cleanOptional(input.platform), defaultCurrency: input.currency,
+          })
+          .onConflictDoUpdate({
+            target: [instruments.tenantId, instruments.symbol, instruments.instrumentType],
+            set: {
+              assetClass: input.assetClass, subcategory: cleanOptional(input.subcategory),
+              defaultTradingStyle: cleanOptional(input.tradingStyle), defaultQuantity: numeric(input.quantity),
+              defaultMultiplier: numeric(input.multiplier), defaultPlatform: cleanOptional(input.platform),
+              defaultCurrency: input.currency, updatedAt: new Date(),
+            },
+          })
+          .returning({ id: instruments.id });
+
+        const [updated] = await tx.update(trades).set({
+          instrumentId: instrument.id,
+          strategyId: input.strategyId || null,
+          playbookId: input.playbookId || null,
+          closeReasonId: input.status === "closed" ? input.closeReasonId || null : null,
+          symbol,
+          assetClass: input.assetClass,
+          instrumentType: input.instrumentType,
+          subcategory: cleanOptional(input.subcategory),
+          tradingStyle: cleanOptional(input.tradingStyle),
+          platform: cleanOptional(input.platform),
+          direction: input.direction,
+          status: input.status,
+          currency: input.currency,
+          entryAt: new Date(input.entryAt),
+          entryPrice: numeric(input.entryPrice)!,
+          exitAt: input.exitAt ? new Date(input.exitAt) : null,
+          exitPrice: numeric(input.exitPrice),
+          quantity: numeric(input.quantity)!,
+          multiplier: numeric(input.multiplier)!,
+          stopLoss: numeric(input.stopLoss),
+          plannedTarget: numeric(input.plannedTarget),
+          manualPnl: numeric(input.manualPnl),
+          fees: numeric(input.fees)!,
+          fxToAccount: numeric(input.fxToAccount)!,
+          plannedRisk: numeric(evaluated.preview.plannedRisk),
+          plannedRewardRisk: numeric(evaluated.preview.plannedRewardRisk),
+          realizedPnl: numeric(evaluated.preview.realizedPnl),
+          realizedR: numeric(evaluated.preview.realizedR),
+          confidence: input.confidence ?? null,
+          emotion: cleanOptional(input.emotion),
+          setupChecklist: input.setupChecklist ?? [],
+          tags: (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean),
+          ruleViolations: cleanOptional(input.ruleViolations),
+          linkedNote: cleanOptional(input.linkedNote),
+          notes: cleanOptional(input.notes),
+          updatedAt: new Date(),
+        }).where(and(
+          eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+        )).returning();
+        return updated;
+      });
+    },
   };
 }

@@ -25,7 +25,7 @@ function Fact({ label, value, detail }: { label: string; value: string; detail?:
   return <div className="rounded-md border border-line bg-page p-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 text-sm font-semibold text-ink tnum">{value}</dd>{detail ? <p className="mt-0.5 text-xs text-faint">{detail}</p> : null}</div>;
 }
 
-export default async function TradeDetailPage({ params, searchParams }: { params: Promise<{ tradeId: string }>; searchParams: Promise<{ mode?: string; reviewed?: string; closed?: string; close?: string }> }) {
+export default async function TradeDetailPage({ params, searchParams }: { params: Promise<{ tradeId: string }>; searchParams: Promise<{ mode?: string; reviewed?: string; closed?: string; close?: string; updated?: string }> }) {
   const { shellUser, scope, account } = await requireWorkspaceSession();
   const { tradeId } = await params;
   const query = await searchParams;
@@ -54,9 +54,10 @@ export default async function TradeDetailPage({ params, searchParams }: { params
       eyebrow={<><Chip tone="accent">{trade.assetClass}</Chip><Chip tone={trade.direction === "Long" ? "profit" : "loss"}>{trade.direction}</Chip><Chip tone={trade.status === "open" ? "warning" : pnl != null && pnl >= 0 ? "profit" : "loss"}>{verdict}</Chip></>}
       title={trade.symbol}
       description={`${trade.instrumentType} · ${trade.currency} · entered ${trade.entryAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
-      actions={<><Button asChild variant={reviewMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=review`}><Check aria-hidden="true" />Review</Link></Button>{isOpen ? <Button asChild variant={closeMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=close`}><LockKeyhole aria-hidden="true" />Close</Link></Button> : <Button disabled variant="outline" title="This trade is already closed"><LockKeyhole aria-hidden="true" />Closed</Button>}<Button disabled variant="ghost" title="Edit workflow lands in the next P4 slice"><Pencil aria-hidden="true" />Edit</Button></>}
+      actions={<><Button asChild variant={reviewMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=review`}><Check aria-hidden="true" />Review</Link></Button>{isOpen ? <Button asChild variant={closeMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=close`}><LockKeyhole aria-hidden="true" />Close</Link></Button> : <Button disabled variant="outline" title="This trade is already closed"><LockKeyhole aria-hidden="true" />Closed</Button>}<Button asChild variant="ghost"><Link href={`/trades/${trade.id}/edit`}><Pencil aria-hidden="true" />Edit</Link></Button></>}
     />
     {query.reviewed === "1" ? <p role="status" className="mt-5 rounded-md border border-profit/30 bg-profit/10 px-4 py-3 text-sm text-profit">Review saved. This trade is out of the review queue.</p> : null}
+    {query.updated === "1" ? <p role="status" className="mt-5 rounded-md border border-profit/30 bg-profit/10 px-4 py-3 text-sm text-profit">Trade updated. Risk, R, and realized P&amp;L were recomputed.</p> : null}
     {query.closed === "1" ? <p role="status" className="mt-5 rounded-md border border-profit/30 bg-profit/10 px-4 py-3 text-sm text-profit">Trade closed. The realized result below is computed in {trade.currency} only.</p> : null}
     {query.close === "already" ? <p role="status" className="mt-5 rounded-md border border-line-strong bg-sidebar px-4 py-3 text-sm text-muted">This trade was already closed — nothing to do.</p> : null}
 

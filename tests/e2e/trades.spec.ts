@@ -92,9 +92,30 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(page.getByRole("button", { name: "Closed" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("trade-closed.png"), fullPage: true, animations: "disabled" });
 
+  // Edit the trade — metrics recompute through the same oracle. Exit 130→140 ⇒ ₹400 = 4.00R.
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}/edit`));
+  await expect(page.getByLabel("Quantity")).toHaveValue("2");
+  await page.getByLabel("Exit price").fill("140");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}\\?updated=1`));
+  await expect(page.getByRole("status")).toContainText("Trade updated");
+  const editedResult = page.getByRole("region", { name: "Trade result" });
+  await expect(editedResult).toContainText("₹400");
+  await expect(editedResult).toContainText("4.00R");
+
   await page.goto("/trades/new");
   await page.getByLabel("Instrument / symbol").fill(symbol);
   await expect(page.getByRole("status")).toContainText(`Saved defaults applied for ${symbol}`);
   await expect(page.getByLabel("Quantity")).toHaveValue("2.000000");
   await expect(page.getByLabel("Lot / contract multiplier")).toHaveValue("5.000000");
+
+  // Whole-row navigation (P4): clicking anywhere on a desktop row except the checkbox opens the detail.
+  if ((page.viewportSize()?.width ?? 1280) >= 768) {
+    await page.goto("/trades");
+    const firstRow = page.locator("tbody tr").first();
+    const rowTradeId = await firstRow.locator('input[name="tradeId"]').getAttribute("value");
+    await firstRow.click({ position: { x: 280, y: 18 } });
+    await expect(page).toHaveURL(new RegExp(`/trades/${rowTradeId}(\\?|$)`));
+  }
 });

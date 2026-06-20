@@ -138,6 +138,26 @@ async function main() {
     );
     assert.equal((await betaTrades.getById(beta.account.id, betaOpen2.id))?.status, "open", "a rejected close leaves the trade open");
 
+    // Edit: recompute every derived metric through the same oracle, never mixing currency, tenant/account scoped.
+    const updateInput = {
+      accountId: alpha.account.id, tradeId: created.id, symbol: "nifty", assetClass: "Index" as const, instrumentType: "Futures" as const,
+      direction: "Long" as const, status: "closed" as const, currency: "INR" as const, entryAt: "2026-06-19T09:15:00.000Z",
+      entryPrice: 25_000, exitAt: "2026-06-19T12:15:00.000Z", exitPrice: 25_200, quantity: 2, multiplier: 50,
+      stopLoss: 24_900, plannedTarget: 25_300, manualPnl: null, fees: 60, fxToAccount: 1, tags: ["breakout"],
+    };
+    const edited = await alphaTrades.update(updateInput);
+    assert.ok(edited, "owner can edit their trade");
+    assert.equal(Number(edited.realizedPnl), 20_000, "(25200-25000)*2*50 = 20000 INR after edit");
+    assert.equal(Number(edited.realizedR), 2, "20000 / ((25000-24900)*2*50) = 2R after edit");
+    assert.equal(edited.currency, "INR", "editing never changes or mixes the trade currency");
+    assert.equal(edited.tags.length, 1);
+    assert.equal(await createTradeRepository(db, beta.scope).update({ ...updateInput, accountId: beta.account.id }), null, "a foreign tenant cannot edit another tenant's trade");
+    await assert.rejects(
+      () => alphaTrades.update({ ...updateInput, entryPrice: 0 }),
+      /validation failed/i,
+      "an invalid edit is rejected by the oracle",
+    );
+
     await assert.rejects(
       () => createTradeRepository(db, beta.scope).create({
         accountId: alpha.account.id,
