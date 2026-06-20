@@ -46,6 +46,21 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, "trade log has no page-level horizontal overflow").toBeLessThanOrEqual(0);
 
+  await page.getByText("Columns", { exact: true }).click();
+  await page.getByLabel("Side").uncheck();
+  await page.getByRole("button", { name: "Apply columns" }).click();
+  await expect(page).toHaveURL(/columns=1/);
+  await expect(page.getByRole("columnheader", { name: "Side" })).toHaveCount(0);
+
+  const visibleSelection = page.locator('input[name="tradeId"]:visible').first();
+  await visibleSelection.check();
+  if ((page.viewportSize()?.width ?? 1280) < 768) {
+    await page.locator("details:visible").filter({ hasText: symbol }).first().locator("summary").click();
+    await expect(page.getByText("Asset / side")).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Mark reviewed" }).click();
+  await expect(page.getByRole("status")).toContainText("Marked 1 selected trade reviewed");
+
   await page.goto("/trades/new");
   await page.getByLabel("Instrument / symbol").fill(symbol);
   await expect(page.getByRole("status")).toContainText(`Saved defaults applied for ${symbol}`);

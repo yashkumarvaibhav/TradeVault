@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, isNotNull, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, lt, lte, or, type SQL } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
 import { closeReasons, instruments, playbooks, strategies, trades, tradingAccounts, type SetupChecklistItem } from "@/db/schema";
@@ -141,6 +141,18 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         db.select({ currency: trades.currency, realizedPnl: trades.realizedPnl, realizedR: trades.realizedR, status: trades.status }).from(trades).where(where),
       ]);
       return { rows, summaryRows, total, page, pageSize, pageCount };
+    },
+
+    bulkSetReviewed: async (input: { accountId: string; tradeIds: string[]; reviewed: boolean }) => {
+      const tradeIds = [...new Set(input.tradeIds)].filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)).slice(0, 100);
+      if (!tradeIds.length) return 0;
+      const changed = await db.update(trades).set({ reviewedAt: input.reviewed ? new Date() : null, updatedAt: new Date() }).where(and(
+        eq(trades.tenantId, scope.tenantId),
+        eq(trades.createdByUserId, scope.userId),
+        eq(trades.accountId, input.accountId),
+        inArray(trades.id, tradeIds),
+      )).returning({ id: trades.id });
+      return changed.length;
     },
 
     create: async (input: CreateTradeInput) => {

@@ -104,6 +104,16 @@ async function main() {
 
     const crossedScope = tenantScope({ tenantId: alpha.tenant.id, userId: beta.user.id });
     assert.equal((await createTradeRepository(db, crossedScope).list()).length, 0, "crossed membership sees no trades");
+    const betaTrades = createTradeRepository(db, beta.scope);
+    const betaCreated = await betaTrades.create({
+      accountId: beta.account.id, symbol: "AAPL", assetClass: "Equity", instrumentType: "Cash", direction: "Long", status: "open",
+      currency: "USD", entryAt: "2026-06-20T09:30:00.000Z", entryPrice: 200, exitAt: null, exitPrice: null,
+      quantity: 5, multiplier: 1, stopLoss: 195, plannedTarget: 210, manualPnl: null, fees: 0, fxToAccount: 1,
+    });
+    assert.equal(await alphaTrades.bulkSetReviewed({ accountId: alpha.account.id, tradeIds: [created.id, betaCreated.id, "not-a-uuid"], reviewed: true }), 1, "bulk review changes only scoped trade ids");
+    assert.ok((await alphaTrades.list({ accountId: alpha.account.id, limit: 100 })).find((trade) => trade.id === created.id)?.reviewedAt);
+    assert.equal((await betaTrades.list({ accountId: beta.account.id })).find((trade) => trade.id === betaCreated.id)?.reviewedAt, null);
+    assert.equal(await alphaTrades.bulkSetReviewed({ accountId: alpha.account.id, tradeIds: [created.id], reviewed: false }), 1);
     await assert.rejects(
       () => createTradeRepository(db, beta.scope).create({
         accountId: alpha.account.id,
