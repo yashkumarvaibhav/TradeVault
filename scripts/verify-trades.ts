@@ -119,6 +119,25 @@ async function main() {
     assert.ok((await alphaTrades.list({ accountId: alpha.account.id, limit: 100 })).find((trade) => trade.id === created.id)?.reviewedAt);
     assert.equal((await betaTrades.list({ accountId: beta.account.id })).find((trade) => trade.id === betaCreated.id)?.reviewedAt, null);
     assert.equal(await alphaTrades.bulkSetReviewed({ accountId: alpha.account.id, tradeIds: [created.id], reviewed: false }), 1);
+
+    // Close lifecycle: recompute realized P&L / R through the tested oracle, never mixing currency, fully tenant/account scoped.
+    assert.equal((await alphaTrades.closeTrade({ accountId: alpha.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T15:00:00.000Z", exitPrice: 215, manualPnl: null, fees: 5, closeReasonId: null })).status, "missing", "a foreign tenant cannot close another tenant's trade");
+    const betaClose = await betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T15:00:00.000Z", exitPrice: 215, manualPnl: null, fees: 5, closeReasonId: betaLibraries.closeReasons[0].id });
+    assert.ok(betaClose.status === "closed");
+    assert.equal(betaClose.trade.status, "closed");
+    assert.equal(betaClose.trade.currency, "USD", "closing never changes or mixes the trade currency");
+    assert.equal(Number(betaClose.trade.realizedPnl), 75, "(215-200) * 5 * 1 = 75 USD");
+    assert.equal(Number(betaClose.trade.realizedR), 3, "75 / (|200-195| * 5) = 3R");
+    assert.equal(betaClose.trade.closeReasonId, betaLibraries.closeReasons[0].id);
+    assert.equal((await betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T16:00:00.000Z", exitPrice: 220, manualPnl: null, fees: 0, closeReasonId: null })).status, "already-closed", "a closed trade cannot be re-closed");
+    const betaOpen2 = await betaTrades.create({ accountId: beta.account.id, symbol: "MSFT", assetClass: "Equity", instrumentType: "Cash", direction: "Long", status: "open", currency: "USD", entryAt: "2026-06-20T09:30:00.000Z", entryPrice: 300, exitAt: null, exitPrice: null, quantity: 2, multiplier: 1, stopLoss: 290, plannedTarget: 320, manualPnl: null, fees: 0, fxToAccount: 1 });
+    await assert.rejects(
+      () => betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaOpen2.id, exitAt: "", exitPrice: null, manualPnl: null, fees: 0, closeReasonId: null }),
+      /Close validation failed/i,
+      "closing without an exit is rejected by the oracle before any write",
+    );
+    assert.equal((await betaTrades.getById(beta.account.id, betaOpen2.id))?.status, "open", "a rejected close leaves the trade open");
+
     await assert.rejects(
       () => createTradeRepository(db, beta.scope).create({
         accountId: alpha.account.id,
@@ -143,7 +162,7 @@ async function main() {
       /not available in this workspace/i,
     );
 
-    console.log("Trade persistence verified: domain preview, linked libraries/checklist, filters, tenant isolation, and currency-tagged records are green.");
+    console.log("Trade persistence verified: domain preview, linked libraries/checklist, filters, close lifecycle (oracle P&L/R, currency-safe, isolation), tenant isolation, and currency-tagged records are green.");
   } finally {
     await client.close();
   }

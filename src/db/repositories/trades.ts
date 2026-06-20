@@ -183,6 +183,77 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
       return reviewed ?? null;
     },
 
+    /**
+     * Close an open trade: recompute realized P&L / R through the same tested
+     * domain oracle, never mixing currencies. Tenant + owner + account scoped.
+     */
+    closeTrade: async (input: {
+      accountId: string;
+      tradeId: string;
+      exitAt: string;
+      exitPrice: number | null;
+      manualPnl: number | null;
+      fees: number;
+      closeReasonId: string | null;
+      notes?: string | null;
+    }): Promise<{ status: "missing" } | { status: "already-closed" } | { status: "closed"; trade: typeof trades.$inferSelect }> => {
+      const [existing] = await db.select().from(trades).where(and(
+        eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+      )).limit(1);
+      if (!existing) return { status: "missing" };
+      if (existing.status !== "open") return { status: "already-closed" };
+
+      if (input.closeReasonId) {
+        const [reason] = await db.select({ id: closeReasons.id }).from(closeReasons)
+          .where(and(eq(closeReasons.id, input.closeReasonId), eq(closeReasons.tenantId, scope.tenantId))).limit(1);
+        if (!reason) throw new Error("A selected close reason is not available in this workspace.");
+      }
+
+      const draft: TradeEntryDraft = {
+        symbol: existing.symbol,
+        assetClass: existing.assetClass,
+        instrumentType: existing.instrumentType,
+        direction: existing.direction,
+        status: "closed",
+        currency: existing.currency,
+        entryAt: existing.entryAt.toISOString(),
+        entryPrice: Number(existing.entryPrice),
+        exitAt: input.exitAt,
+        exitPrice: input.exitPrice,
+        quantity: Number(existing.quantity),
+        multiplier: Number(existing.multiplier),
+        stopLoss: existing.stopLoss == null ? null : Number(existing.stopLoss),
+        plannedTarget: existing.plannedTarget == null ? null : Number(existing.plannedTarget),
+        manualPnl: input.manualPnl,
+        fees: input.fees,
+        fxToAccount: Number(existing.fxToAccount),
+      };
+      const evaluated = evaluateTradeEntry(draft);
+      if (Object.keys(evaluated.errors).length > 0) {
+        const error = new Error("Close validation failed.");
+        Object.assign(error, { fieldErrors: evaluated.errors });
+        throw error;
+      }
+
+      const [closed] = await db.update(trades).set({
+        status: "closed",
+        exitAt: new Date(input.exitAt),
+        exitPrice: numeric(input.exitPrice),
+        manualPnl: numeric(input.manualPnl),
+        fees: numeric(input.fees)!,
+        closeReasonId: input.closeReasonId || null,
+        plannedRisk: numeric(evaluated.preview.plannedRisk),
+        plannedRewardRisk: numeric(evaluated.preview.plannedRewardRisk),
+        realizedPnl: numeric(evaluated.preview.realizedPnl),
+        realizedR: numeric(evaluated.preview.realizedR),
+        notes: input.notes === undefined ? existing.notes : cleanOptional(input.notes),
+        updatedAt: new Date(),
+      }).where(and(
+        eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
+      )).returning();
+      return { status: "closed", trade: closed };
+    },
+
     create: async (input: CreateTradeInput) => {
       const evaluated = evaluateTradeEntry(input);
       if (Object.keys(evaluated.errors).length > 0) {

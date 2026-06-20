@@ -67,13 +67,30 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
 
   await page.goto(`/trades/${tradeId}`);
   await expect(page.getByRole("heading", { name: symbol, level: 1 })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close" })).toBeDisabled();
+  // Close is enabled for open trades (P4 lifecycle).
+  await expect(page.getByRole("link", { name: "Close" })).toBeVisible();
   await page.getByRole("link", { name: "Review" }).click();
   await page.getByLabel("Review note").fill("E2E review: waited for confirmation.");
   await page.getByRole("button", { name: "Save review" }).first().click();
   await expect(page.getByRole("status")).toContainText("Review saved");
   await expect(page.getByText("E2E review: waited for confirmation.")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("trade-detail.png"), fullPage: true, animations: "disabled" });
+
+  // Close the open trade — oracle-correct realized P&L/R, currency-safe. (130-100)*2*5 = ₹300 = 3.00R.
+  await page.getByRole("link", { name: "Close" }).click();
+  await expect(page).toHaveURL(/mode=close/);
+  await page.getByLabel("Exit price").fill("130");
+  const closePreview = page.getByText("Close preview").locator("xpath=ancestor::aside");
+  await expect(closePreview).toContainText("₹300");
+  await expect(closePreview).toContainText("3.00R");
+  await page.getByRole("button", { name: "Close trade" }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}\\?closed=1`));
+  await expect(page.getByRole("status")).toContainText("Trade closed");
+  const result = page.getByRole("region", { name: "Trade result" });
+  await expect(result).toContainText("₹300");
+  await expect(result).toContainText("3.00R");
+  await expect(page.getByRole("button", { name: "Closed" })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath("trade-closed.png"), fullPage: true, animations: "disabled" });
 
   await page.goto("/trades/new");
   await page.getByLabel("Instrument / symbol").fill(symbol);
