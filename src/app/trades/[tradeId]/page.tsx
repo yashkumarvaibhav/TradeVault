@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { createAttachmentRepository } from "@/db/repositories/attachments";
 import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "@/db/repositories/libraries";
 import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
@@ -13,6 +14,7 @@ import type { Currency } from "@/lib/domain/types";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
 
 import { saveTradeReviewAction } from "./actions";
+import { AttachmentsPanel } from "./attachments-panel";
 import { CloseTradeForm } from "./close-trade-form";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +36,7 @@ export default async function TradeDetailPage({ params, searchParams }: { params
   if (!trade) notFound();
   await ensureDefaultTradeLibraries(db, scope);
   const libraries = await getTradeEntryLibraries(db, scope);
+  const attachments = await createAttachmentRepository(db, scope).listForTrade(account.id, trade.id);
   const strategy = libraries.strategies.find((item) => item.id === trade.strategyId)?.name;
   const playbook = libraries.playbooks.find((item) => item.id === trade.playbookId)?.name;
   const closeReason = libraries.closeReasons.find((item) => item.id === trade.closeReasonId)?.name;
@@ -80,7 +83,7 @@ export default async function TradeDetailPage({ params, searchParams }: { params
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Risk &amp; targets</h2><p className="mt-1 text-sm text-muted">Planned risk stays in {trade.currency}; realized R remains currency-neutral.</p><dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Fact label="Initial stop" value={trade.stopLoss == null ? "—" : money(trade.currency, Number(trade.stopLoss))} /><Fact label="Planned target" value={trade.plannedTarget == null ? "—" : money(trade.currency, Number(trade.plannedTarget))} /><Fact label="Planned 1R" value={plannedRisk == null ? "—" : money(trade.currency, plannedRisk)} /><Fact label="Plan / realized" value={`${plannedRr == null ? "—" : `${plannedRr.toFixed(2)}R`} / ${realizedR == null ? "—" : `${realizedR.toFixed(2)}R`}`} /></dl></section>
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Rules &amp; setup</h2><div className="mt-4 flex flex-wrap gap-2">{strategy ? <Chip tone="accent">Strategy · {strategy}</Chip> : null}{playbook ? <Chip>Playbook · {playbook}</Chip> : null}{closeReason ? <Chip>Close · {closeReason}</Chip> : null}{trade.emotion ? <Chip>Emotion · {trade.emotion}</Chip> : null}</div>{trade.setupChecklist.length ? <ul className="mt-5 grid gap-2 md:grid-cols-2">{trade.setupChecklist.map((item) => <li key={`${item.phase}-${item.id}`} className="flex items-start gap-3 rounded-md border border-line bg-page px-3 py-2.5 text-sm text-body">{item.completed ? <Check className="mt-0.5 size-4 shrink-0 text-profit" aria-hidden="true" /> : <CircleDashed className="mt-0.5 size-4 shrink-0 text-faint" aria-hidden="true" />}<span>{item.label}<span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">{item.phase}</span></span></li>)}</ul> : <p className="mt-4 text-sm text-faint">No setup checklist was saved with this trade.</p>}{trade.ruleViolations ? <div className="mt-4 rounded-md border border-loss/20 bg-loss/10 p-3 text-sm text-body"><strong className="text-loss">Rule exception:</strong> {trade.ruleViolations}</div> : <p className="mt-4 flex items-center gap-2 text-sm text-profit"><Check className="size-4" aria-hidden="true" />No rule violation recorded.</p>}</section>
       </div>
-      <aside className="h-fit space-y-4 xl:sticky xl:top-24"><section className="rounded-lg border border-line bg-sidebar p-5"><h2 className="font-serif text-xl text-ink">Trade notes</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-body">{trade.notes || "No review note yet."}</p>{trade.linkedNote ? <div className="mt-4 border-t border-line pt-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Linked thesis</p><p className="mt-2 text-sm leading-relaxed text-body">{trade.linkedNote}</p></div> : null}</section><section className="rounded-lg border border-dashed border-line-strong bg-page p-5"><h2 className="font-serif text-lg text-ink">Media &amp; attachments</h2><p className="mt-2 text-sm leading-relaxed text-muted">No attachments yet. Upload, captions, and deletion land in the next P4 slice.</p></section></aside>
+      <aside className="h-fit space-y-4 xl:sticky xl:top-24"><section className="rounded-lg border border-line bg-sidebar p-5"><h2 className="font-serif text-xl text-ink">Trade notes</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-body">{trade.notes || "No review note yet."}</p>{trade.linkedNote ? <div className="mt-4 border-t border-line pt-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Linked thesis</p><p className="mt-2 text-sm leading-relaxed text-body">{trade.linkedNote}</p></div> : null}</section><AttachmentsPanel tradeId={trade.id} attachments={attachments.map((item) => ({ id: item.id, contentType: item.contentType, originalName: item.originalName, caption: item.caption, sizeBytes: item.sizeBytes }))} /></aside>
     </div>
   </AppShell>;
 }

@@ -43,6 +43,13 @@
       "when": 1781933903165,
       "tag": "0005_lush_norman_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781939874886,
+      "tag": "0006_tranquil_scream",
+      "breakpoints": true
     }
   ]
 }

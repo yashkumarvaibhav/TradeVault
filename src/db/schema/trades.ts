@@ -197,6 +197,7 @@ export const trades = pgTable("trades", {
   index("trades_tenant_account_entry_idx").on(table.tenantId, table.accountId, table.entryAt),
   index("trades_tenant_symbol_idx").on(table.tenantId, table.symbol),
   index("trades_tenant_status_idx").on(table.tenantId, table.status),
+  unique("trades_tenant_id_unique").on(table.tenantId, table.id),
   check("trades_symbol_not_blank_check", sql`length(trim(${table.symbol})) > 0`),
   check("trades_entry_price_positive_check", sql`${table.entryPrice} > 0`),
   check("trades_quantity_positive_check", sql`${table.quantity} > 0`),
@@ -218,4 +219,49 @@ export const tradesRelations = relations(trades, ({ one }) => ({
   strategy: one(strategies, { fields: [trades.tenantId, trades.strategyId], references: [strategies.tenantId, strategies.id] }),
   playbook: one(playbooks, { fields: [trades.tenantId, trades.playbookId], references: [playbooks.tenantId, playbooks.id] }),
   closeReason: one(closeReasons, { fields: [trades.tenantId, trades.closeReasonId], references: [closeReasons.tenantId, closeReasons.id] }),
+}));
+
+/** Allowed attachment content types and the per-file size cap (kept in sync with DB checks). */
+export const ATTACHMENT_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"] as const;
+export const ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
+
+export const tradeAttachments = pgTable("trade_attachments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull(),
+  accountId: uuid("account_id").notNull(),
+  tradeId: uuid("trade_id").notNull(),
+  createdByUserId: uuid("created_by_user_id").notNull(),
+  storageKey: text("storage_key").notNull(),
+  originalName: text("original_name").notNull(),
+  contentType: text("content_type").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  caption: text("caption"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    name: "trade_attachments_tenant_account_fk",
+    columns: [table.tenantId, table.accountId],
+    foreignColumns: [tradingAccounts.tenantId, tradingAccounts.id],
+  }).onDelete("cascade"),
+  foreignKey({
+    name: "trade_attachments_tenant_trade_fk",
+    columns: [table.tenantId, table.tradeId],
+    foreignColumns: [trades.tenantId, trades.id],
+  }).onDelete("cascade"),
+  foreignKey({
+    name: "trade_attachments_creator_membership_fk",
+    columns: [table.tenantId, table.createdByUserId],
+    foreignColumns: [tenantMemberships.tenantId, tenantMemberships.userId],
+  }),
+  uniqueIndex("trade_attachments_storage_key_unique").on(table.storageKey),
+  index("trade_attachments_tenant_trade_idx").on(table.tenantId, table.tradeId, table.createdAt),
+  check("trade_attachments_size_check", sql`${table.sizeBytes} > 0 and ${table.sizeBytes} <= 5242880`),
+  check("trade_attachments_content_type_check", sql`${table.contentType} in ('image/png', 'image/jpeg', 'image/webp', 'application/pdf')`),
+]);
+
+export const tradeAttachmentsRelations = relations(tradeAttachments, ({ one }) => ({
+  tenant: one(tenants, { fields: [tradeAttachments.tenantId], references: [tenants.id] }),
+  account: one(tradingAccounts, { fields: [tradeAttachments.accountId], references: [tradingAccounts.id] }),
+  trade: one(trades, { fields: [tradeAttachments.tenantId, tradeAttachments.tradeId], references: [trades.tenantId, trades.id] }),
 }));

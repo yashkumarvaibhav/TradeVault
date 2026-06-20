@@ -9,7 +9,12 @@ const password = "playwright-e2e-passphrase-2026";
 
 setup("create an authenticated session", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("radio", { name: "Create account" }).click();
+  // The login form hydrates after SSR; on a cold dev compile a plain click can land before React
+  // attaches the toggle handler. Retry the mode switch until the signup-only field appears.
+  await expect(async () => {
+    await page.getByRole("radio", { name: "Create account" }).click();
+    await expect(page.getByLabel("Confirm password")).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByLabel("Confirm password").fill(password);

@@ -3,6 +3,8 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Trade attachments allow up to 5 MB; give server actions headroom above that.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
 };
 
 const canUploadSentrySourceMaps = Boolean(

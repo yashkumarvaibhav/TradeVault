@@ -51,10 +51,12 @@ test("chrome stays overflow-free on very narrow viewports, palette open or close
 
   for (const width of [320, 360, 375]) {
     await page.setViewportSize({ width, height: 760 });
-    await page.goto("/");
-    // Wait for the header to render before measuring, so layout has settled.
+    await page.goto("/", { waitUntil: "networkidle" });
+    // Wait for the header AND webfonts before measuring: a Newsreader font swap can reflow
+    // the chrome under full-matrix compile load and momentarily report overflow at 320px.
     const trigger = page.getByRole("button", { name: "Open command palette" });
     await expect(trigger).toBeVisible();
+    await page.evaluate(() => document.fonts?.ready);
     expect(await overflow(), `closed @ ${width}px`).toBeLessThanOrEqual(0);
 
     await trigger.click();

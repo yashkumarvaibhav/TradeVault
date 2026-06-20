@@ -6,6 +6,7 @@ import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
 import type { Database } from "../src/db/client";
+import { createAttachmentRepository } from "../src/db/repositories/attachments";
 import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "../src/db/repositories/libraries";
 import { createTradeRepository } from "../src/db/repositories/trades";
 import { provisionWorkspace, tenantScope } from "../src/db/repositories/workspaces";
@@ -158,6 +159,23 @@ async function main() {
       "an invalid edit is rejected by the oracle",
     );
 
+    // Attachments: tenant/owner/account-scoped media with strict isolation across create/read/list/caption/delete.
+    const alphaAttachments = createAttachmentRepository(db, alpha.scope);
+    const betaAttachmentsRepo = createAttachmentRepository(db, beta.scope);
+    const attachment = await alphaAttachments.create({ accountId: alpha.account.id, tradeId: created.id, storageKey: `tenants/${alpha.tenant.id}/trades/${created.id}/shot.png`, originalName: "shot.png", contentType: "image/png", sizeBytes: 2048, caption: "entry" });
+    assert.ok(attachment, "owner can attach media to their own trade");
+    assert.equal((await alphaAttachments.listForTrade(alpha.account.id, created.id)).length, 1);
+    assert.ok(await alphaAttachments.getById(alpha.account.id, attachment.id));
+    assert.equal(await betaAttachmentsRepo.create({ accountId: beta.account.id, tradeId: created.id, storageKey: `tenants/${beta.tenant.id}/x.png`, originalName: "x.png", contentType: "image/png", sizeBytes: 10, caption: null }), null, "a foreign tenant cannot attach media to another tenant's trade");
+    assert.equal(await betaAttachmentsRepo.getById(beta.account.id, attachment.id), null, "a foreign tenant cannot read another tenant's attachment");
+    assert.equal((await betaAttachmentsRepo.listForTrade(beta.account.id, created.id)).length, 0, "attachment lists are tenant scoped");
+    assert.equal(await betaAttachmentsRepo.updateCaption(beta.account.id, attachment.id, "hijack"), null, "a foreign tenant cannot caption another tenant's attachment");
+    assert.equal((await alphaAttachments.updateCaption(alpha.account.id, attachment.id, "morning breakout"))?.caption, "morning breakout");
+    assert.equal(await betaAttachmentsRepo.remove(beta.account.id, attachment.id), null, "a foreign tenant cannot delete another tenant's attachment");
+    assert.equal((await alphaAttachments.listForTrade(alpha.account.id, created.id)).length, 1, "the attachment survives a foreign delete attempt");
+    assert.equal(await alphaAttachments.remove(alpha.account.id, attachment.id), attachment.storageKey, "owner delete returns the storage key for file cleanup");
+    assert.equal((await alphaAttachments.listForTrade(alpha.account.id, created.id)).length, 0);
+
     await assert.rejects(
       () => createTradeRepository(db, beta.scope).create({
         accountId: alpha.account.id,
@@ -182,7 +200,7 @@ async function main() {
       /not available in this workspace/i,
     );
 
-    console.log("Trade persistence verified: domain preview, linked libraries/checklist, filters, close lifecycle (oracle P&L/R, currency-safe, isolation), tenant isolation, and currency-tagged records are green.");
+    console.log("Trade persistence verified: domain preview, linked libraries/checklist, filters, close + edit lifecycle (oracle P&L/R, currency-safe, isolation), attachment isolation, tenant isolation, and currency-tagged records are green.");
   } finally {
     await client.close();
   }

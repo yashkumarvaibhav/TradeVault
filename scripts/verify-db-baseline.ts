@@ -115,7 +115,7 @@ try {
   });
 
   const migrationCount = await rawQuery('select count(*) from drizzle."__tradevault_migrations"');
-  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 6);
+  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 7);
 
   const engine = nodePostgres ? "external disposable PostgreSQL" : "in-process PostgreSQL (PGlite)";
   console.log(`Database baseline verified on ${engine}: migration, ownership constraints, tenant isolation, and currency guards are green.`);

@@ -104,6 +104,22 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(editedResult).toContainText("₹400");
   await expect(editedResult).toContainText("4.00R");
 
+  // Attachments: upload → serve (gated) → caption → delete on the detail page.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC", "base64");
+  await page.getByLabel("File", { exact: true }).setInputFiles({ name: "shot.png", mimeType: "image/png", buffer: png });
+  await page.getByRole("button", { name: "Upload attachment" }).click();
+  await expect(page.getByLabel("Caption for shot.png")).toBeVisible();
+  const imgSrc = await page.getByRole("img", { name: "shot.png" }).getAttribute("src");
+  const served = await page.request.get(imgSrc ?? "");
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toContain("image/png");
+  await page.getByLabel("Caption for shot.png").fill("E2E entry screenshot");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("Caption for shot.png")).toHaveValue("E2E entry screenshot");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("No attachments yet.")).toBeVisible();
+
   await page.goto("/trades/new");
   await page.getByLabel("Instrument / symbol").fill(symbol);
   await expect(page.getByRole("status")).toContainText(`Saved defaults applied for ${symbol}`);

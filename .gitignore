@@ -53,6 +53,9 @@ npm-debug.log*
 /docs/PREMIUM_UX_IMPLEMENTATION.md
 /docs/PREMIUM_UX_WORKLOG.md
 
+# ── Local uploaded attachments (served via the gated /api/attachments route) ──
+/var/
+
 # ── Legacy Python (v1, being removed) ──
 __pycache__/
 *.py[cod]
