@@ -25,6 +25,15 @@ function messageFor(error: unknown, fallback: string): string {
   return fallback;
 }
 
+export async function signOutAction() {
+  try {
+    await getAuth().api.signOut({ headers: await headers() });
+  } catch {
+    // Already signed out / no session — fall through to the login page.
+  }
+  redirect("/login");
+}
+
 export async function signInAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const username = normalizeUsername(String(formData.get("username") ?? ""));
   const password = String(formData.get("password") ?? "");

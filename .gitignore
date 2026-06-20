@@ -15,6 +15,7 @@ next-env.d.ts
 coverage/
 playwright-report/
 test-results/
+playwright/.auth/
 
 # Local env and secrets
 .env

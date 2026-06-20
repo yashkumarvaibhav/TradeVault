@@ -36,9 +36,9 @@ test("login screen renders, toggles modes, and validates sign-up without a datab
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByText("Passwords do not match.")).toBeVisible();
 
-  // And a too-short password is rejected field-anchored.
+  // And a too-short password is rejected field-anchored (assert the field error, not the hint).
   await password.fill("tooshort");
   await page.getByLabel("Confirm password").fill("tooshort");
   await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByText(/at least 12 characters/i)).toBeVisible();
+  await expect(page.locator("#password-error")).toContainText(/at least 12 characters/i);
 });

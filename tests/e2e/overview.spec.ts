@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { AUTH_STATE } from "./auth-paths";
+
+// The overview lives behind auth; use the session created in auth.setup.
+test.use({ storageState: AUTH_STATE });
+
 test("overview preview is scoped, responsive, and visually reviewable", async ({ page }, testInfo) => {
   await page.goto("/");
 

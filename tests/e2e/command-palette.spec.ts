@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { AUTH_STATE } from "./auth-paths";
+
+// The app shell (and its palette) live behind auth; use the session from auth.setup.
+test.use({ storageState: AUTH_STATE });
+
 test("command palette opens, searches, and is keyboard-operable", async ({ page }, testInfo) => {
   await page.goto("/");
 

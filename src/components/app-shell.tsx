@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
+import { LogOut, Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
 
+import { signOutAction } from "@/app/login/actions";
 import { CommandPalette } from "@/components/command-palette";
 import { navItems } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -14,7 +15,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Toaster, toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
-function Navigation({ mobile = false }: { mobile?: boolean }) {
+export interface AppShellUser {
+  displayUsername: string;
+  username: string;
+}
+
+function initialsFor(name: string) {
+  const cleaned = name.replace(/[^a-zA-Z0-9]/g, "");
+  return (cleaned.slice(0, 2) || "TV").toUpperCase();
+}
+
+function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boolean }) {
   return (
     <div className="flex h-full flex-col">
       <div className={cn("border-b border-line px-5 py-5", mobile && "pr-14")}>
@@ -55,18 +66,25 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
           <span className="ml-auto text-[10px] uppercase tracking-wider text-faint">Soon</span>
         </div>
         <div className="mt-2 flex items-center gap-3 rounded-md border border-line bg-raised p-3">
-          <span className="flex size-9 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-ink">YK</span>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-ink">
+            {initialsFor(user.displayUsername)}
+          </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-ink">Yash Kumar</span>
+            <span className="block truncate text-sm font-semibold text-ink">{user.displayUsername}</span>
             <span className="block text-xs text-muted">Private workspace</span>
           </span>
+          <form action={signOutAction}>
+            <Button type="submit" variant="ghost" size="icon" aria-label="Sign out" title="Sign out">
+              <LogOut aria-hidden="true" />
+            </Button>
+          </form>
         </div>
       </div>
     </div>
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, user }: { children: React.ReactNode; user: AppShellUser }) {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
   // Cmd/Ctrl+K toggles the command palette from anywhere in the app.
@@ -85,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <TooltipProvider>
       <div className="min-h-svh bg-page md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-line bg-sidebar md:block">
-          <Navigation />
+          <Navigation user={user} />
         </aside>
 
         <div className="min-w-0">
@@ -101,7 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <SheetTitle>TradeVault navigation</SheetTitle>
                   <SheetDescription>Navigate the TradeVault workspace.</SheetDescription>
                 </div>
-                <Navigation mobile />
+                <Navigation user={user} mobile />
               </SheetContent>
             </Sheet>
 
