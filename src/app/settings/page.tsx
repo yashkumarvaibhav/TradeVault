@@ -8,9 +8,13 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { getAuth } from "@/lib/auth-server";
+import { getDb } from "@/db/server";
+import { getUserTimeZone } from "@/db/repositories/preferences";
+import { supportedTimeZones, timeZoneLabel } from "@/lib/date-time";
 
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
+import { TimeZonePreference } from "./time-zone-preference";
 import { TwoFactorSetup } from "./two-factor-setup";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +49,7 @@ export default async function SettingsPage() {
   const user = session.user;
   const displayName = user.name || user.username || "Trader";
   const username = user.username ?? "";
+  const timeZone = await getUserTimeZone(getDb(), user.id);
 
   return (
     <AppShell user={{ displayName, username }}>
@@ -61,6 +66,10 @@ export default async function SettingsPage() {
 
         <SettingsSection title="Appearance" description="Choose how TradeVault looks on this device.">
           <ThemePreference />
+        </SettingsSection>
+
+        <SettingsSection title="Date & time" description={`Default: India Standard Time. Currently ${timeZoneLabel(timeZone)}.`}>
+          <TimeZonePreference current={timeZone} zones={supportedTimeZones()} />
         </SettingsSection>
 
         <SettingsSection title="Two-factor authentication" description="Email-free account recovery with an authenticator app.">

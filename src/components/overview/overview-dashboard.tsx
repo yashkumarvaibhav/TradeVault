@@ -147,7 +147,7 @@ function MetricCard({
   );
 }
 
-export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string; scope: OverviewScope }) {
+export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope, timeZone }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string; scope: OverviewScope; timeZone?: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const [equityMode, setEquityMode] = React.useState<"equity" | "drawdown">("equity");
   const data = dataByCurrency[currency];
@@ -178,7 +178,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: 
         }
       />
 
-      <ScopeControls basePath="/" scope={scope} currency={currency} onCurrencyChange={setCurrency} />
+      <ScopeControls basePath="/" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4" aria-label={`${currency} key performance indicators`}>
         <MetricCard label="Net P&L" value={formatMoney.format(data.netPnl)} detail={`${currency} · all filtered closed trades`} tone={data.netPnl >= 0 ? "profit" : "warning"} />

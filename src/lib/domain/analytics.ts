@@ -15,6 +15,8 @@ export interface AnalyticsTrade extends TradeMath {
   assetClass?: AssetClass | null;
   entryAt?: string | null;
   exitAt?: string | null;
+  /** User-timezone calendar key for grouping; timestamps remain absolute for duration math. */
+  outcomeDate?: string | null;
   strategy?: string | null;
   playbook?: string | null;
   mistakeTags?: readonly string[] | string | null;
@@ -351,7 +353,7 @@ export function buildCurrencyAnalytics(trades: readonly AnalyticsTrade[]): Curre
       trade,
       rawPnl,
       pnl: round2(rawPnl),
-      date: trade.exitAt || trade.entryAt || "",
+      date: trade.outcomeDate || trade.exitAt || trade.entryAt || "",
       durationHours: durationHours(trade),
     };
     const currencyOutcomes = grouped.get(trade.currency) ?? [];

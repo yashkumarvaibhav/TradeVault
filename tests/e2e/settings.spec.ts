@@ -14,6 +14,9 @@ test("settings screen shows profile, appearance, and account controls", async ({
   await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
   await expect(page.getByRole("radio", { name: "Light" })).toBeVisible();
   await expect(page.getByRole("radio", { name: "Dark" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Date & time" })).toBeVisible();
+  await expect(page.getByLabel("Display timezone")).toHaveValue("Asia/Kolkata");
+  await expect(page.getByText(/Timestamps remain stored as absolute instants/)).toBeVisible();
   // Scope to main content (the sidebar also has an icon sign-out button).
   await expect(page.getByRole("main").getByRole("button", { name: "Sign out" })).toBeVisible();
 

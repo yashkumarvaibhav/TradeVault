@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "time_zone" text DEFAULT 'Asia/Kolkata' NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_time_zone_not_blank_check" CHECK (length(trim("users"."time_zone")) > 0);

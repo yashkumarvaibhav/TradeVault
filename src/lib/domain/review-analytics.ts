@@ -147,7 +147,7 @@ function outcomesFor(trades: readonly ReviewTrade[], currency: Currency): Outcom
     return [{
       trade,
       pnl: round2(computed),
-      date: trade.exitAt || trade.entryAt || "",
+      date: trade.outcomeDate || trade.exitAt || trade.entryAt || "",
       reviewed: Boolean(trade.reviewedAt),
       tags: normalizeTags(trade.mistakeTags),
     }];

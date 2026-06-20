@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 
 import type { trades } from "@/db/schema";
 import { buildCurrencyAnalytics, type AnalyticsTrade, type CurrencyAnalyticsMap } from "@/lib/domain/analytics";
+import { dateKeyInTimeZone } from "@/lib/date-time";
 
 type TradeRow = InferSelectModel<typeof trades>;
 
@@ -13,6 +14,7 @@ export function buildAnalyticsByCurrency(
   rows: TradeRow[],
   strategyNames: Map<string, string>,
   playbookNames: Map<string, string>,
+  timeZone: string,
 ): CurrencyAnalyticsMap {
   const mapped: AnalyticsTrade[] = rows.map((row) => ({
     status: row.status,
@@ -30,6 +32,7 @@ export function buildAnalyticsByCurrency(
     assetClass: row.assetClass,
     entryAt: row.entryAt.toISOString(),
     exitAt: row.exitAt?.toISOString() ?? null,
+    outcomeDate: dateKeyInTimeZone(row.exitAt ?? row.entryAt, timeZone),
     strategy: (row.strategyId ? strategyNames.get(row.strategyId) : null) ?? row.tradingStyle ?? null,
     playbook: (row.playbookId ? playbookNames.get(row.playbookId) : null) ?? null,
     mistakeTags: row.ruleViolations ? [row.ruleViolations] : [],

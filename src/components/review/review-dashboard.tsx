@@ -18,6 +18,7 @@ import type { Currency } from "@/lib/domain/types";
 import type { ReviewAnalyticsMap } from "@/lib/review-data";
 import { reviewComparisonLabel } from "@/lib/review-data";
 import type { DashboardScope } from "@/lib/trade-scope";
+import { dateKeyInTimeZone, DEFAULT_TIME_ZONE } from "@/lib/date-time";
 import { cn } from "@/lib/utils";
 
 const MIN_SAMPLE = 3;
@@ -126,8 +127,8 @@ function EvidenceTable({ rows, currency, empty }: { rows: EvidenceStat[]; curren
   );
 }
 
-function buildHeatmap(data: ReviewAnalytics["dailyOutcomes"], nowIso: string) {
-  const now = new Date(nowIso);
+function buildHeatmap(data: ReviewAnalytics["dailyOutcomes"], nowIso: string, timeZone: string) {
+  const now = new Date(`${dateKeyInTimeZone(new Date(nowIso), timeZone)}T00:00:00Z`);
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const start = new Date(end.getTime() - 41 * 86_400_000);
   const dayNames = Array.from({ length: 7 }, (_, index) => new Date(start.getTime() + index * 86_400_000).toLocaleDateString("en-IN", { weekday: "short", timeZone: "UTC" }));
@@ -147,9 +148,9 @@ function buildHeatmap(data: ReviewAnalytics["dailyOutcomes"], nowIso: string) {
   return { cells, rows, columns: dayNames, start, end };
 }
 
-function ReviewBody({ data, currency, scope, nowIso }: { data: ReviewAnalytics; currency: Currency; scope: DashboardScope; nowIso: string }) {
+function ReviewBody({ data, currency, scope, nowIso, timeZone }: { data: ReviewAnalytics; currency: Currency; scope: DashboardScope; nowIso: string; timeZone: string }) {
   const money = moneyFormatter(currency);
-  const heatmap = buildHeatmap(data.dailyOutcomes, nowIso);
+  const heatmap = buildHeatmap(data.dailyOutcomes, nowIso, timeZone);
   const comparison = data.periodComparison;
   const weekday = data.weekdayStats.map((row) => ({ label: row.name, value: row.pnl }));
 
@@ -271,7 +272,7 @@ function ReviewBody({ data, currency, scope, nowIso }: { data: ReviewAnalytics; 
   );
 }
 
-export function ReviewDashboard({ analyticsByCurrency, scope, nowIso }: { analyticsByCurrency: ReviewAnalyticsMap; scope: DashboardScope; nowIso: string }) {
+export function ReviewDashboard({ analyticsByCurrency, scope, nowIso, timeZone = DEFAULT_TIME_ZONE }: { analyticsByCurrency: ReviewAnalyticsMap; scope: DashboardScope; nowIso: string; timeZone?: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const data = analyticsByCurrency[currency];
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
@@ -280,8 +281,8 @@ export function ReviewDashboard({ analyticsByCurrency, scope, nowIso }: { analyt
   return (
     <div className="space-y-6 lg:space-y-8">
       <PageHeader eyebrow={<><Chip tone="accent">Review loop</Chip><Chip>{totalPending} pending across currencies</Chip></>} title="Review Center" description="Which behaviors help or hurt? Evidence stays currency-separated, sample-labelled, and linked back to the trades behind it." actions={<>{scopeActive ? <Button asChild variant="outline" size="compact"><Link href="/review"><RotateCcw aria-hidden="true" />Reset scope</Link></Button> : null}<Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button></>} />
-      <ScopeControls basePath="/review" scope={scope} currency={currency} onCurrencyChange={setCurrency} />
-      <ReviewBody key={currency} data={data} currency={currency} scope={scope} nowIso={nowIso} />
+      <ScopeControls basePath="/review" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
+      <ReviewBody key={currency} data={data} currency={currency} scope={scope} nowIso={nowIso} timeZone={timeZone} />
     </div>
   );
 }

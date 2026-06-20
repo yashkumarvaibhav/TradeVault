@@ -3,7 +3,8 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { trades } from "@/db/schema";
 import { buildReviewAnalytics, type ReviewAnalytics, type ReviewTrade } from "@/lib/domain/review-analytics";
 import type { Currency } from "@/lib/domain/types";
-import { scopeTradeRows, type DashboardScope } from "@/lib/trade-scope";
+import { addDateKeyDays, dateKeyInTimeZone, inclusiveDateWindow, inclusiveDayCount } from "@/lib/date-time";
+import { scopeDateKeys, scopeTradeRows, type DashboardScope } from "@/lib/trade-scope";
 
 type TradeRow = InferSelectModel<typeof trades>;
 export type ReviewAnalyticsMap = Record<Currency, ReviewAnalytics>;
@@ -14,7 +15,7 @@ export interface ReviewLibraryNames {
   closeReasons: Map<string, string>;
 }
 
-function mapRows(rows: TradeRow[], names: ReviewLibraryNames): ReviewTrade[] {
+function mapRows(rows: TradeRow[], names: ReviewLibraryNames, timeZone: string): ReviewTrade[] {
   return rows.map((row) => ({
     id: row.id,
     status: row.status,
@@ -33,6 +34,7 @@ function mapRows(rows: TradeRow[], names: ReviewLibraryNames): ReviewTrade[] {
     assetClass: row.assetClass,
     entryAt: row.entryAt.toISOString(),
     exitAt: row.exitAt?.toISOString() ?? null,
+    outcomeDate: dateKeyInTimeZone(row.exitAt ?? row.entryAt, timeZone),
     strategy: (row.strategyId ? names.strategies.get(row.strategyId) : null) ?? row.tradingStyle ?? null,
     playbook: (row.playbookId ? names.playbooks.get(row.playbookId) : null) ?? null,
     closeReason: (row.closeReasonId ? names.closeReasons.get(row.closeReasonId) : null) ?? null,
@@ -46,34 +48,30 @@ function mapRows(rows: TradeRow[], names: ReviewLibraryNames): ReviewTrade[] {
   }));
 }
 
-function scopedWindow(rows: TradeRow[], scope: DashboardScope, start: Date, end: Date): TradeRow[] {
+function scopedWindow(rows: TradeRow[], scope: DashboardScope, start: Date, endExclusive: Date): TradeRow[] {
   return rows.filter((row) =>
-    (scope.asset === "Overall" || row.assetClass === scope.asset) && row.entryAt >= start && row.entryAt <= end,
+    (scope.asset === "Overall" || row.assetClass === scope.asset) && row.entryAt >= start && row.entryAt < endExclusive,
   );
 }
 
 export function reviewComparisonLabel(scope: DashboardScope): string {
+  if (scope.period === "custom" && scope.from && scope.to) return `Selected ${inclusiveDayCount(scope.from, scope.to)} days vs preceding period`;
   if (scope.period === "90d") return "Latest 90 days vs prior 90 days";
   if (scope.period === "ytd") return "Year to date vs same span last year";
   return "Latest 30 days vs prior 30 days";
 }
 
-function comparisonRows(rows: TradeRow[], scope: DashboardScope, now: Date) {
-  if (scope.period === "ytd") {
-    const currentStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-    const previousStart = new Date(Date.UTC(now.getUTCFullYear() - 1, 0, 1));
-    const elapsed = now.getTime() - currentStart.getTime();
-    return {
-      current: scopedWindow(rows, scope, currentStart, now),
-      previous: scopedWindow(rows, scope, previousStart, new Date(previousStart.getTime() + elapsed)),
-    };
-  }
-  const days = scope.period === "90d" ? 90 : 30;
-  const currentStart = new Date(now.getTime() - days * 86_400_000);
-  const previousStart = new Date(currentStart.getTime() - days * 86_400_000);
+function comparisonRows(rows: TradeRow[], scope: DashboardScope, now: Date, timeZone: string) {
+  const keys = scopeDateKeys(scope.period === "all" ? { ...scope, period: "30d" } : scope, now, timeZone);
+  if (!keys) return { current: [], previous: [] };
+  const days = inclusiveDayCount(keys.from, keys.to);
+  const previousFrom = scope.period === "ytd" ? `${Number(keys.from.slice(0, 4)) - 1}-01-01` : addDateKeyDays(keys.from, -days);
+  const previousTo = addDateKeyDays(previousFrom, days - 1);
+  const currentWindow = inclusiveDateWindow(keys.from, keys.to, timeZone);
+  const previousWindow = inclusiveDateWindow(previousFrom, previousTo, timeZone);
   return {
-    current: scopedWindow(rows, scope, currentStart, now),
-    previous: scopedWindow(rows, scope, previousStart, new Date(currentStart.getTime() - 1)),
+    current: scopedWindow(rows, scope, currentWindow.start, currentWindow.endExclusive),
+    previous: scopedWindow(rows, scope, previousWindow.start, previousWindow.endExclusive),
   };
 }
 
@@ -83,12 +81,13 @@ export function buildReviewAnalyticsByCurrency(
   names: ReviewLibraryNames,
   scope: DashboardScope,
   now: Date,
+  timeZone: string,
 ): ReviewAnalyticsMap {
-  const currentRows = scopeTradeRows(rows, scope, now);
-  const comparison = comparisonRows(rows, scope, now);
-  const current = mapRows(currentRows, names);
-  const previous = mapRows(comparison.previous, names);
-  const comparisonCurrent = mapRows(comparison.current, names);
+  const currentRows = scopeTradeRows(rows, scope, now, timeZone);
+  const comparison = comparisonRows(rows, scope, now, timeZone);
+  const current = mapRows(currentRows, names, timeZone);
+  const previous = mapRows(comparison.previous, names, timeZone);
+  const comparisonCurrent = mapRows(comparison.current, names, timeZone);
   return {
     INR: buildReviewAnalytics(current, previous, "INR", comparisonCurrent),
     USD: buildReviewAnalytics(current, previous, "USD", comparisonCurrent),

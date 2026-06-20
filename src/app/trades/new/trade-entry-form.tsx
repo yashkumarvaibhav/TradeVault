@@ -13,6 +13,7 @@ import type { SetupChecklistItem } from "@/db/schema";
 import { evaluateTradeEntry } from "@/lib/domain/trade-entry";
 import type { AssetClass, Currency, Direction, InstrumentType, TradeStatus } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { DEFAULT_TIME_ZONE, zonedDateTimeToIso } from "@/lib/date-time";
 
 import { createTradeAction, type TradeFormState } from "./actions";
 
@@ -52,6 +53,7 @@ export function TradeEntryForm({
   initialText,
   hiddenFields,
   cancelHref = "/trades",
+  timeZone = DEFAULT_TIME_ZONE,
 }: {
   initialEntryAt: string;
   libraries: TradeEntryLibraries;
@@ -63,6 +65,7 @@ export function TradeEntryForm({
   initialText?: { tags?: string; ruleViolations?: string; linkedNote?: string; notes?: string };
   hiddenFields?: Record<string, string>;
   cancelHref?: string;
+  timeZone?: string;
 }) {
   const isEdit = mode === "edit";
   const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, {});
@@ -82,8 +85,8 @@ export function TradeEntryForm({
   const update = <K extends keyof Values>(key: K, value: Values[K]) => setV((current) => ({ ...current, [key]: value }));
   const evaluated = evaluateTradeEntry({
     symbol: v.symbol, assetClass: v.assetClass, instrumentType: v.instrumentType, direction: v.direction,
-    status: v.status, currency: v.currency, entryAt: v.entryAt, entryPrice: Number(v.entryPrice),
-    exitAt: v.exitAt || null, exitPrice: numberOrNull(v.exitPrice), quantity: Number(v.quantity),
+    status: v.status, currency: v.currency, entryAt: zonedDateTimeToIso(v.entryAt, timeZone) ?? v.entryAt, entryPrice: Number(v.entryPrice),
+    exitAt: v.exitAt ? (zonedDateTimeToIso(v.exitAt, timeZone) ?? v.exitAt) : null, exitPrice: numberOrNull(v.exitPrice), quantity: Number(v.quantity),
     multiplier: Number(v.multiplier), stopLoss: numberOrNull(v.stopLoss), plannedTarget: numberOrNull(v.plannedTarget),
     manualPnl: numberOrNull(v.manualPnl), fees: Number(v.fees), fxToAccount: Number(v.fxToAccount),
     confidence: numberOrNull(v.confidence),
@@ -146,7 +149,7 @@ export function TradeEntryForm({
         </section>
 
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-xl text-ink">Entry, risk & target</h2><p className="mb-5 text-sm text-muted">Directional checks update as you type.</p><div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Entry date & time" name="entryAt" error={errors.entryAt}><Input id="entryAt" name="entryAt" type="datetime-local" value={v.entryAt} onChange={(e) => update("entryAt", e.target.value)} aria-invalid={!!errors.entryAt} /></Field>
+          <Field label="Entry date & time" name="entryAt" error={errors.entryAt} hint={`${timeZone} · change under Settings`}><Input id="entryAt" name="entryAt" type="datetime-local" value={v.entryAt} onChange={(e) => update("entryAt", e.target.value)} aria-invalid={!!errors.entryAt} /></Field>
           <Field label="Entry price" name="entryPrice" error={errors.entryPrice}><Input id="entryPrice" name="entryPrice" type="number" step="any" value={v.entryPrice} onChange={(e) => update("entryPrice", e.target.value)} aria-invalid={!!errors.entryPrice} /></Field>
           <Field label="Initial stop" name="stopLoss" error={errors.stopLoss ?? evaluated.errors.stopLoss}><Input id="stopLoss" name="stopLoss" type="number" step="any" value={v.stopLoss} onChange={(e) => update("stopLoss", e.target.value)} aria-invalid={!!(errors.stopLoss ?? evaluated.errors.stopLoss)} /></Field>
           <Field label="Planned target" name="plannedTarget" error={errors.plannedTarget ?? evaluated.errors.plannedTarget}><Input id="plannedTarget" name="plannedTarget" type="number" step="any" value={v.plannedTarget} onChange={(e) => update("plannedTarget", e.target.value)} aria-invalid={!!(errors.plannedTarget ?? evaluated.errors.plannedTarget)} /><div className="mt-2 flex flex-wrap gap-1.5" aria-label="R-multiple target presets">{[1,2,3,4,5].map((r) => <button key={r} type="button" onClick={() => presetTarget(r)} className="min-h-9 rounded-sm border border-line px-3 text-xs font-semibold text-muted hover:border-line-strong hover:bg-accent-soft">{r}R</button>)}</div></Field>

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { evaluateTradeEntry } from "@/lib/domain/trade-entry";
 import type { AssetClass, Currency, Direction, InstrumentType } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
+import { DEFAULT_TIME_ZONE, zonedDateTimeToIso } from "@/lib/date-time";
 
 import { closeTradeAction, type CloseTradeState } from "./actions";
 
@@ -47,10 +48,12 @@ export function CloseTradeForm({
   trade,
   closeReasons,
   defaultExitAt,
+  timeZone = DEFAULT_TIME_ZONE,
 }: {
   trade: CloseTradeFacts;
   closeReasons: Array<{ id: string; name: string }>;
   defaultExitAt: string;
+  timeZone?: string;
 }) {
   const [state, formAction, pending] = useActionState<CloseTradeState, FormData>(closeTradeAction, {});
   const [exitAt, setExitAt] = React.useState(defaultExitAt);
@@ -68,7 +71,7 @@ export function CloseTradeForm({
     currency: trade.currency,
     entryAt: trade.entryAt,
     entryPrice: trade.entryPrice,
-    exitAt: exitAt || null,
+    exitAt: exitAt ? (zonedDateTimeToIso(exitAt, timeZone) ?? exitAt) : null,
     exitPrice: numberOrNull(exitPrice),
     quantity: trade.quantity,
     multiplier: trade.multiplier,
@@ -104,7 +107,7 @@ export function CloseTradeForm({
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Exit date & time" name="exitAt" error={errors.exitAt}>
+          <Field label="Exit date & time" name="exitAt" error={errors.exitAt} hint={`${timeZone} · change under Settings`}>
             <Input id="exitAt" name="exitAt" type="datetime-local" value={exitAt} onChange={(e) => setExitAt(e.target.value)} aria-invalid={!!errors.exitAt} />
           </Field>
           <Field label="Exit price" name="exitPrice" error={errors.exitPrice} hint={isForex ? "Optional if you enter a manual P&L below." : undefined}>

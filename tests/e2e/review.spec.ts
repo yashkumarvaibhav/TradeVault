@@ -38,6 +38,12 @@ test("review center renders behavioral evidence and opens the review queue", asy
   await page.getByRole("link", { name: "Last 30 days" }).click();
   await expect(page).toHaveURL(/\/review\?period=30d/);
   await expect(page.getByText(/Latest 30 days vs prior 30 days/)).toBeVisible();
+  await page.getByText("Custom", { exact: true }).click();
+  await page.getByLabel("From", { exact: true }).fill("2020-01-01");
+  await page.getByLabel("To", { exact: true }).fill("2030-12-31");
+  await page.getByRole("button", { name: "Apply range" }).click();
+  await expect(page).toHaveURL(/period=custom/);
+  await expect(page.getByText(/Selected .* days vs preceding period/)).toBeVisible();
   await page.getByRole("link", { name: "Reset scope" }).click();
   await expect(page).toHaveURL(/\/review$/);
 });

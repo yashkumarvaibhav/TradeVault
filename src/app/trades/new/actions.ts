@@ -15,10 +15,10 @@ export interface TradeFormState {
 }
 
 export async function createTradeAction(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
-  const { scope, account } = await requireWorkspaceSession();
+  const { scope, account, timeZone } = await requireWorkspaceSession();
   const draft = {
     accountId: account.id,
-    ...parseTradeDraftFromForm(formData, account.defaultCurrency),
+    ...parseTradeDraftFromForm(formData, account.defaultCurrency, timeZone),
   };
 
   try {

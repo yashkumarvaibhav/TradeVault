@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createTradingAccountRepository, ensureWorkspaceForUser } from "@/db/repositories/workspaces";
+import { getUserTimeZone } from "@/db/repositories/preferences";
 import { getDb } from "@/db/server";
 import { getAuth } from "@/lib/auth-server";
 
@@ -19,8 +20,11 @@ export async function requireWorkspaceSession() {
     slugBase: username || user.name,
     tenantName: `${displayName}'s vault`,
   });
-  const account = await createTradingAccountRepository(getDb(), scope).getDefault();
+  const [account, timeZone] = await Promise.all([
+    createTradingAccountRepository(getDb(), scope).getDefault(),
+    getUserTimeZone(getDb(), user.id),
+  ]);
   if (!account) throw new Error("Your default trading account is unavailable.");
 
-  return { session, scope, account, shellUser: { displayName, username } };
+  return { session, scope, account, timeZone, shellUser: { displayName, username } };
 }

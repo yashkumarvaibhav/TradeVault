@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   description: "Currency-safe behavioral evidence and the closed-trade review queue.",
 };
 
-export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ period?: string; asset?: string }> }) {
-  const { shellUser, scope: tenantScope, account } = await requireWorkspaceSession();
+export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ period?: string; asset?: string; from?: string; to?: string }> }) {
+  const { shellUser, scope: tenantScope, account, timeZone } = await requireWorkspaceSession();
   const dashboardScope = parseTradeScope(await searchParams);
   const db = getDb();
   await ensureDefaultTradeLibraries(db, tenantScope);
@@ -30,7 +30,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     strategies: new Map(libraries.strategies.map(({ id, name }) => [id, name])),
     playbooks: new Map(libraries.playbooks.map(({ id, name }) => [id, name])),
     closeReasons: new Map(libraries.closeReasons.map(({ id, name }) => [id, name])),
-  }, dashboardScope, now);
+  }, dashboardScope, now, timeZone);
 
-  return <AppShell user={shellUser}><ReviewDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} nowIso={now.toISOString()} /></AppShell>;
+  return <AppShell user={shellUser}><ReviewDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} nowIso={now.toISOString()} timeZone={timeZone} /></AppShell>;
 }

@@ -113,6 +113,7 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
     });
     userId = result.user.id;
   } catch (error) {
+    console.error("sign-up failed", error);
     return { error: messageFor(error, "Could not create your account. Try a different username.") };
   }
 

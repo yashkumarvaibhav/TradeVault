@@ -1,4 +1,5 @@
 import type { Currency, Direction, TradeStatus } from "./types";
+import { dateKeyInTimeZone, DEFAULT_TIME_ZONE } from "../date-time";
 
 export interface CalendarTradeInput {
   id: string;
@@ -62,7 +63,7 @@ function emptyDay(date: string): CalendarDay {
  * Build one currency's exit-day outcomes and actual review-day events. The
  * returned shape cannot carry a cross-currency money total.
  */
-export function buildCalendarAnalytics(trades: readonly CalendarTradeInput[], currency: Currency): CalendarAnalytics {
+export function buildCalendarAnalytics(trades: readonly CalendarTradeInput[], currency: Currency, timeZone = DEFAULT_TIME_ZONE): CalendarAnalytics {
   const days = new Map<string, CalendarDay>();
   let totalClosed = 0;
   let totalReviews = 0;
@@ -71,7 +72,7 @@ export function buildCalendarAnalytics(trades: readonly CalendarTradeInput[], cu
     if (trade.currency !== currency) continue;
 
     if (trade.status === "closed" && trade.realizedPnl != null && trade.exitAt) {
-      const date = trade.exitAt.slice(0, 10);
+      const date = dateKeyInTimeZone(new Date(trade.exitAt), timeZone);
       const day = days.get(date) ?? emptyDay(date);
       const pnl = round2(trade.realizedPnl);
       day.pnl = round2((day.pnl ?? 0) + pnl);
@@ -96,7 +97,7 @@ export function buildCalendarAnalytics(trades: readonly CalendarTradeInput[], cu
     }
 
     if (trade.reviewedAt) {
-      const date = trade.reviewedAt.slice(0, 10);
+      const date = dateKeyInTimeZone(new Date(trade.reviewedAt), timeZone);
       const day = days.get(date) ?? emptyDay(date);
       day.reviewCount += 1;
       day.reviewedTradeIds.push(trade.id);

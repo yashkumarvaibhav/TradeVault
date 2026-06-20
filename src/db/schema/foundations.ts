@@ -59,6 +59,8 @@ export const users = pgTable("users", {
   image: text("image"),
   // Better Auth twoFactor plugin: flipped true only after a TOTP code is verified.
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  // IANA timezone used for display, date bucketing, range boundaries, and local datetime entry.
+  timeZone: text("time_zone").notNull().default("Asia/Kolkata"),
   displayName: text("display_name"),
   legacyPasswordHash: text("legacy_password_hash"),
   legacyPasswordSalt: text("legacy_password_salt"),
@@ -74,6 +76,7 @@ export const users = pgTable("users", {
   check("users_username_normalized_check", sql`${table.username} = lower(${table.username})`),
   check("users_username_not_blank_check", sql`length(trim(${table.username})) >= 3`),
   check("users_email_not_blank_check", sql`length(trim(${table.email})) > 0`),
+  check("users_time_zone_not_blank_check", sql`length(trim(${table.timeZone})) > 0`),
   check("users_failed_login_attempts_nonnegative_check", sql`${table.failedLoginAttempts} >= 0`),
 ]);
 

@@ -57,6 +57,12 @@ test("overview uses scoped journal data and is visually reviewable", async ({ pa
   await page.getByRole("link", { name: "Last 30 days" }).click();
   await expect(page).toHaveURL(/[?&]period=30d/);
   await expect(page.getByRole("link", { name: "Reset scope" })).toBeVisible();
+  await page.getByText("Custom", { exact: true }).click();
+  await page.getByLabel("From", { exact: true }).fill("2020-01-01");
+  await page.getByLabel("To", { exact: true }).fill("2030-12-31");
+  await page.getByRole("button", { name: "Apply range" }).click();
+  await expect(page).toHaveURL(/[?&]period=custom/);
+  await expect(page.getByText("2020-01-01 – 2030-12-31")).toBeVisible();
   await page.getByRole("link", { name: "Reset scope" }).click();
   await expect(page).toHaveURL(/\/$/);
 

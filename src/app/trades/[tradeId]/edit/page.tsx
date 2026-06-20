@@ -9,29 +9,24 @@ import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "@/db/reposi
 import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
+import { dateTimeLocalValue } from "@/lib/date-time";
 
 import { TradeEntryForm } from "../../new/trade-entry-form";
 import { updateTradeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-/** Convert a stored UTC instant to a datetime-local value, symmetric with how Add Trade seeds it. */
-function toLocalInput(date: Date) {
-  const local = new Date(date);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
-}
 const num = (value: string | null) => (value == null ? "" : String(Number(value)));
 
 export default async function EditTradePage({ params }: { params: Promise<{ tradeId: string }> }) {
-  const { shellUser, scope, account } = await requireWorkspaceSession();
+  const { shellUser, scope, account, timeZone } = await requireWorkspaceSession();
   const { tradeId } = await params;
   const db = getDb();
   const trade = await createTradeRepository(db, scope).getById(account.id, tradeId);
   if (!trade) notFound();
   await ensureDefaultTradeLibraries(db, scope);
   const libraries = await getTradeEntryLibraries(db, scope);
-  const entryAt = toLocalInput(trade.entryAt);
+  const entryAt = dateTimeLocalValue(trade.entryAt, timeZone);
 
   return (
     <AppShell user={shellUser}>
@@ -44,6 +39,7 @@ export default async function EditTradePage({ params }: { params: Promise<{ trad
           mode="edit"
           action={updateTradeAction}
           initialEntryAt={entryAt}
+          timeZone={timeZone}
           libraries={libraries}
           cancelHref={`/trades/${trade.id}`}
           hiddenFields={{ tradeId: trade.id }}
@@ -56,7 +52,7 @@ export default async function EditTradePage({ params }: { params: Promise<{ trad
             currency: trade.currency,
             entryAt,
             entryPrice: num(trade.entryPrice),
-            exitAt: trade.exitAt ? toLocalInput(trade.exitAt) : "",
+            exitAt: trade.exitAt ? dateTimeLocalValue(trade.exitAt, timeZone) : "",
             exitPrice: num(trade.exitPrice),
             quantity: num(trade.quantity),
             multiplier: num(trade.multiplier),

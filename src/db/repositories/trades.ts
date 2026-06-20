@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, lt, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, lt, or, type SQL } from "drizzle-orm";
+import { addDateKeyDays, startOfDateInTimeZone } from "@/lib/date-time";
 
 import type { Database } from "@/db/client";
 import { closeReasons, instruments, playbooks, strategies, trades, tradingAccounts, type SetupChecklistItem } from "@/db/schema";
@@ -43,6 +44,7 @@ export interface TradeQueryOptions {
   closeReasonId?: string;
   dateFrom?: string;
   dateTo?: string;
+  timeZone?: string;
   sort?: "entry-desc" | "entry-asc" | "pnl-desc" | "pnl-asc" | "symbol-asc" | "r-desc";
 }
 
@@ -93,8 +95,8 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
     if (options.strategyId) conditions.push(eq(trades.strategyId, options.strategyId));
     if (options.playbookId) conditions.push(eq(trades.playbookId, options.playbookId));
     if (options.closeReasonId) conditions.push(eq(trades.closeReasonId, options.closeReasonId));
-    if (options.dateFrom) conditions.push(gte(trades.entryAt, new Date(`${options.dateFrom}T00:00:00.000Z`)));
-    if (options.dateTo) conditions.push(lte(trades.entryAt, new Date(`${options.dateTo}T23:59:59.999Z`)));
+    if (options.dateFrom) conditions.push(gte(trades.entryAt, startOfDateInTimeZone(options.dateFrom, options.timeZone ?? "UTC")));
+    if (options.dateTo) conditions.push(lt(trades.entryAt, startOfDateInTimeZone(addDateKeyDays(options.dateTo, 1), options.timeZone ?? "UTC")));
     if (options.result === "win") conditions.push(and(isNotNull(trades.realizedPnl), gte(trades.realizedPnl, "0.000001"))!);
     if (options.result === "loss") conditions.push(and(isNotNull(trades.realizedPnl), lt(trades.realizedPnl, "0"))!);
     if (options.result === "breakeven") conditions.push(eq(trades.realizedPnl, "0"));

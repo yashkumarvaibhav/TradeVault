@@ -1,6 +1,7 @@
 import { assetClasses, currencyCodes, instrumentTypes, tradeDirections, tradeStatuses } from "@/db/schema";
 import type { SetupChecklistItem } from "@/db/schema";
 import type { AssetClass, Currency, Direction, InstrumentType, TradeStatus } from "@/lib/domain/types";
+import { zonedDateTimeToIso } from "@/lib/date-time";
 
 function value(form: FormData, name: string) {
   return String(form.get(name) ?? "").trim();
@@ -31,7 +32,9 @@ function checklist(form: FormData): SetupChecklistItem[] {
 }
 
 /** Shared parser for the trade entry form, used by both create and edit. */
-export function parseTradeDraftFromForm(form: FormData, defaultCurrency: Currency) {
+export function parseTradeDraftFromForm(form: FormData, defaultCurrency: Currency, timeZone: string) {
+  const entryAt = value(form, "entryAt");
+  const exitAt = value(form, "exitAt");
   return {
     strategyId: value(form, "strategyId") || null,
     playbookId: value(form, "playbookId") || null,
@@ -42,9 +45,9 @@ export function parseTradeDraftFromForm(form: FormData, defaultCurrency: Currenc
     direction: enumValue(value(form, "direction"), tradeDirections, "Long") as Direction,
     status: enumValue(value(form, "status"), tradeStatuses, "open") as TradeStatus,
     currency: enumValue(value(form, "currency"), currencyCodes, defaultCurrency) as Currency,
-    entryAt: value(form, "entryAt"),
+    entryAt: zonedDateTimeToIso(entryAt, timeZone) ?? entryAt,
     entryPrice: Number(value(form, "entryPrice")),
-    exitAt: value(form, "exitAt") || null,
+    exitAt: exitAt ? (zonedDateTimeToIso(exitAt, timeZone) ?? exitAt) : null,
     exitPrice: optionalNumber(form, "exitPrice"),
     quantity: Number(value(form, "quantity")),
     multiplier: Number(value(form, "multiplier") || "1"),

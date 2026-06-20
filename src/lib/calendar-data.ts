@@ -27,13 +27,13 @@ function mapRows(rows: TradeRow[]): CalendarTradeInput[] {
 }
 
 /** Precompute the small asset × currency matrix for instant, money-safe switching. */
-export function buildCalendarData(rows: TradeRow[]): CalendarDataByAsset {
+export function buildCalendarData(rows: TradeRow[], timeZone: string): CalendarDataByAsset {
   return Object.fromEntries(ASSET_OPTIONS.map((asset) => {
     const scopedRows = asset === "Overall" ? rows : rows.filter((row) => row.assetClass === asset);
     const mapped = mapRows(scopedRows);
     return [asset, {
-      INR: buildCalendarAnalytics(mapped, "INR"),
-      USD: buildCalendarAnalytics(mapped, "USD"),
+      INR: buildCalendarAnalytics(mapped, "INR", timeZone),
+      USD: buildCalendarAnalytics(mapped, "USD", timeZone),
     } satisfies CalendarDataByCurrency];
   })) as CalendarDataByAsset;
 }

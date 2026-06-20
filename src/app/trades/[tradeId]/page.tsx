@@ -11,6 +11,7 @@ import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "@/db/reposi
 import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
 import type { Currency } from "@/lib/domain/types";
+import { dateTimeLocalValue, formatDateTimeInTimeZone } from "@/lib/date-time";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
 
 import { saveTradeReviewAction } from "./actions";
@@ -28,7 +29,7 @@ function Fact({ label, value, detail }: { label: string; value: string; detail?:
 }
 
 export default async function TradeDetailPage({ params, searchParams }: { params: Promise<{ tradeId: string }>; searchParams: Promise<{ mode?: string; reviewed?: string; closed?: string; close?: string; updated?: string }> }) {
-  const { shellUser, scope, account } = await requireWorkspaceSession();
+  const { shellUser, scope, account, timeZone } = await requireWorkspaceSession();
   const { tradeId } = await params;
   const query = await searchParams;
   const db = getDb();
@@ -56,7 +57,7 @@ export default async function TradeDetailPage({ params, searchParams }: { params
     <PageHeader
       eyebrow={<><Chip tone="accent">{trade.assetClass}</Chip><Chip tone={trade.direction === "Long" ? "profit" : "loss"}>{trade.direction}</Chip><Chip tone={trade.status === "open" ? "warning" : pnl != null && pnl >= 0 ? "profit" : "loss"}>{verdict}</Chip></>}
       title={trade.symbol}
-      description={`${trade.instrumentType} · ${trade.currency} · entered ${trade.entryAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`}
+      description={`${trade.instrumentType} · ${trade.currency} · entered ${formatDateTimeInTimeZone(trade.entryAt, timeZone)} · ${timeZone}`}
       actions={<><Button asChild variant={reviewMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=review`}><Check aria-hidden="true" />Review</Link></Button>{isOpen ? <Button asChild variant={closeMode ? "default" : "outline"}><Link href={`/trades/${trade.id}?mode=close`}><LockKeyhole aria-hidden="true" />Close</Link></Button> : <Button disabled variant="outline" title="This trade is already closed"><LockKeyhole aria-hidden="true" />Closed</Button>}<Button asChild variant="ghost"><Link href={`/trades/${trade.id}/edit`}><Pencil aria-hidden="true" />Edit</Link></Button></>}
     />
     {query.reviewed === "1" ? <p role="status" className="mt-5 rounded-md border border-profit/30 bg-profit/10 px-4 py-3 text-sm text-profit">Review saved. This trade is out of the review queue.</p> : null}
@@ -67,7 +68,8 @@ export default async function TradeDetailPage({ params, searchParams }: { params
     {closeMode ? <CloseTradeForm
       trade={{ id: trade.id, symbol: trade.symbol, assetClass: trade.assetClass, instrumentType: trade.instrumentType, direction: trade.direction, currency: trade.currency, entryAt: trade.entryAt.toISOString(), entryPrice: Number(trade.entryPrice), quantity: Number(trade.quantity), multiplier: Number(trade.multiplier), stopLoss: number(trade.stopLoss), plannedTarget: number(trade.plannedTarget), fxToAccount: Number(trade.fxToAccount), fees: Number(trade.fees) }}
       closeReasons={libraries.closeReasons.map((item) => ({ id: item.id, name: item.name }))}
-      defaultExitAt={new Date().toISOString().slice(0, 16)}
+      defaultExitAt={dateTimeLocalValue(new Date(), timeZone)}
+      timeZone={timeZone}
     /> : null}
 
     <section aria-label="Trade result" className="mt-7 grid gap-4 rounded-lg border border-line-strong bg-sidebar p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -79,7 +81,7 @@ export default async function TradeDetailPage({ params, searchParams }: { params
 
     <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="space-y-6">
-        <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Execution</h2><p className="mt-1 text-sm text-muted">The historical position facts captured at entry and exit.</p><dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Fact label="Entry" value={money(trade.currency, Number(trade.entryPrice))} detail={trade.entryAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} /><Fact label="Exit" value={trade.exitPrice == null ? "—" : money(trade.currency, Number(trade.exitPrice))} detail={trade.exitAt?.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) ?? "Position remains open"} /><Fact label="Quantity" value={`${Number(trade.quantity).toLocaleString()} × ${Number(trade.multiplier).toLocaleString()}`} detail="Quantity × multiplier" /><Fact label="Fees" value={money(trade.currency, Number(trade.fees))} detail={duration} /></dl></section>
+        <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Execution</h2><p className="mt-1 text-sm text-muted">The historical position facts captured at entry and exit.</p><dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Fact label="Entry" value={money(trade.currency, Number(trade.entryPrice))} detail={formatDateTimeInTimeZone(trade.entryAt, timeZone)} /><Fact label="Exit" value={trade.exitPrice == null ? "—" : money(trade.currency, Number(trade.exitPrice))} detail={trade.exitAt ? formatDateTimeInTimeZone(trade.exitAt, timeZone) : "Position remains open"} /><Fact label="Quantity" value={`${Number(trade.quantity).toLocaleString()} × ${Number(trade.multiplier).toLocaleString()}`} detail="Quantity × multiplier" /><Fact label="Fees" value={money(trade.currency, Number(trade.fees))} detail={duration} /></dl></section>
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Risk &amp; targets</h2><p className="mt-1 text-sm text-muted">Planned risk stays in {trade.currency}; realized R remains currency-neutral.</p><dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Fact label="Initial stop" value={trade.stopLoss == null ? "—" : money(trade.currency, Number(trade.stopLoss))} /><Fact label="Planned target" value={trade.plannedTarget == null ? "—" : money(trade.currency, Number(trade.plannedTarget))} /><Fact label="Planned 1R" value={plannedRisk == null ? "—" : money(trade.currency, plannedRisk)} /><Fact label="Plan / realized" value={`${plannedRr == null ? "—" : `${plannedRr.toFixed(2)}R`} / ${realizedR == null ? "—" : `${realizedR.toFixed(2)}R`}`} /></dl></section>
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-2xl text-ink">Rules &amp; setup</h2><div className="mt-4 flex flex-wrap gap-2">{strategy ? <Chip tone="accent">Strategy · {strategy}</Chip> : null}{playbook ? <Chip>Playbook · {playbook}</Chip> : null}{closeReason ? <Chip>Close · {closeReason}</Chip> : null}{trade.emotion ? <Chip>Emotion · {trade.emotion}</Chip> : null}</div>{trade.setupChecklist.length ? <ul className="mt-5 grid gap-2 md:grid-cols-2">{trade.setupChecklist.map((item) => <li key={`${item.phase}-${item.id}`} className="flex items-start gap-3 rounded-md border border-line bg-page px-3 py-2.5 text-sm text-body">{item.completed ? <Check className="mt-0.5 size-4 shrink-0 text-profit" aria-hidden="true" /> : <CircleDashed className="mt-0.5 size-4 shrink-0 text-faint" aria-hidden="true" />}<span>{item.label}<span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">{item.phase}</span></span></li>)}</ul> : <p className="mt-4 text-sm text-faint">No setup checklist was saved with this trade.</p>}{trade.ruleViolations ? <div className="mt-4 rounded-md border border-loss/20 bg-loss/10 p-3 text-sm text-body"><strong className="text-loss">Rule exception:</strong> {trade.ruleViolations}</div> : <p className="mt-4 flex items-center gap-2 text-sm text-profit"><Check className="size-4" aria-hidden="true" />No rule violation recorded.</p>}</section>
       </div>

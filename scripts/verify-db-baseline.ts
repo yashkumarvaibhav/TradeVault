@@ -11,6 +11,7 @@ import { sumMoneyByCurrency } from "../src/db/money";
 import * as schema from "../src/db/schema";
 import { tradingAccounts } from "../src/db/schema";
 import { createTradingAccountRepository, provisionWorkspace, tenantScope } from "../src/db/repositories/workspaces";
+import { getUserTimeZone, updateUserTimeZone } from "../src/db/repositories/preferences";
 
 async function main() {
 const connectionString = process.env.DATABASE_URL;
@@ -62,6 +63,10 @@ try {
   assert.equal(yash.user.email, "yashkumarvaibhav@users.tradevault.local");
   assert.equal(yash.account.name, "Main");
   assert.equal(yash.account.defaultCurrency, "INR");
+  assert.equal(await getUserTimeZone(db, yash.user.id), "Asia/Kolkata");
+  assert.equal(await updateUserTimeZone(db, yash.user.id, "America/New_York"), "America/New_York");
+  assert.equal(await getUserTimeZone(db, yash.user.id), "America/New_York");
+  assert.equal(await updateUserTimeZone(db, yash.user.id, "Not/AZone"), null);
 
   const yashAccounts = createTradingAccountRepository(db, yash.scope);
   const sniperAccounts = createTradingAccountRepository(db, sniper.scope);
@@ -115,7 +120,7 @@ try {
   });
 
   const migrationCount = await rawQuery('select count(*) from drizzle."__tradevault_migrations"');
-  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 7);
+  assert.equal(Number((migrationCount.rows[0] as { count?: string | number } | undefined)?.count), 8);
 
   const engine = nodePostgres ? "external disposable PostgreSQL" : "in-process PostgreSQL (PGlite)";
   console.log(`Database baseline verified on ${engine}: migration, ownership constraints, tenant isolation, and currency guards are green.`);

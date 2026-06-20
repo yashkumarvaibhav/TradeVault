@@ -11,12 +11,12 @@ import type { TradeFormState } from "../../new/actions";
 import { parseTradeDraftFromForm } from "../../trade-form-parse";
 
 export async function updateTradeAction(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
-  const { scope, account } = await requireWorkspaceSession();
+  const { scope, account, timeZone } = await requireWorkspaceSession();
   const tradeId = String(formData.get("tradeId") ?? "").trim();
   const draft = {
     accountId: account.id,
     tradeId,
-    ...parseTradeDraftFromForm(formData, account.defaultCurrency),
+    ...parseTradeDraftFromForm(formData, account.defaultCurrency, timeZone),
   };
 
   let updated: Awaited<ReturnType<ReturnType<typeof createTradeRepository>["update"]>>;

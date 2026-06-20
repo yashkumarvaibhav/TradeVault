@@ -75,4 +75,10 @@ describe("calendar analytics — currency and sample boundaries", () => {
     expect(buildCalendarAnalytics(rows, "USD").days[0].pnl).toBe(50);
     expect(buildCalendarAnalytics(rows, "INR").totalClosed).toBe(1);
   });
+
+  it("buckets outcome and review instants by the configured timezone", () => {
+    const row = trade({ exitAt: "2026-06-10T20:00:00Z", reviewedAt: "2026-06-11T20:00:00Z" });
+    expect(buildCalendarAnalytics([row], "INR", "UTC").days.map(({ date }) => date)).toEqual(["2026-06-10", "2026-06-11"]);
+    expect(buildCalendarAnalytics([row], "INR", "Asia/Kolkata").days.map(({ date }) => date)).toEqual(["2026-06-11", "2026-06-12"]);
+  });
 });

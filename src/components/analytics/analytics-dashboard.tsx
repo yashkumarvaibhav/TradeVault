@@ -227,7 +227,7 @@ function AnalyticsBody({ data, currency }: { data: CurrencyAnalytics; currency: 
   );
 }
 
-export function AnalyticsDashboard({ analyticsByCurrency, scope }: { analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope }) {
+export function AnalyticsDashboard({ analyticsByCurrency, scope, timeZone }: { analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope; timeZone?: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
   const data = analyticsByCurrency[currency];
@@ -247,7 +247,7 @@ export function AnalyticsDashboard({ analyticsByCurrency, scope }: { analyticsBy
         }
       />
 
-      <ScopeControls basePath="/analytics" scope={scope} currency={currency} onCurrencyChange={setCurrency} />
+      <ScopeControls basePath="/analytics" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
 
       {data ? (
         <AnalyticsBody key={currency} data={data} currency={currency} />

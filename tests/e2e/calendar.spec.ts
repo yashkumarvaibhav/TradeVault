@@ -40,6 +40,13 @@ test("calendar renders recent, month, year, and keyboard day activity", async ({
   await page.getByRole("radio", { name: "Recent" }).click();
   await expect(page.getByRole("heading", { name: "Recent 42 days" })).toBeVisible();
 
+  await page.getByRole("radio", { name: "Custom" }).click();
+  await page.getByLabel("From", { exact: true }).fill("2026-06-09");
+  await page.getByLabel("To", { exact: true }).fill("2026-06-12");
+  await page.getByRole("button", { name: "Apply range" }).click();
+  await expect(page).toHaveURL(/mode=custom/);
+  await expect(page.getByRole("heading", { name: "Custom date range" })).toBeVisible();
+
   await page.getByRole("radio", { name: "Year" }).click();
   await expect(page.getByRole("heading", { name: "2026 intensity" })).toBeVisible();
   await expect(page.getByRole("region", { name: "June 2026 intensity" })).toBeVisible();

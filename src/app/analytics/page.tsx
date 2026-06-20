@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   description: "Per-currency performance analytics for your trading journal.",
 };
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; asset?: string }> }) {
-  const { shellUser, scope: tenantScope, account } = await requireWorkspaceSession();
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; asset?: string; from?: string; to?: string }> }) {
+  const { shellUser, scope: tenantScope, account, timeZone } = await requireWorkspaceSession();
   const dashboardScope = parseTradeScope(await searchParams);
   const db = getDb();
   await ensureDefaultTradeLibraries(db, tenantScope);
@@ -26,14 +26,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     getTradeEntryLibraries(db, tenantScope),
   ]);
   const now = new Date();
-  const scopedRows = scopeTradeRows(rows, dashboardScope, now);
+  const scopedRows = scopeTradeRows(rows, dashboardScope, now, timeZone);
   const strategyNames = new Map(libraries.strategies.map((strategy) => [strategy.id, strategy.name]));
   const playbookNames = new Map(libraries.playbooks.map((playbook) => [playbook.id, playbook.name]));
-  const analyticsByCurrency = buildAnalyticsByCurrency(scopedRows, strategyNames, playbookNames);
+  const analyticsByCurrency = buildAnalyticsByCurrency(scopedRows, strategyNames, playbookNames, timeZone);
 
   return (
     <AppShell user={shellUser}>
-      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} />
+      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} timeZone={timeZone} />
     </AppShell>
   );
 }

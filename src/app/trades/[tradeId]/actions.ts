@@ -7,6 +7,7 @@ import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
 import type { TradeEntryErrors } from "@/lib/domain/trade-entry";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
+import { zonedDateTimeToIso } from "@/lib/date-time";
 
 const value = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
 const numberOrNull = (formData: FormData, name: string) => {
@@ -22,7 +23,7 @@ export interface CloseTradeState {
 }
 
 export async function closeTradeAction(_prev: CloseTradeState, formData: FormData): Promise<CloseTradeState> {
-  const { scope, account } = await requireWorkspaceSession();
+  const { scope, account, timeZone } = await requireWorkspaceSession();
   const tradeId = value(formData, "tradeId");
   const exitAtRaw = value(formData, "exitAt");
   const feesRaw = numberOrNull(formData, "fees");
@@ -32,7 +33,7 @@ export async function closeTradeAction(_prev: CloseTradeState, formData: FormDat
     result = await createTradeRepository(getDb(), scope).closeTrade({
       accountId: account.id,
       tradeId,
-      exitAt: exitAtRaw,
+      exitAt: zonedDateTimeToIso(exitAtRaw, timeZone) ?? exitAtRaw,
       exitPrice: numberOrNull(formData, "exitPrice"),
       manualPnl: numberOrNull(formData, "manualPnl"),
       fees: feesRaw == null ? 0 : feesRaw,

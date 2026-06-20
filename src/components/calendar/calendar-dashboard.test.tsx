@@ -41,5 +41,10 @@ describe("CalendarDashboard", () => {
     expect(screen.getByRole("link", { name: "View TESTUSD trade detail" })).toBeVisible();
     expect(screen.queryByText("TESTINR")).not.toBeInTheDocument();
     expect(screen.getByText(/Money cells are isolated to/)).toHaveTextContent("USD");
+
+    await user.click(screen.getByRole("radio", { name: "Custom" }));
+    expect(screen.getByRole("heading", { name: "Custom date range" })).toBeVisible();
+    expect(screen.getByLabelText("From")).toBeVisible();
+    expect(screen.getByLabelText("To")).toBeVisible();
   });
 });
