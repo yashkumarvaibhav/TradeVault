@@ -25,6 +25,8 @@ playwright/.auth/
 /infra/*.env
 # Local database dumps
 /infra/backups/
+# Demo/test account credentials + TOTP secret (never commit)
+/infra/demo1-*
 
 # Local databases and exports
 *.db
