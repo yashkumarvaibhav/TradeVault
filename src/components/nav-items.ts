@@ -26,6 +26,6 @@ export const navItems: NavItem[] = [
   { label: "Analytics", icon: ChartNoAxesCombined, href: "/analytics", active: true },
   { label: "Review center", icon: ShieldCheck, href: "/review", active: true },
   { label: "Calendar", icon: CalendarDays, href: "/calendar", active: true },
-  { label: "Notes", icon: BookOpenText, href: "#", soon: true },
+  { label: "Notes", icon: BookOpenText, href: "/notes", active: true },
   { label: "Reports", icon: FileText, href: "#", soon: true },
 ];
