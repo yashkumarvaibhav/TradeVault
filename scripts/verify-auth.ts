@@ -2,13 +2,21 @@ import assert from "node:assert/strict";
 import path from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
-import { sql } from "drizzle-orm";
+import { createOTP } from "@better-auth/utils/otp";
+import { symmetricEncrypt } from "better-auth/crypto";
+import { eq, sql } from "drizzle-orm";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 
 import { createAuth } from "../src/lib/auth";
+import type { Database } from "../src/db/client";
 import * as schema from "../src/db/schema";
+import { authTwoFactors, users } from "../src/db/schema";
 import { ensureWorkspaceForUser, synthesizeAuthEmail } from "../src/db/repositories/workspaces";
+import { recoverPasswordWithTotp } from "../src/lib/auth-recovery";
+
+const ORACLE_SECRET = "verify-auth-oracle-secret-key-0123456789abcdef";
+process.env.BETTER_AUTH_SECRET = ORACLE_SECRET;
 
 /**
  * End-to-end oracle for the Better Auth ⇄ username-first schema reconciliation.
@@ -26,7 +34,7 @@ async function main() {
   });
 
   const auth = createAuth(db, {
-    secret: "verify-auth-oracle-secret-key-0123456789abcdef",
+    secret: ORACLE_SECRET,
     baseURL: "http://localhost:3000",
   });
 
@@ -99,6 +107,49 @@ async function main() {
   assert.equal(scopeAgain.tenantId, scope.tenantId, "ensureWorkspaceForUser is idempotent");
   const accountCount = Number(((await rawQuery("select count(*) from trading_accounts")).rows[0] as { count: string | number }).count);
   assert.equal(accountCount, 1, "re-provision did not duplicate the account");
+
+  // Email-free password recovery: enroll a known TOTP secret + backup codes, then reset.
+  const rawTotpSecret = "ORACLEtotpSECRETrawKEY32charsXX0";
+  const backupCodes = ["ORCL-AAAA-1111", "ORCL-BBBB-2222"];
+  await db.insert(authTwoFactors).values({
+    userId,
+    secret: await symmetricEncrypt({ key: ORACLE_SECRET, data: rawTotpSecret }),
+    backupCodes: await symmetricEncrypt({ key: ORACLE_SECRET, data: JSON.stringify(backupCodes) }),
+    verified: true,
+  });
+  await db.update(users).set({ twoFactorEnabled: true }).where(eq(users.id, userId));
+
+  // A current TOTP code resets the password; the new password is then accepted at sign-in.
+  const newPassword = "reset-via-totp-passphrase-2026";
+  const totpCode = await createOTP(rawTotpSecret, { period: 30, digits: 6 }).totp();
+  assert.equal(await recoverPasswordWithTotp(db as unknown as Database, { username, code: totpCode, newPassword }), "ok", "TOTP recovery succeeded");
+
+  const reSignIn = await auth.api.signInUsername({ body: { username, password: newPassword } });
+  assert.ok(reSignIn && "twoFactorRedirect" in reSignIn && reSignIn.twoFactorRedirect, "new password accepted (2FA prompted)");
+  let oldRejected = false;
+  try {
+    await auth.api.signInUsername({ body: { username, password } });
+  } catch {
+    oldRejected = true;
+  }
+  assert.equal(oldRejected, true, "old password no longer works after reset");
+
+  // A backup code also resets, and is single-use.
+  assert.equal(
+    await recoverPasswordWithTotp(db as unknown as Database, { username, code: "ORCL-AAAA-1111", newPassword: "backup-reset-passphrase-2026", useBackup: true }),
+    "ok",
+    "backup-code recovery succeeded",
+  );
+  assert.equal(
+    await recoverPasswordWithTotp(db as unknown as Database, { username, code: "ORCL-AAAA-1111", newPassword: "should-not-apply-2026", useBackup: true }),
+    "invalid",
+    "used backup code is rejected on reuse",
+  );
+  assert.equal(
+    await recoverPasswordWithTotp(db as unknown as Database, { username, code: "000000", newPassword: "should-not-apply-2026" }),
+    "invalid",
+    "wrong TOTP code is rejected",
+  );
 
   await db.execute(sql`select 1`);
   await pglite.close();

@@ -42,3 +42,22 @@ test("login screen renders, toggles modes, and validates sign-up without a datab
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.locator("#password-error")).toContainText(/at least 12 characters/i);
 });
+
+test("forgot-password form opens and validates without a database", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
+  await expect(page.getByLabel("Authenticator code")).toBeVisible();
+
+  // Mismatched new password is caught before any DB access.
+  await page.locator("#recover-username").fill("trader_joe");
+  await page.locator("#recover-code").fill("123456");
+  await page.locator("#recover-password").fill("a-strong-enough-passphrase-2026");
+  await page.locator("#recover-confirm").fill("different-passphrase-2026");
+  await page.getByRole("button", { name: "Reset password" }).click();
+  await expect(page.locator("#recover-confirm-error")).toContainText(/do not match/i);
+
+  // The backup-code toggle relabels the code field.
+  await page.getByRole("button", { name: /Use a backup code/i }).click();
+  await expect(page.getByLabel("Backup code")).toBeVisible();
+});

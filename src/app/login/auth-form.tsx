@@ -17,6 +17,7 @@ import {
   verifyLoginTotpAction,
   type AuthFormState,
 } from "./actions";
+import { ForgotPasswordForm } from "./forgot-password-form";
 
 type Mode = "signin" | "signup";
 
@@ -111,6 +112,7 @@ function AuthPanel({ mode }: { mode: Mode }) {
     {},
   );
   const [password, setPassword] = React.useState("");
+  const [forgot, setForgot] = React.useState(false);
   const strength = passwordStrength(password);
   const showStrength = isSignUp && password.length > 0;
 
@@ -119,6 +121,11 @@ function AuthPanel({ mode }: { mode: Mode }) {
   // Password was correct but the account has 2FA — switch to the code step.
   if (!isSignUp && state.twoFactor) {
     return <TwoFactorLoginStep />;
+  }
+
+  // Forgot-password / TOTP recovery (sign-in only).
+  if (!isSignUp && forgot) {
+    return <ForgotPasswordForm onDone={() => setForgot(false)} />;
   }
 
   return (
@@ -200,6 +207,16 @@ function AuthPanel({ mode }: { mode: Mode }) {
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? (isSignUp ? "Creating account…" : "Signing in…") : isSignUp ? "Create account" : "Sign in"}
       </Button>
+
+      {!isSignUp ? (
+        <button
+          type="button"
+          onClick={() => setForgot(true)}
+          className="block w-full text-center text-xs text-muted underline-offset-2 hover:underline"
+        >
+          Forgot password?
+        </button>
+      ) : null}
     </form>
   );
 }
