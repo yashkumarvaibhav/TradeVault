@@ -11,6 +11,7 @@ import { getAuth } from "@/lib/auth-server";
 
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
+import { TwoFactorSetup } from "./two-factor-setup";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,8 @@ export default async function SettingsPage() {
           <ThemePreference />
         </SettingsSection>
 
-        <SettingsSection title="Security" description="Account access and recovery.">
-          <p className="text-sm text-muted">
-            Two-factor authentication (TOTP) for email-free recovery is coming next. Your password signs you in for now.
-          </p>
+        <SettingsSection title="Two-factor authentication" description="Email-free account recovery with an authenticator app.">
+          <TwoFactorSetup enabled={Boolean((user as { twoFactorEnabled?: boolean }).twoFactorEnabled)} />
         </SettingsSection>
 
         <SettingsSection title="Account">

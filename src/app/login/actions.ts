@@ -12,6 +12,8 @@ import { normalizeUsername, validatePassword, validateUsername } from "@/lib/aut
 export interface AuthFormState {
   error?: string;
   fieldErrors?: { username?: string; password?: string; confirm?: string };
+  /** Set when the password was correct but a second factor (TOTP) is required. */
+  twoFactor?: boolean;
 }
 
 /** Map Better Auth's API errors to a friendly, non-enumerating message. */
@@ -41,10 +43,43 @@ export async function signInAction(_prev: AuthFormState, formData: FormData): Pr
     return { fieldErrors: { username: username ? undefined : "Enter your username.", password: password ? undefined : "Enter your password." } };
   }
 
+  let result: unknown;
   try {
-    await getAuth().api.signInUsername({ body: { username, password }, headers: await headers() });
+    result = await getAuth().api.signInUsername({ body: { username, password }, headers: await headers() });
   } catch (error) {
     return { error: messageFor(error, "Incorrect username or password.") };
+  }
+  // 2FA-enabled accounts get a pending state (cookie set) instead of a session.
+  if (result && typeof result === "object" && "twoFactorRedirect" in result && (result as { twoFactorRedirect?: boolean }).twoFactorRedirect) {
+    return { twoFactor: true };
+  }
+  redirect("/");
+}
+
+/** Complete sign-in with a TOTP code (uses the 2FA cookie set during the password step). */
+export async function verifyLoginTotpAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!/^\d{6}$/.test(code)) {
+    return { twoFactor: true, fieldErrors: { password: "Enter the 6-digit code from your app." } };
+  }
+  try {
+    await getAuth().api.verifyTOTP({ body: { code }, headers: await headers() });
+  } catch {
+    return { twoFactor: true, error: "That code didn't match. Try again." };
+  }
+  redirect("/");
+}
+
+/** Complete sign-in with a one-time backup code (email-free recovery). */
+export async function verifyLoginBackupAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) {
+    return { twoFactor: true, fieldErrors: { password: "Enter a backup code." } };
+  }
+  try {
+    await getAuth().api.verifyBackupCode({ body: { code }, headers: await headers() });
+  } catch {
+    return { twoFactor: true, error: "That backup code didn't match." };
   }
   redirect("/");
 }
