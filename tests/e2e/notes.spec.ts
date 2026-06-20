@@ -99,4 +99,10 @@ test("Note editor creates from a template, saves rich text, surfaces it, and pin
   await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}$/);
   await page.getByRole("button", { name: "Pin", exact: true }).click();
   await expect(page.getByRole("button", { name: "Unpin" })).toBeVisible();
+
+  // The pinned note appears in the Overview recent-notes strip.
+  await page.goto("/");
+  const strip = page.locator("section[aria-label='Recent notes']");
+  await expect(strip.getByRole("heading", { name: "Recent notes" })).toBeVisible();
+  await expect(strip.getByText(title)).toBeVisible();
 });

@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock3,
+  NotebookPen,
+  Pin,
   Plus,
   RotateCcw,
   ShieldAlert,
@@ -29,9 +31,20 @@ import { Chip } from "@/components/ui/chip";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { NoteFeedItem } from "@/lib/domain/notes";
 import type { Currency } from "@/lib/domain/types";
 import type { DashboardScope } from "@/lib/trade-scope";
 import { cn } from "@/lib/utils";
+
+/** Short label for a note's kind in the compact strip (source-derived vs filed). */
+function noteKindLabel(note: NoteFeedItem): string {
+  switch (note.source) {
+    case "trade-entry-note": return "Trade entry";
+    case "trade-review-note": return "Trade review";
+    case "playbook-note": return "Playbook";
+    default: return note.noteType === "general" ? "Note" : note.noteType.replace("-", " ").replace(/^./, (c) => c.toUpperCase());
+  }
+}
 
 export interface TradePreview {
   id: string;
@@ -147,7 +160,7 @@ function MetricCard({
   );
 }
 
-export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope, timeZone }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string; scope: OverviewScope; timeZone?: string }) {
+export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope, recentNotes = [], timeZone }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string; scope: OverviewScope; recentNotes?: NoteFeedItem[]; timeZone?: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const [equityMode, setEquityMode] = React.useState<"equity" | "drawdown">("equity");
   const data = dataByCurrency[currency];
@@ -434,6 +447,48 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope, ti
           </CardContent>
         </Card>
       </section>
+
+      {recentNotes.length ? (
+        <section aria-label="Recent notes">
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Recent notes</CardTitle>
+                <CardDescription>Latest journal entries and notes linked to your trades</CardDescription>
+              </div>
+              <Button asChild variant="ghost" size="compact"><Link href="/notes">Open notes<ArrowUpRight aria-hidden="true" /></Link></Button>
+            </CardHeader>
+            <CardContent>
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {recentNotes.map((note) => (
+                  <li key={note.id}>
+                    <Link href={note.href ?? "/notes"} className="flex h-full min-h-16 flex-col rounded-md border border-line px-3 py-2.5 transition-colors hover:border-line-strong hover:bg-hover">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="line-clamp-1 font-serif text-base text-ink">{note.title}</p>
+                        {note.pinned ? <Pin className="size-3.5 shrink-0 fill-accent text-accent" aria-label="Pinned" /> : null}
+                      </div>
+                      {note.excerpt ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{note.excerpt}</p> : null}
+                      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2 text-[11px] text-faint">
+                        <Chip>{noteKindLabel(note)}</Chip>
+                        {note.linkLabel ? <span className="truncate">{note.linkLabel}</span> : null}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
+      ) : (
+        <section aria-label="Recent notes">
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div className="flex items-center gap-3"><NotebookPen className="size-6 text-accent" aria-hidden="true" /><div><p className="font-serif text-lg text-ink">Start your journal</p><p className="text-sm text-muted">Capture pre-trade plans, reviews, and daily notes — they gather in one place.</p></div></div>
+              <Button asChild size="compact"><Link href="/notes/new"><Plus aria-hidden="true" />New note</Link></Button>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-3" aria-label={`${currency} quick statistics`}>
         <Card><CardContent className="flex items-center gap-4 p-5"><TrendingUp className="size-6 text-profit" aria-hidden="true" /><div><p className="text-xs uppercase tracking-wider text-muted">Profit factor</p><p className="tnum mt-1 font-serif text-2xl text-ink">{data.profitFactor.toFixed(2)}</p></div></CardContent></Card>

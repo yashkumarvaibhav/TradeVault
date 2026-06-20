@@ -1,10 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { createDatabase } from "../src/db/client";
-import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "../src/db/repositories/libraries";
+import type { Database } from "../src/db/client";
+import { ensureDefaultTradeLibraries, getTradeEntryLibraries, type TradeEntryLibraries } from "../src/db/repositories/libraries";
+import { createNoteRepository } from "../src/db/repositories/notes";
 import { createTradeRepository } from "../src/db/repositories/trades";
-import { createTradingAccountRepository, ensureWorkspaceForUser } from "../src/db/repositories/workspaces";
-import { trades, users } from "../src/db/schema";
+import { createTradingAccountRepository, ensureWorkspaceForUser, type TenantScope } from "../src/db/repositories/workspaces";
+import { playbooks, trades, users } from "../src/db/schema";
 import type { AssetClass, Currency, InstrumentType } from "../src/lib/domain/types";
 
 const markets: Array<{ symbol: string; assetClass: AssetClass; instrumentType: InstrumentType; currency: Currency; entry: number; multiplier: number }> = [
@@ -46,9 +48,7 @@ async function main() {
         }
       });
       console.log(`Demo seed enriched: ${existing.length} existing trades linked to strategies, playbooks, close reasons, and checklists.`);
-      return;
-    }
-
+    } else {
     const anchor = Date.UTC(2026, 5, 18, 9, 15);
     for (let index = 0; index < 72; index += 1) {
       const market = markets[index % markets.length];
@@ -85,9 +85,70 @@ async function main() {
       });
     }
     console.log("Demo seed complete: 72 tenant-scoped trades across INR and USD, all asset classes, directions, and statuses.");
+    }
+
+    const recentForLinks = await repository.list({ accountId: account.id, limit: 6 });
+    await seedDemoNotes(client.db, scope, account.id, libraries, recentForLinks.map((trade) => ({ id: trade.id, symbol: trade.symbol })));
   } finally {
     await client.pool.end();
   }
+}
+
+/** Plain text → a one-paragraph TipTap doc so seeded notes open richly in the editor. */
+function paragraphDoc(text: string) {
+  return { type: "doc" as const, content: text.split("\n").filter(Boolean).map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) };
+}
+
+/** Idempotently seed a few varied dedicated notes + give two playbooks notes (so the
+ *  playbook source path is visible). Skips entirely once dedicated notes already exist. */
+async function seedDemoNotes(
+  db: Database,
+  scope: TenantScope,
+  accountId: string,
+  libraries: TradeEntryLibraries,
+  recentTrades: Array<{ id: string; symbol: string }>,
+) {
+  const notesRepo = createNoteRepository(db, scope);
+  if ((await notesRepo.listForFeed(accountId)).length > 0) {
+    console.log("Demo notes already present — skipped.");
+    return;
+  }
+
+  // Surface playbook source notes by giving the first two playbooks a note.
+  const playbookNotes = [
+    "Only take this setup with a defined opening range and volume confirmation. Skip thin, newsy sessions.",
+    "Trail behind structure once price clears 1R; never widen the original stop.",
+  ];
+  for (const [index, playbook] of libraries.playbooks.slice(0, 2).entries()) {
+    await db.update(playbooks).set({ notes: playbookNotes[index], updatedAt: new Date() }).where(and(eq(playbooks.id, playbook.id), eq(playbooks.tenantId, scope.tenantId)));
+  }
+
+  const linkTrade = recentTrades[0]?.id ?? null;
+  const linkSymbol = recentTrades[0]?.symbol ?? "a trade";
+  const seeds: Parameters<typeof notesRepo.create>[0][] = [
+    {
+      accountId, title: "Weekly intent — patience over frequency", pinned: true, noteType: "daily-journal", collection: "none",
+      bodyText: "Theme this week: fewer, higher-quality trades.\nWait for A+ setups; one good trade beats three forced ones.\nReset after any loss before re-engaging.",
+      bodyJson: paragraphDoc("Theme this week: fewer, higher-quality trades.\nWait for A+ setups; one good trade beats three forced ones.\nReset after any loss before re-engaging."),
+    },
+    {
+      accountId, title: "My risk rules", noteType: "general", collection: "risk-rules",
+      bodyText: "Max 1% account risk per trade.\nNo more than two correlated positions open at once.\nStop trading for the day after two consecutive rule violations.",
+      bodyJson: paragraphDoc("Max 1% account risk per trade.\nNo more than two correlated positions open at once.\nStop trading for the day after two consecutive rule violations."),
+    },
+    {
+      accountId, title: `Lesson from ${linkSymbol}`, noteType: "post-trade", collection: "mistakes", linkedTradeId: linkTrade,
+      bodyText: "Chased the entry after the first leg already ran. Risk/reward was poor at that price. Next time: set an alert at the level and only act on a clean retest.",
+      bodyJson: paragraphDoc("Chased the entry after the first leg already ran. Risk/reward was poor at that price. Next time: set an alert at the level and only act on a clean retest."),
+    },
+    {
+      accountId, title: "Pre-trade plan (my template)", isTemplate: true, noteType: "pre-trade", collection: "setups",
+      bodyText: "Thesis:\nSetup / trigger:\nInitial stop & invalidation:\nSize (within risk budget):\nTarget / reward-to-risk:",
+      bodyJson: paragraphDoc("Thesis:\nSetup / trigger:\nInitial stop & invalidation:\nSize (within risk budget):\nTarget / reward-to-risk:"),
+    },
+  ];
+  for (const seed of seeds) await notesRepo.create(seed);
+  console.log(`Demo notes seeded: ${seeds.length} dedicated notes (pinned journal, risk rules, a linked lesson, a template) + 2 playbook notes.`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
