@@ -29,6 +29,13 @@
       "when": 1781925206011,
       "tag": "0003_dear_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781925557218,
+      "tag": "0004_opposite_firelord",
+      "breakpoints": true
     }
   ]
 }

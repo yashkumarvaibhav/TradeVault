@@ -10,7 +10,6 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { navItems } from "@/components/nav-items";
 import {
@@ -72,10 +71,10 @@ const sampleRecords: SampleRecord[] = [
 export interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  navigate?: (href: string) => void;
 }
 
-export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
-  const router = useRouter();
+export function CommandPalette({ open, onOpenChange, navigate = (href) => window.location.assign(href) }: CommandPaletteProps) {
   // Run an action and close the palette. Closing first keeps focus return predictable.
   const run = React.useCallback(
     (action: () => void) => {
@@ -111,7 +110,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     onSelect={() =>
                       run(() => {
                         if (active) {
-                          router.push(href);
+                          navigate(href);
                         } else {
                           toast.info(`${label} arrives in a later phase`, {
                             description: "Navigation is wired; this view is not built yet.",
@@ -131,11 +130,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <CommandItem
                   value="add trade new entry log"
                   onSelect={() =>
-                    run(() =>
-                      toast.info("Add Trade workspace is next", {
-                        description: "The foundation preview does not write journal data.",
-                      }),
-                    )
+                    run(() => navigate("/trades/new"))
                   }
                 >
                   <Plus className="size-[18px] shrink-0 text-muted" aria-hidden="true" />

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Toaster, toast } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 
 export interface AppShellUser {
@@ -176,13 +176,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               <Sparkles className="size-3.5" aria-hidden="true" /> Preview
             </Chip>
             <ThemeToggle />
-            <Button
-              size="compact"
-              aria-label="Add trade"
-              onClick={() => toast.info("Add Trade workspace is next", { description: "The foundation preview does not write journal data." })}
-            >
-              <Plus aria-hidden="true" />
-              <span className="hidden sm:inline">Add trade</span>
+            <Button size="compact" aria-label="Add trade" asChild>
+              <Link href="/trades/new"><Plus aria-hidden="true" /><span className="hidden sm:inline">Add trade</span></Link>
             </Button>
           </header>
 

@@ -7,15 +7,12 @@ import { CommandPalette } from "./command-palette";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
-
 function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = {}) {
   const [open, setOpen] = React.useState(true);
   return (
     <CommandPalette
       open={open}
+      navigate={pushMock}
       onOpenChange={(next) => {
         onOpenChange?.(next);
         setOpen(next);

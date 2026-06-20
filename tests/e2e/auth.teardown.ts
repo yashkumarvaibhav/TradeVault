@@ -8,6 +8,15 @@ teardown("delete e2e test users", async () => {
   if (!connectionString) return;
   const pool = new Pool({ connectionString });
   try {
+    // Trades intentionally retain creator-membership integrity. Remove test journal rows
+    // before deleting their ephemeral workspace; production memberships are untouched.
+    await pool.query(
+      `delete from trades where tenant_id in (
+         select m.tenant_id from tenant_memberships m
+         join users u on u.id = m.user_id
+         where u.username like 'pw_e2e_%'
+       )`,
+    );
     await pool.query(
       `delete from tenants where id in (
          select m.tenant_id from tenant_memberships m

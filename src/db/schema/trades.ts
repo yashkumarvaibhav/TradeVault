@@ -157,7 +157,7 @@ export const trades = pgTable("trades", {
     name: "trades_creator_membership_fk",
     columns: [table.tenantId, table.createdByUserId],
     foreignColumns: [tenantMemberships.tenantId, tenantMemberships.userId],
-  }).onDelete("restrict"),
+  }),
   foreignKey({
     name: "trades_tenant_instrument_fk",
     columns: [table.tenantId, table.instrumentId],
