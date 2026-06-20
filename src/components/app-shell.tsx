@@ -181,7 +181,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </Button>
           </header>
 
-          <main id="overview" className="mx-auto w-full max-w-[1540px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <main id="overview" className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>

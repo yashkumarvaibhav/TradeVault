@@ -34,11 +34,30 @@ import type { Currency } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 export interface TradePreview {
+  id: string;
   symbol: string;
   side: "Long" | "Short";
   result: number;
   r: number;
   when: string;
+}
+
+export interface OpenPreview {
+  id: string;
+  symbol: string;
+  side: "Long" | "Short";
+  risk: number;
+  when: string;
+}
+
+export type OverviewPeriod = "all" | "30d" | "90d" | "ytd";
+export type OverviewAsset = "Overall" | "Equity" | "Index" | "Forex" | "Commodity" | "US Index" | "Crypto";
+
+export interface OverviewScope {
+  period: OverviewPeriod;
+  asset: OverviewAsset;
+  /** Current calendar month as YYYY-MM, for day deep-links. */
+  month: string;
 }
 
 export interface PreviewData {
@@ -58,6 +77,7 @@ export interface PreviewData {
   directions: DonutDatum[];
   strategies: StrategyPreview[];
   trades: TradePreview[];
+  openTrades: OpenPreview[];
   calendar: Record<number, number>;
   profitFactor: number;
   avgR: number;
@@ -102,6 +122,25 @@ function moneyFormatter(currency: Currency) {
   });
 }
 
+const PERIOD_OPTIONS: { value: OverviewPeriod; label: string }[] = [
+  { value: "all", label: "All time" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "ytd", label: "Year to date" },
+];
+const ASSET_OPTIONS: OverviewAsset[] = ["Overall", "Equity", "Index", "Forex", "Commodity", "US Index", "Crypto"];
+
+/** Build an Overview URL for the current scope with a patch (omitting defaults keeps URLs clean). */
+function scopeHref(scope: OverviewScope, patch: Partial<Pick<OverviewScope, "period" | "asset">>) {
+  const period = patch.period ?? scope.period;
+  const asset = patch.asset ?? scope.asset;
+  const params = new URLSearchParams();
+  if (period !== "all") params.set("period", period);
+  if (asset !== "Overall") params.set("asset", asset);
+  const query = params.toString();
+  return query ? `/?${query}` : "/";
+}
+
 function MetricCard({
   label,
   value,
@@ -132,18 +171,16 @@ function MetricCard({
   );
 }
 
-export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string }) {
+export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope }: { dataByCurrency: Record<Currency, PreviewData>; displayName: string; asOf: string; scope: OverviewScope }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const [equityMode, setEquityMode] = React.useState<"equity" | "drawdown">("equity");
   const data = dataByCurrency[currency];
   const formatMoney = moneyFormatter(currency);
   const equityPoints = equityMode === "equity" ? data.equity : buildDrawdown(data.equity);
   const outcomeHeatmap = buildOutcomeHeatmap(data.calendar);
-
-  function resetScope() {
-    setCurrency("INR");
-    setEquityMode("equity");
-  }
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === scope.period)?.label ?? "All time";
+  const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
+  const monthName = new Date(`${scope.month}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" });
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -158,9 +195,9 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
         description={`${asOf} · Metrics below come from the same scoped records as My Trades.`}
         actions={
           <>
-            <Button variant="outline" size="compact" onClick={resetScope}>
-              <RotateCcw aria-hidden="true" /> Reset scope
-            </Button>
+            {scopeActive ? (
+              <Button asChild variant="outline" size="compact"><Link href="/"><RotateCcw aria-hidden="true" /> Reset scope</Link></Button>
+            ) : null}
             <Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button>
           </>
         }
@@ -168,9 +205,50 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
 
       <ScopeToolbar
         label="Dashboard scope"
-        note={<>Money metrics are isolated to <strong className="text-ink">{currency}</strong>. INR and USD are never combined.</>}
+        note={
+          <>
+            Money metrics are isolated to <strong className="text-ink">{currency}</strong>. INR and USD are never combined.
+            {scopeActive ? (
+              <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Chip tone="accent">{periodLabel}</Chip>
+                {scope.asset !== "Overall" ? <Chip tone="accent">{scope.asset}</Chip> : null}
+                <Link href="/" className="text-xs font-semibold text-accent underline-offset-2 hover:underline">Clear</Link>
+              </span>
+            ) : null}
+          </>
+        }
       >
-          <ScopeField label="Period" className="flex-1"><span className="flex h-11 items-center rounded-md border border-line bg-raised px-3 text-sm text-body">All journal history</span></ScopeField>
+          <ScopeField label="Period" className="flex-1">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Period scope">
+              {PERIOD_OPTIONS.map((option) => (
+                <Link
+                  key={option.value}
+                  href={scopeHref(scope, { period: option.value })}
+                  aria-current={scope.period === option.value ? "true" : undefined}
+                  className={cn(
+                    "inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold transition-colors",
+                    scope.period === option.value ? "border-line-strong bg-accent-soft text-ink" : "border-line bg-raised text-muted hover:bg-hover",
+                  )}
+                >
+                  {option.label}
+                </Link>
+              ))}
+            </div>
+          </ScopeField>
+          <ScopeField label="Asset">
+            <form action="/" method="get">
+              {scope.period !== "all" ? <input type="hidden" name="period" value={scope.period} /> : null}
+              <select
+                name="asset"
+                defaultValue={scope.asset}
+                aria-label="Asset class scope"
+                onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                className="h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink sm:w-40"
+              >
+                {ASSET_OPTIONS.map((asset) => <option key={asset} value={asset}>{asset}</option>)}
+              </select>
+            </form>
+          </ScopeField>
           <ScopeField label="Currency">
             <Select value={currency} onValueChange={(value) => setCurrency(value as Currency)}>
               <SelectTrigger aria-label="Currency scope" className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -243,7 +321,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
                 <p className="text-xs text-muted">{data.reviewedCount ? `Reviewed sample · ${data.reviewedCount} trades` : "Complete reviews before judging discipline"}</p>
               </div>
             </div>
-            <Button variant="outline" className="w-full" disabled>Open review queue · coming soon</Button>
+            <Button asChild variant="outline" className="w-full"><Link href="/trades?status=closed">Review closed trades<ArrowUpRight aria-hidden="true" /></Link></Button>
           </CardContent>
         </Card>
       </section>
@@ -340,10 +418,12 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
             <Clock3 className="size-5 text-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.trades.map((trade) => (
-              <div key={trade.symbol} className="grid min-h-16 grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-line px-3 py-2 sm:grid-cols-[1fr_auto_auto_auto]">
-                <div>
-                  <p className="font-semibold text-ink">{trade.symbol}</p>
+            {data.trades.length === 0 ? (
+              <p className="text-sm text-faint">No closed trades in this scope yet.</p>
+            ) : data.trades.map((trade) => (
+              <Link key={trade.id} href={`/trades/${trade.id}`} className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-line px-3 py-2 transition-colors hover:border-line-strong hover:bg-hover sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink">{trade.symbol}</p>
                   <p className="mt-0.5 text-xs text-muted">{trade.when}</p>
                 </div>
                 <Chip tone="neutral" className="hidden sm:inline-flex">{trade.side}</Chip>
@@ -353,15 +433,31 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
                 <span className={cn("tnum hidden w-16 text-right text-sm sm:block", trade.r >= 0 ? "text-profit" : "text-loss")}>
                   {trade.r >= 0 ? "+" : ""}{trade.r.toFixed(1)}R
                 </span>
-              </div>
+              </Link>
             ))}
+            {data.openTrades.length ? (
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Open positions · {data.openTrades.length}</p>
+                <div className="space-y-2">
+                  {data.openTrades.map((position) => (
+                    <Link key={position.id} href={`/trades/${position.id}`} className="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-line px-3 py-2 transition-colors hover:border-line-strong hover:bg-hover">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-ink">{position.symbol} <span className="text-xs font-normal text-muted">· {position.side}</span></p>
+                        <p className="mt-0.5 text-xs text-muted">Entered {position.when}</p>
+                      </div>
+                      <span className="whitespace-nowrap text-right text-sm text-warn tnum">{formatMoney.format(position.risk)}<span className="ml-1 text-xs text-muted">at risk</span></span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
         <Card className="xl:col-span-5">
           <CardHeader>
             <div>
-              <CardTitle>June activity</CardTitle>
+              <CardTitle>{monthName} activity</CardTitle>
               <CardDescription>Daily closed P&amp;L · {currency} · current month</CardDescription>
             </div>
             <CalendarClock className="size-5 text-muted" aria-hidden="true" />
@@ -388,7 +484,7 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf }: { dataB
                           result > 0 && "border-profit/20 bg-profit/10 text-profit",
                           result < 0 && "border-loss/20 bg-loss/10 text-loss",
                         )}
-                        aria-label={result == null ? `June ${day}: no trades` : `June ${day}: ${formatMoney.format(result)} closed P&L in ${currency}`}
+                        aria-label={result == null ? `${monthName} ${day}: no trades` : `${monthName} ${day}: ${formatMoney.format(result)} closed P&L in ${currency}`}
                       >
                         <span>{day}</span>
                         {result != null && <span className="hidden text-[8px] font-semibold 2xl:block">{result > 0 ? "+" : ""}{Math.round(result)}</span>}

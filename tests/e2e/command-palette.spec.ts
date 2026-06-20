@@ -52,16 +52,16 @@ test("chrome stays overflow-free on very narrow viewports, palette open or close
   for (const width of [320, 360, 375]) {
     await page.setViewportSize({ width, height: 760 });
     await page.goto("/", { waitUntil: "networkidle" });
-    // Wait for the header AND webfonts before measuring: a Newsreader font swap can reflow
-    // the chrome under full-matrix compile load and momentarily report overflow at 320px.
     const trigger = page.getByRole("button", { name: "Open command palette" });
     await expect(trigger).toBeVisible();
     await page.evaluate(() => document.fonts?.ready);
-    expect(await overflow(), `closed @ ${width}px`).toBeLessThanOrEqual(0);
+    // The overview's chart entrance animations can transiently overflow on mount; poll until layout
+    // settles. A genuine horizontal overflow never settles, so this still fails on a real regression.
+    await expect.poll(overflow, { message: `closed @ ${width}px`, timeout: 5000 }).toBeLessThanOrEqual(0);
 
     await trigger.click();
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
-    expect(await overflow(), `palette open @ ${width}px`).toBeLessThanOrEqual(0);
+    await expect.poll(overflow, { message: `palette open @ ${width}px`, timeout: 5000 }).toBeLessThanOrEqual(0);
     await page.keyboard.press("Escape");
   }
 });

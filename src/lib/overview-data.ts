@@ -10,7 +10,7 @@ type TradeRow = InferSelectModel<typeof trades>;
 const round2 = (value: number) => Number(value.toFixed(2));
 
 function emptyData(): PreviewData {
-  return { netPnl: 0, winRate: 0, totalTrades: 0, expectancy: 0, openRisk: 0, openPositions: 0, unreviewed: 0, reviewedCount: 0, ruleFollowRate: null, oldestPendingDays: null, equity: [], monthlyPnl: [], returnDistribution: [], directions: [], strategies: [], trades: [], calendar: {}, profitFactor: 0, avgR: 0, topSymbol: "—" };
+  return { netPnl: 0, winRate: 0, totalTrades: 0, expectancy: 0, openRisk: 0, openPositions: 0, unreviewed: 0, reviewedCount: 0, ruleFollowRate: null, oldestPendingDays: null, equity: [], monthlyPnl: [], returnDistribution: [], directions: [], strategies: [], trades: [], openTrades: [], calendar: {}, profitFactor: 0, avgR: 0, topSymbol: "—" };
 }
 
 export function buildOverviewData(rows: TradeRow[], now = new Date()): Record<Currency, PreviewData> {
@@ -61,7 +61,11 @@ export function buildOverviewData(rows: TradeRow[], now = new Date()): Record<Cu
       returnDistribution: metric?.returnDistribution ?? [],
       directions: (["Long", "Short"] as const).map((label) => ({ label, value: closed.filter((row) => row.direction === label).length })),
       strategies: [...strategies.entries()].map(([name, value]) => ({ name, trades: value.count, winRate: value.count ? value.wins / value.count * 100 : 0, expectancy: value.count ? value.pnl / value.count : 0 })).sort((a, b) => b.expectancy - a.expectancy).slice(0, 3),
-      trades: recent.map((row) => ({ symbol: row.symbol, side: row.direction, result: Number(row.realizedPnl), r: Number(row.realizedR ?? 0), when: (row.exitAt ?? row.entryAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "UTC" }) })),
+      trades: recent.map((row) => ({ id: row.id, symbol: row.symbol, side: row.direction, result: Number(row.realizedPnl), r: Number(row.realizedR ?? 0), when: (row.exitAt ?? row.entryAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "UTC" }) })),
+      openTrades: [...open]
+        .sort((a, b) => b.entryAt.getTime() - a.entryAt.getTime())
+        .slice(0, 5)
+        .map((row) => ({ id: row.id, symbol: row.symbol, side: row.direction, risk: round2(Number(row.plannedRisk ?? 0)), when: row.entryAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", timeZone: "UTC" }) })),
       calendar, profitFactor: metric?.profitFactor ?? 0, avgR: metric?.avgRealizedR ?? 0, topSymbol,
     };
   }

@@ -11,15 +11,17 @@ const base = (netPnl: number): PreviewData => ({
   equity: [{ label: "1 Jun", value: netPnl }], monthlyPnl: [{ label: "Jun", value: netPnl }],
   returnDistribution: [{ range: "0% to 2%", count: 2 }], directions: [{ label: "Long", value: 2 }],
   strategies: [{ name: "Swing", trades: 2, winRate: 50, expectancy: netPnl / 2 }],
-  trades: [{ symbol: "TEST", side: "Long", result: netPnl, r: 1, when: "1 Jun" }], calendar: { 1: netPnl },
+  trades: [{ id: "trade-1", symbol: "TEST", side: "Long", result: netPnl, r: 1, when: "1 Jun" }],
+  openTrades: [{ id: "open-1", symbol: "OPENPOS", side: "Long", risk: 100, when: "2 Jun" }], calendar: { 1: netPnl },
   profitFactor: 2, avgR: 1, topSymbol: "TEST",
 });
 const dataByCurrency = { INR: base(18420), USD: base(486.75) };
+const scope = { period: "all", asset: "Overall", month: "2026-06" } as const;
 
 describe("overview visual milestone", () => {
   it("keeps money metrics in the selected currency and switches the whole view", async () => {
     const user = userEvent.setup();
-    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" />);
+    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" scope={scope} />);
 
     expect(screen.getAllByText("₹18,420")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("INR");
@@ -43,6 +45,16 @@ describe("overview visual milestone", () => {
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("USD");
     expect(screen.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
     expect(screen.queryByText("₹18,420")).not.toBeInTheDocument();
+  });
+
+  it("deep-links recent trades and open positions and reflects active scope", () => {
+    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" scope={{ period: "30d", asset: "Forex", month: "2026-06" }} />);
+    expect(screen.getByRole("link", { name: /TEST/ })).toHaveAttribute("href", "/trades/trade-1");
+    expect(screen.getByRole("link", { name: /OPENPOS/ })).toHaveAttribute("href", "/trades/open-1");
+    expect(screen.getByRole("link", { name: "Review closed trades" })).toHaveAttribute("href", "/trades?status=closed");
+    expect(screen.getAllByText("Last 30 days").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Forex").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Reset scope" })).toHaveAttribute("href", "/");
   });
 
   it("opens an accessible mobile navigation dialog", async () => {

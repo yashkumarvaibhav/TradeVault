@@ -52,4 +52,22 @@ test("overview uses scoped journal data and is visually reviewable", async ({ pa
 
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath("overview-full.png"), fullPage: true, animations: "disabled" });
+
+  // P5: date scope navigates, shows an active chip, and resets.
+  await page.getByRole("link", { name: "Last 30 days" }).click();
+  await expect(page).toHaveURL(/[?&]period=30d/);
+  await expect(page.getByRole("link", { name: "Reset scope" })).toBeVisible();
+  await page.getByRole("link", { name: "Reset scope" }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  // P5: deep links — review attention and a recent trade both reach My Trades / the detail.
+  await page.getByRole("link", { name: /Review closed trades/i }).click();
+  await expect(page).toHaveURL(/\/trades\?status=closed/);
+  await page.goto("/");
+  // First trade-detail deep link in the recent-trades / open-positions strips (symbol-agnostic: the
+  // shared e2e account is mutated by other specs concurrently). Excludes /trades/new and /trades?…
+  const detailLink = page.locator('a[href^="/trades/"]:not([href*="new"]):not([href*="?"])').first();
+  await expect(detailLink).toBeVisible();
+  await detailLink.click();
+  await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}/);
 });
