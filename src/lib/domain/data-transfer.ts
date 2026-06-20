@@ -131,6 +131,19 @@ function stringArray(value: unknown, limit = 100, maxLength = 200): string[] {
   return [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, maxLength)).filter(Boolean))].slice(0, limit);
 }
 
+function legacyStringList(value: unknown, limit = 200, maxLength = 1_000): string[] {
+  if (Array.isArray(value)) return stringArray(value, limit, maxLength);
+  const text = optionalString(value, 20_000);
+  if (!text) return [];
+  try {
+    const decoded: unknown = JSON.parse(text);
+    if (Array.isArray(decoded)) return stringArray(decoded, limit, maxLength);
+  } catch {
+    // v1 stored free-form textarea content, not necessarily JSON.
+  }
+  return [...new Set(text.split(/\r?\n|\s*;\s*/).map((item) => item.replace(/^[-*]\s*/, "").trim().slice(0, maxLength)).filter(Boolean))].slice(0, limit);
+}
+
 function legacyTags(value: unknown): string[] {
   if (Array.isArray(value)) return stringArray(value);
   const raw = optionalString(value, 2_000);
@@ -185,7 +198,7 @@ function parsePlaybooks(value: unknown, errors: string[]): ImportPlaybook[] {
     return {
       name: item.name,
       marketScope: optionalString(raw?.market_scope ?? raw?.marketScope, 500),
-      setupRules: stringArray(raw?.setup_rules ?? raw?.setupRules, 200, 1_000),
+      setupRules: legacyStringList(raw?.setup_rules ?? raw?.setupRules ?? raw?.checklist, 200, 1_000),
       notes: optionalString(raw?.notes),
     };
   });

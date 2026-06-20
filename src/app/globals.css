@@ -179,6 +179,17 @@ h1, h2, h3, h4 {
   border-radius: var(--radius-sm);
 }
 
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  [data-sonner-toaster], .print-hidden, aside, body > next-route-announcer { display: none !important; }
+  html, body { background: #ffffff !important; color: #333333 !important; }
+  body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  main#overview { max-width: none !important; overflow: visible !important; padding: 0 !important; }
+  .report-preview { border: 0 !important; background: #ffffff !important; box-shadow: none !important; color: #333333 !important; }
+  .report-preview h2, .report-preview h3, .report-preview dd { color: #333333; }
+  .report-preview section { break-inside: avoid; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {

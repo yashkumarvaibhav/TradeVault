@@ -30,7 +30,7 @@ const legacy = {
   instruments: [],
   strategies: [{ name: "Opening range", description: "First-hour breakout" }],
   close_reasons: [{ reason: "Target" }],
-  playbooks: [{ name: "Index momentum", market_scope: "NSE", setup_rules: ["Wait for range"] }],
+  playbooks: [{ name: "Index momentum", market_scope: "NSE", setup_rules: "Wait for range\n- Confirm volume" }],
 };
 
 describe("TradeVault import contract", () => {
@@ -50,6 +50,7 @@ describe("TradeVault import contract", () => {
       ruleViolations: "Imported legacy review marked rules not followed.",
     });
     expect(result.value.closeReasons).toEqual([{ name: "Target", description: null }]);
+    expect(result.value.playbooks[0].setupRules).toEqual(["Wait for range", "Confirm volume"]);
   });
 
   it("accepts current safe extensions without accepting identity or storage fields into the model", () => {

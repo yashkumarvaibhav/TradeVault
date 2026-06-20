@@ -27,5 +27,5 @@ export const navItems: NavItem[] = [
   { label: "Review center", icon: ShieldCheck, href: "/review", active: true },
   { label: "Calendar", icon: CalendarDays, href: "/calendar", active: true },
   { label: "Notes", icon: BookOpenText, href: "/notes", active: true },
-  { label: "Reports", icon: FileText, href: "#", soon: true },
+  { label: "Reports", icon: FileText, href: "/reports", active: true },
 ];
