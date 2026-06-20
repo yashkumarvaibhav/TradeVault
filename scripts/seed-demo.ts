@@ -1,9 +1,10 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { createDatabase } from "../src/db/client";
+import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "../src/db/repositories/libraries";
 import { createTradeRepository } from "../src/db/repositories/trades";
 import { createTradingAccountRepository, ensureWorkspaceForUser } from "../src/db/repositories/workspaces";
-import { users } from "../src/db/schema";
+import { trades, users } from "../src/db/schema";
 import type { AssetClass, Currency, InstrumentType } from "../src/lib/domain/types";
 
 const markets: Array<{ symbol: string; assetClass: AssetClass; instrumentType: InstrumentType; currency: Currency; entry: number; multiplier: number }> = [
@@ -29,8 +30,22 @@ async function main() {
     const account = await createTradingAccountRepository(client.db, scope).getDefault();
     if (!account) throw new Error("Demo account has no default trading account.");
     const repository = createTradeRepository(client.db, scope);
-    if ((await repository.list({ accountId: account.id, limit: 100 })).some((trade) => trade.tags.includes("demo-seed-v1"))) {
-      console.log("Demo seed already present; no rows added.");
+    await ensureDefaultTradeLibraries(client.db, scope);
+    const libraries = await getTradeEntryLibraries(client.db, scope);
+    const existing = (await repository.list({ accountId: account.id, limit: 100 })).filter((trade) => trade.tags.includes("demo-seed-v1"));
+    if (existing.length) {
+      await client.db.transaction(async (tx) => {
+        for (const [index, trade] of existing.entries()) {
+          await tx.update(trades).set({
+            strategyId: libraries.strategies[index % libraries.strategies.length].id,
+            playbookId: libraries.playbooks[index % libraries.playbooks.length].id,
+            closeReasonId: trade.status === "closed" ? libraries.closeReasons[index % libraries.closeReasons.length].id : null,
+            setupChecklist: libraries.checklistTemplates[0].items.map((item, itemIndex) => ({ ...item, completed: itemIndex < (trade.status === "closed" ? 5 : 3) })),
+            updatedAt: new Date(),
+          }).where(and(eq(trades.id, trade.id), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId)));
+        }
+      });
+      console.log(`Demo seed enriched: ${existing.length} existing trades linked to strategies, playbooks, close reasons, and checklists.`);
       return;
     }
 
@@ -63,6 +78,10 @@ async function main() {
         ruleViolations: index % 9 === 0 ? "Entered before confirmation" : null,
         linkedNote: index % 5 === 0 ? "Opening-range thesis and invalidation documented before entry." : null,
         notes: won ? "Waited for confirmation and respected the initial stop." : "Review timing and position sizing before repeating this setup.",
+        strategyId: libraries.strategies[index % libraries.strategies.length].id,
+        playbookId: libraries.playbooks[index % libraries.playbooks.length].id,
+        closeReasonId: status === "closed" ? libraries.closeReasons[index % libraries.closeReasons.length].id : null,
+        setupChecklist: libraries.checklistTemplates[0].items.map((item, itemIndex) => ({ ...item, completed: itemIndex < (status === "closed" ? 5 : 3) })),
       });
     }
     console.log("Demo seed complete: 72 tenant-scoped trades across INR and USD, all asset classes, directions, and statuses.");

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
 import { assetClasses, currencyCodes, instrumentTypes, tradeDirections, tradeStatuses } from "@/db/schema";
+import type { SetupChecklistItem } from "@/db/schema";
 import type { AssetClass, Currency, Direction, InstrumentType, TradeStatus } from "@/lib/domain/types";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
 
@@ -23,10 +24,28 @@ function enumValue<T extends readonly string[]>(raw: string, allowed: T, fallbac
   return allowed.includes(raw as T[number]) ? raw as T[number] : fallback;
 }
 
+function checklist(form: FormData): SetupChecklistItem[] {
+  try {
+    const parsed = JSON.parse(value(form, "setupChecklist")) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item): SetupChecklistItem[] => {
+      if (!item || typeof item !== "object") return [];
+      const candidate = item as Partial<SetupChecklistItem>;
+      if (typeof candidate.id !== "string" || typeof candidate.label !== "string" || !["entry", "exit"].includes(candidate.phase ?? "")) return [];
+      return [{ id: candidate.id.slice(0, 80), label: candidate.label.trim().slice(0, 180), phase: candidate.phase as "entry" | "exit", completed: candidate.completed === true }];
+    }).filter((item) => item.label);
+  } catch {
+    return [];
+  }
+}
+
 export async function createTradeAction(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
   const { scope, account } = await requireWorkspaceSession();
   const draft = {
     accountId: account.id,
+    strategyId: value(formData, "strategyId") || null,
+    playbookId: value(formData, "playbookId") || null,
+    closeReasonId: value(formData, "closeReasonId") || null,
     symbol: value(formData, "symbol"),
     assetClass: enumValue(value(formData, "assetClass"), assetClasses, "Equity") as AssetClass,
     instrumentType: enumValue(value(formData, "instrumentType"), instrumentTypes, "Cash") as InstrumentType,
@@ -53,6 +72,7 @@ export async function createTradeAction(_previous: TradeFormState, formData: For
     ruleViolations: value(formData, "ruleViolations"),
     linkedNote: value(formData, "linkedNote"),
     notes: value(formData, "notes"),
+    setupChecklist: checklist(formData),
   };
 
   try {

@@ -1,12 +1,15 @@
 import { and, asc, count, desc, eq, gte, ilike, isNotNull, lt, lte, or, type SQL } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
-import { instruments, trades, tradingAccounts } from "@/db/schema";
+import { closeReasons, instruments, playbooks, strategies, trades, tradingAccounts, type SetupChecklistItem } from "@/db/schema";
 import type { TenantScope } from "@/db/repositories/workspaces";
 import { evaluateTradeEntry, type TradeEntryDraft } from "@/lib/domain/trade-entry";
 
 export interface CreateTradeInput extends TradeEntryDraft {
   accountId: string;
+  strategyId?: string | null;
+  playbookId?: string | null;
+  closeReasonId?: string | null;
   subcategory?: string | null;
   tradingStyle?: string | null;
   platform?: string | null;
@@ -16,6 +19,7 @@ export interface CreateTradeInput extends TradeEntryDraft {
   ruleViolations?: string | null;
   linkedNote?: string | null;
   notes?: string | null;
+  setupChecklist?: SetupChecklistItem[];
 }
 
 export interface TradeQueryOptions {
@@ -34,6 +38,9 @@ export interface TradeQueryOptions {
   tradingStyle?: string;
   platform?: string;
   emotion?: string;
+  strategyId?: string;
+  playbookId?: string;
+  closeReasonId?: string;
   dateFrom?: string;
   dateTo?: string;
   sort?: "entry-desc" | "entry-asc" | "pnl-desc" | "pnl-asc" | "symbol-asc" | "r-desc";
@@ -83,6 +90,9 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
     if (options.tradingStyle) conditions.push(eq(trades.tradingStyle, options.tradingStyle));
     if (options.platform) conditions.push(eq(trades.platform, options.platform));
     if (options.emotion) conditions.push(eq(trades.emotion, options.emotion));
+    if (options.strategyId) conditions.push(eq(trades.strategyId, options.strategyId));
+    if (options.playbookId) conditions.push(eq(trades.playbookId, options.playbookId));
+    if (options.closeReasonId) conditions.push(eq(trades.closeReasonId, options.closeReasonId));
     if (options.dateFrom) conditions.push(gte(trades.entryAt, new Date(`${options.dateFrom}T00:00:00.000Z`)));
     if (options.dateTo) conditions.push(lte(trades.entryAt, new Date(`${options.dateTo}T23:59:59.999Z`)));
     if (options.result === "win") conditions.push(and(isNotNull(trades.realizedPnl), gte(trades.realizedPnl, "0.000001"))!);
@@ -146,6 +156,14 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
       if (!account) throw new Error("Trading account is not available in this workspace.");
 
       return db.transaction(async (tx) => {
+        const linkedLibraries = await Promise.all([
+          input.strategyId ? tx.select({ id: strategies.id }).from(strategies).where(and(eq(strategies.id, input.strategyId), eq(strategies.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+          input.playbookId ? tx.select({ id: playbooks.id }).from(playbooks).where(and(eq(playbooks.id, input.playbookId), eq(playbooks.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+          input.closeReasonId ? tx.select({ id: closeReasons.id }).from(closeReasons).where(and(eq(closeReasons.id, input.closeReasonId), eq(closeReasons.tenantId, scope.tenantId))).limit(1) : Promise.resolve([{ id: null }]),
+        ]);
+        if ((input.strategyId && !linkedLibraries[0][0]) || (input.playbookId && !linkedLibraries[1][0]) || (input.closeReasonId && !linkedLibraries[2][0])) {
+          throw new Error("A selected trade library item is not available in this workspace.");
+        }
         const [instrument] = await tx
           .insert(instruments)
           .values({
@@ -180,6 +198,9 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
           accountId: input.accountId,
           createdByUserId: scope.userId,
           instrumentId: instrument.id,
+          strategyId: input.strategyId || null,
+          playbookId: input.playbookId || null,
+          closeReasonId: input.status === "closed" ? input.closeReasonId || null : null,
           symbol,
           assetClass: input.assetClass,
           instrumentType: input.instrumentType,
@@ -206,6 +227,7 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
           realizedR: numeric(evaluated.preview.realizedR),
           confidence: input.confidence ?? null,
           emotion: cleanOptional(input.emotion),
+          setupChecklist: input.setupChecklist ?? [],
           tags: (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean),
           ruleViolations: cleanOptional(input.ruleViolations),
           linkedNote: cleanOptional(input.linkedNote),

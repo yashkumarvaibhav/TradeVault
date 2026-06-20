@@ -15,6 +15,9 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await page.getByLabel("Lot / contract multiplier").fill("5");
   await page.getByLabel("Initial stop").fill("90");
   await page.getByLabel("Planned target").fill("130");
+  await page.getByLabel("Strategy").selectOption({ label: "Breakout" });
+  await expect(page.getByRole("group", { name: "Setup checklist" }).getByRole("checkbox")).toHaveCount(5);
+  await page.getByRole("group", { name: "Setup checklist" }).getByRole("checkbox").first().check();
 
   const preview = page.getByRole("heading", { name: "Live risk preview" }).locator("xpath=ancestor::aside");
   await expect(preview).toContainText("₹100");
@@ -42,4 +45,10 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, "trade log has no page-level horizontal overflow").toBeLessThanOrEqual(0);
+
+  await page.goto("/trades/new");
+  await page.getByLabel("Instrument / symbol").fill(symbol);
+  await expect(page.getByRole("status")).toContainText(`Saved defaults applied for ${symbol}`);
+  await expect(page.getByLabel("Quantity")).toHaveValue("2.000000");
+  await expect(page.getByLabel("Lot / contract multiplier")).toHaveValue("5.000000");
 });

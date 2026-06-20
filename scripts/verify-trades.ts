@@ -6,6 +6,7 @@ import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
 import type { Database } from "../src/db/client";
+import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "../src/db/repositories/libraries";
 import { createTradeRepository } from "../src/db/repositories/trades";
 import { provisionWorkspace, tenantScope } from "../src/db/repositories/workspaces";
 import * as schema from "../src/db/schema";
@@ -34,6 +35,10 @@ async function main() {
     });
 
     const alphaTrades = createTradeRepository(db, alpha.scope);
+    await ensureDefaultTradeLibraries(db, alpha.scope);
+    await ensureDefaultTradeLibraries(db, beta.scope);
+    const alphaLibraries = await getTradeEntryLibraries(db, alpha.scope);
+    const betaLibraries = await getTradeEntryLibraries(db, beta.scope);
     const created = await alphaTrades.create({
       accountId: alpha.account.id,
       symbol: "nifty",
@@ -56,12 +61,18 @@ async function main() {
       confidence: 4,
       emotion: "Focused",
       tags: ["breakout", "morning"],
+      strategyId: alphaLibraries.strategies[0].id,
+      playbookId: alphaLibraries.playbooks[0].id,
+      closeReasonId: alphaLibraries.closeReasons[0].id,
+      setupChecklist: alphaLibraries.checklistTemplates[0].items.map((item, index) => ({ ...item, completed: index < 3 })),
     });
     assert.equal(created.symbol, "NIFTY");
     assert.equal(created.currency, "INR");
     assert.equal(Number(created.plannedRisk), 10_000);
     assert.equal(Number(created.realizedPnl), 10_000);
     assert.equal(Number(created.realizedR), 1);
+    assert.equal(created.strategyId, alphaLibraries.strategies[0].id);
+    assert.equal(created.setupChecklist.length, 5);
     assert.equal((await alphaTrades.list()).length, 1);
 
     for (let index = 0; index < 27; index += 1) {
@@ -79,6 +90,17 @@ async function main() {
     assert.equal(secondPage.rows.length, 3);
     const filtered = await alphaTrades.queryPage({ accountId: alpha.account.id, page: 1, pageSize: 25, search: "PAGE0", emotion: "Calm" });
     assert.equal(filtered.total, 5, "search and advanced emotion filters compose");
+    assert.equal((await alphaTrades.queryPage({ accountId: alpha.account.id, strategyId: alphaLibraries.strategies[0].id })).total, 1, "library filters are scoped and composable");
+
+    await assert.rejects(
+      () => alphaTrades.create({
+        accountId: alpha.account.id, symbol: "FOREIGN", assetClass: "Equity", instrumentType: "Cash", direction: "Long", status: "open",
+        currency: "INR", entryAt: "2026-06-20T09:30:00.000Z", entryPrice: 100, exitAt: null, exitPrice: null,
+        quantity: 1, multiplier: 1, stopLoss: 95, plannedTarget: 110, manualPnl: null, fees: 0, fxToAccount: 1,
+        strategyId: betaLibraries.strategies[0].id,
+      }),
+      /library item is not available/i,
+    );
 
     const crossedScope = tenantScope({ tenantId: alpha.tenant.id, userId: beta.user.id });
     assert.equal((await createTradeRepository(db, crossedScope).list()).length, 0, "crossed membership sees no trades");
@@ -106,7 +128,7 @@ async function main() {
       /not available in this workspace/i,
     );
 
-    console.log("Trade persistence verified: migrations, domain preview, tenant/account isolation, and currency-tagged records are green.");
+    console.log("Trade persistence verified: domain preview, linked libraries/checklist, filters, tenant isolation, and currency-tagged records are green.");
   } finally {
     await client.close();
   }
