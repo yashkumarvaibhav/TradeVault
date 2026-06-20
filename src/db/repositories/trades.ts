@@ -29,6 +29,10 @@ export interface TradeQueryOptions {
   direction?: string;
   currency?: string;
   instrumentType?: string;
+  symbol?: string;
+  subcategory?: string;
+  tradingStyle?: string;
+  platform?: string;
   emotion?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -74,6 +78,10 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
     if (options.direction) conditions.push(eq(trades.direction, options.direction as typeof trades.direction.enumValues[number]));
     if (options.currency) conditions.push(eq(trades.currency, options.currency as typeof trades.currency.enumValues[number]));
     if (options.instrumentType) conditions.push(eq(trades.instrumentType, options.instrumentType as typeof trades.instrumentType.enumValues[number]));
+    if (options.symbol) conditions.push(eq(trades.symbol, options.symbol));
+    if (options.subcategory) conditions.push(eq(trades.subcategory, options.subcategory));
+    if (options.tradingStyle) conditions.push(eq(trades.tradingStyle, options.tradingStyle));
+    if (options.platform) conditions.push(eq(trades.platform, options.platform));
     if (options.emotion) conditions.push(eq(trades.emotion, options.emotion));
     if (options.dateFrom) conditions.push(gte(trades.entryAt, new Date(`${options.dateFrom}T00:00:00.000Z`)));
     if (options.dateTo) conditions.push(lte(trades.entryAt, new Date(`${options.dateTo}T23:59:59.999Z`)));
@@ -98,6 +106,13 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
     listAll: (accountId: string) => db.select().from(trades)
       .where(and(eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId)))
       .orderBy(asc(trades.entryAt), asc(trades.createdAt)),
+
+    filterOptions: async (accountId: string) => {
+      const rows = await db.select({ symbol: trades.symbol, subcategory: trades.subcategory, tradingStyle: trades.tradingStyle, platform: trades.platform, emotion: trades.emotion })
+        .from(trades).where(and(eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId)));
+      const unique = (values: Array<string | null>) => [...new Set(values.filter((value): value is string => Boolean(value)))].sort();
+      return { symbols: unique(rows.map((row) => row.symbol)), subcategories: unique(rows.map((row) => row.subcategory)), tradingStyles: unique(rows.map((row) => row.tradingStyle)), platforms: unique(rows.map((row) => row.platform)), emotions: unique(rows.map((row) => row.emotion)) };
+    },
 
     queryPage: async (options: TradeQueryOptions) => {
       const pageSize = [25, 50, 100].includes(options.pageSize ?? 25) ? options.pageSize ?? 25 : 25;
