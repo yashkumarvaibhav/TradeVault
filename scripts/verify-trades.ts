@@ -64,6 +64,22 @@ async function main() {
     assert.equal(Number(created.realizedR), 1);
     assert.equal((await alphaTrades.list()).length, 1);
 
+    for (let index = 0; index < 27; index += 1) {
+      await alphaTrades.create({
+        accountId: alpha.account.id, symbol: `PAGE${String(index).padStart(2, "0")}`, assetClass: "Equity", instrumentType: "Cash",
+        direction: "Long", status: "open", currency: "INR", entryAt: new Date(Date.UTC(2026, 4, index + 1)).toISOString(),
+        entryPrice: 100 + index, exitAt: null, exitPrice: null, quantity: 1, multiplier: 1, stopLoss: 90,
+        plannedTarget: 120 + index, manualPnl: null, fees: 0, fxToAccount: 1, emotion: index % 2 ? "Calm" : "Focused",
+      });
+    }
+    const firstPage = await alphaTrades.queryPage({ accountId: alpha.account.id, page: 1, pageSize: 25, sort: "entry-desc" });
+    const secondPage = await alphaTrades.queryPage({ accountId: alpha.account.id, page: 2, pageSize: 25, sort: "entry-desc" });
+    assert.equal(firstPage.total, 28);
+    assert.equal(firstPage.rows.length, 25);
+    assert.equal(secondPage.rows.length, 3);
+    const filtered = await alphaTrades.queryPage({ accountId: alpha.account.id, page: 1, pageSize: 25, search: "PAGE0", emotion: "Calm" });
+    assert.equal(filtered.total, 5, "search and advanced emotion filters compose");
+
     const crossedScope = tenantScope({ tenantId: alpha.tenant.id, userId: beta.user.id });
     assert.equal((await createTradeRepository(db, crossedScope).list()).length, 0, "crossed membership sees no trades");
     await assert.rejects(

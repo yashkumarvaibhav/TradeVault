@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNotNull, lt, lte, or, type SQL } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
 import { instruments, trades, tradingAccounts } from "@/db/schema";
@@ -16,6 +16,23 @@ export interface CreateTradeInput extends TradeEntryDraft {
   ruleViolations?: string | null;
   linkedNote?: string | null;
   notes?: string | null;
+}
+
+export interface TradeQueryOptions {
+  accountId: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  assetClass?: string;
+  status?: string;
+  result?: "win" | "loss" | "breakeven";
+  direction?: string;
+  currency?: string;
+  instrumentType?: string;
+  emotion?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sort?: "entry-desc" | "entry-asc" | "pnl-desc" | "pnl-asc" | "symbol-asc" | "r-desc";
 }
 
 function numeric(value: number | null) {
@@ -38,6 +55,34 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
     eq(tradingAccounts.ownerUserId, scope.userId),
   );
 
+  const queryConditions = (options: TradeQueryOptions) => {
+    const conditions: SQL[] = [
+      eq(trades.tenantId, scope.tenantId),
+      eq(trades.createdByUserId, scope.userId),
+      eq(trades.accountId, options.accountId),
+    ];
+    const search = options.search?.trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      conditions.push(or(
+        ilike(trades.symbol, pattern), ilike(trades.subcategory, pattern), ilike(trades.tradingStyle, pattern),
+        ilike(trades.platform, pattern), ilike(trades.emotion, pattern),
+      )!);
+    }
+    if (options.assetClass) conditions.push(eq(trades.assetClass, options.assetClass as typeof trades.assetClass.enumValues[number]));
+    if (options.status) conditions.push(eq(trades.status, options.status as typeof trades.status.enumValues[number]));
+    if (options.direction) conditions.push(eq(trades.direction, options.direction as typeof trades.direction.enumValues[number]));
+    if (options.currency) conditions.push(eq(trades.currency, options.currency as typeof trades.currency.enumValues[number]));
+    if (options.instrumentType) conditions.push(eq(trades.instrumentType, options.instrumentType as typeof trades.instrumentType.enumValues[number]));
+    if (options.emotion) conditions.push(eq(trades.emotion, options.emotion));
+    if (options.dateFrom) conditions.push(gte(trades.entryAt, new Date(`${options.dateFrom}T00:00:00.000Z`)));
+    if (options.dateTo) conditions.push(lte(trades.entryAt, new Date(`${options.dateTo}T23:59:59.999Z`)));
+    if (options.result === "win") conditions.push(and(isNotNull(trades.realizedPnl), gte(trades.realizedPnl, "0.000001"))!);
+    if (options.result === "loss") conditions.push(and(isNotNull(trades.realizedPnl), lt(trades.realizedPnl, "0"))!);
+    if (options.result === "breakeven") conditions.push(eq(trades.realizedPnl, "0"));
+    return and(...conditions)!;
+  };
+
   return {
     list: (options: { accountId?: string; limit?: number } = {}) => {
       const conditions = [eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId)];
@@ -48,6 +93,29 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         .where(and(...conditions))
         .orderBy(desc(trades.entryAt), desc(trades.createdAt))
         .limit(Math.min(Math.max(options.limit ?? 50, 1), 100));
+    },
+
+    listAll: (accountId: string) => db.select().from(trades)
+      .where(and(eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, accountId)))
+      .orderBy(asc(trades.entryAt), asc(trades.createdAt)),
+
+    queryPage: async (options: TradeQueryOptions) => {
+      const pageSize = [25, 50, 100].includes(options.pageSize ?? 25) ? options.pageSize ?? 25 : 25;
+      const where = queryConditions(options);
+      const [{ total }] = await db.select({ total: count() }).from(trades).where(where);
+      const pageCount = Math.max(1, Math.ceil(total / pageSize));
+      const page = Math.min(Math.max(options.page ?? 1, 1), pageCount);
+      const order = options.sort === "entry-asc" ? [asc(trades.entryAt), asc(trades.createdAt)]
+        : options.sort === "pnl-desc" ? [desc(trades.realizedPnl), desc(trades.entryAt)]
+        : options.sort === "pnl-asc" ? [asc(trades.realizedPnl), desc(trades.entryAt)]
+        : options.sort === "symbol-asc" ? [asc(trades.symbol), desc(trades.entryAt)]
+        : options.sort === "r-desc" ? [desc(trades.realizedR), desc(trades.entryAt)]
+        : [desc(trades.entryAt), desc(trades.createdAt)];
+      const [rows, summaryRows] = await Promise.all([
+        db.select().from(trades).where(where).orderBy(...order).limit(pageSize).offset((page - 1) * pageSize),
+        db.select({ currency: trades.currency, realizedPnl: trades.realizedPnl, realizedR: trades.realizedR, status: trades.status }).from(trades).where(where),
+      ]);
+      return { rows, summaryRows, total, page, pageSize, pageCount };
     },
 
     create: async (input: CreateTradeInput) => {

@@ -28,6 +28,16 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(page).toHaveURL(/\/trades\?created=1$/);
   await expect(page.getByRole("status")).toContainText("Trade saved");
   await expect(page.getByRole("cell", { name: new RegExp(symbol) })).toBeVisible();
+
+  await page.getByPlaceholder(/Search symbol, style/i).fill(symbol);
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page).toHaveURL(new RegExp(`q=${symbol}`));
+  await expect(page.getByText("1 matching records")).toBeVisible();
+
+  const header = page.getByRole("columnheader", { name: "Symbol" });
+  const firstRowCell = page.getByRole("cell", { name: new RegExp(symbol) });
+  const [headerBox, rowBox] = await Promise.all([header.boundingBox(), firstRowCell.boundingBox()]);
+  expect(headerBox && rowBox && headerBox.y + headerBox.height <= rowBox.y + 1, "header renders before and does not overlap the first row").toBeTruthy();
   await page.screenshot({ path: testInfo.outputPath("my-trades.png"), fullPage: true, animations: "disabled" });
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
