@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { users } from "./foundations";
 
@@ -58,6 +58,22 @@ export const authVerifications = pgTable("auth_verifications", {
 }, (table) => [
   index("auth_verifications_identifier_idx").on(table.identifier),
 ]);
+
+// Better Auth twoFactor plugin table (mapped via adapter schema key `twoFactor`).
+// `secret`/`backupCodes` are encrypted by Better Auth; never returned to the client.
+export const authTwoFactors = pgTable("auth_two_factors", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  secret: text("secret").notNull(),
+  backupCodes: text("backup_codes").notNull(),
+  verified: boolean("verified").notNull().default(true),
+}, (table) => [
+  index("auth_two_factors_user_idx").on(table.userId),
+]);
+
+export const authTwoFactorsRelations = relations(authTwoFactors, ({ one }) => ({
+  user: one(users, { fields: [authTwoFactors.userId], references: [users.id] }),
+}));
 
 export const authSessionsRelations = relations(authSessions, ({ one }) => ({
   user: one(users, { fields: [authSessions.userId], references: [users.id] }),

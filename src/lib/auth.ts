@@ -1,9 +1,9 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { username } from "better-auth/plugins";
+import { twoFactor, username } from "better-auth/plugins";
 
 import type { Database } from "@/db/client";
-import { authAccounts, authSessions, authVerifications, users } from "@/db/schema";
+import { authAccounts, authSessions, authTwoFactors, authVerifications, users } from "@/db/schema";
 import { PASSWORD_MIN_LENGTH, USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from "@/lib/auth-policy";
 
 /**
@@ -31,6 +31,7 @@ export function createAuth(
         session: authSessions,
         account: authAccounts,
         verification: authVerifications,
+        twoFactor: authTwoFactors,
       },
     }),
     emailAndPassword: {
@@ -44,6 +45,8 @@ export function createAuth(
     },
     plugins: [
       username({ minUsernameLength: USERNAME_MIN_LENGTH, maxUsernameLength: USERNAME_MAX_LENGTH }),
+      // Email-free recovery. Default flow: enrollment only enables after a verified code.
+      twoFactor({ issuer: "TradeVault" }),
       ...(options.extraPlugins ?? []),
     ],
   });

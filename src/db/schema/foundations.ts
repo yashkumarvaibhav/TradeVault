@@ -56,6 +56,8 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  // Better Auth twoFactor plugin: flipped true only after a TOTP code is verified.
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   displayName: text("display_name"),
   legacyPasswordHash: text("legacy_password_hash"),
   legacyPasswordSalt: text("legacy_password_salt"),

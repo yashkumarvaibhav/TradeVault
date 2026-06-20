@@ -15,6 +15,13 @@
       "when": 1781911216304,
       "tag": "0001_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781917923580,
+      "tag": "0002_two_factor",
+      "breakpoints": true
     }
   ]
 }
