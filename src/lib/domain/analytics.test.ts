@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCurrencyAnalytics,
   buildReturnDistribution,
+  buildRMultipleDistribution,
   type AnalyticsTrade,
 } from "./analytics";
 
@@ -181,5 +182,62 @@ describe("per-currency analytics — edge semantics", () => {
       { range: "600% to 602%", count: 1 },
     ]);
     expect(buildReturnDistribution([])).toEqual([]);
+  });
+
+  it("buckets realized R-multiples in 1R bins clamped to [-5R, 10R]", () => {
+    expect(buildRMultipleDistribution([-6, -1.5, -0.1, 0, 0.9, 1, 11])).toEqual([
+      { range: "-5R to -4R", count: 1 },
+      { range: "-2R to -1R", count: 1 },
+      { range: "-1R to 0R", count: 1 },
+      { range: "0R to 1R", count: 2 },
+      { range: "1R to 2R", count: 1 },
+      { range: "10R to 11R", count: 1 },
+    ]);
+    expect(buildRMultipleDistribution([])).toEqual([]);
+  });
+});
+
+describe("per-currency analytics — leaderboards, weekday, direction, R histogram", () => {
+  const analytics = buildCurrencyAnalytics([
+    trade({ instrument: "AAA", strategy: "Momentum", exitPrice: 110, exitAt: "2026-06-18T11:00:00Z" }), // +10, 1R, Thu
+    trade({ instrument: "AAA", strategy: "Momentum", exitPrice: 80, exitAt: "2026-06-19T11:00:00Z" }), //  -20, -2R, Fri
+    trade({ instrument: "BBB", strategy: "Scalp", direction: "Short", entryPrice: 100, stopLoss: 110, exitPrice: 90, exitAt: "2026-06-15T11:00:00Z" }), // +10, 1R, Mon
+  ]).INR;
+
+  it("ranks the symbol leaderboard by P&L with per-symbol win rate", () => {
+    expect(analytics?.symbolLeaderboard).toEqual([
+      { symbol: "BBB", pnl: 10, count: 1, winPct: 100 },
+      { symbol: "AAA", pnl: -10, count: 2, winPct: 50 },
+    ]);
+  });
+
+  it("splits longs vs shorts with currency-correct P&L", () => {
+    expect(analytics?.directionSplit).toEqual([
+      { direction: "Long", count: 2, pnl: -10, winPct: 50 },
+      { direction: "Short", count: 1, pnl: 10, winPct: 100 },
+    ]);
+  });
+
+  it("derives per-strategy win rate and expectancy", () => {
+    expect(analytics?.strategyStats).toEqual([
+      { name: "Scalp", pnl: 10, count: 1, winPct: 100, expectancy: 10 },
+      { name: "Momentum", pnl: -10, count: 2, winPct: 50, expectancy: -5 },
+    ]);
+  });
+
+  it("buckets P&L by weekday (Mon-first) and realized R", () => {
+    expect(analytics?.weekdayPnl).toEqual([
+      { weekday: "Mon", pnl: 10, count: 1 },
+      { weekday: "Tue", pnl: 0, count: 0 },
+      { weekday: "Wed", pnl: 0, count: 0 },
+      { weekday: "Thu", pnl: 10, count: 1 },
+      { weekday: "Fri", pnl: -20, count: 1 },
+      { weekday: "Sat", pnl: 0, count: 0 },
+      { weekday: "Sun", pnl: 0, count: 0 },
+    ]);
+    expect(analytics?.rMultipleDistribution).toEqual([
+      { range: "-2R to -1R", count: 1 },
+      { range: "1R to 2R", count: 2 },
+    ]);
   });
 });

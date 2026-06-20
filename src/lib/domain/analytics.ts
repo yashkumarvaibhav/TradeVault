@@ -45,6 +45,34 @@ export interface MistakeCost {
   cost: number;
 }
 
+export interface SymbolStat {
+  symbol: string;
+  pnl: number;
+  count: number;
+  winPct: number;
+}
+
+export interface GroupStat {
+  name: string;
+  pnl: number;
+  count: number;
+  winPct: number;
+  expectancy: number;
+}
+
+export interface WeekdayStat {
+  weekday: string;
+  pnl: number;
+  count: number;
+}
+
+export interface DirectionStat {
+  direction: "Long" | "Short";
+  count: number;
+  pnl: number;
+  winPct: number;
+}
+
 export interface CurrencyAnalytics {
   currency: Currency;
   totalTrades: number;
@@ -73,6 +101,12 @@ export interface CurrencyAnalytics {
   playbookPnl: Record<string, number>;
   mistakeCostByTag: MistakeCost[];
   returnDistribution: ReturnDistributionBucket[];
+  rMultipleDistribution: ReturnDistributionBucket[];
+  symbolLeaderboard: SymbolStat[];
+  weekdayPnl: WeekdayStat[];
+  strategyStats: GroupStat[];
+  playbookStats: GroupStat[];
+  directionSplit: DirectionStat[];
 }
 
 export type CurrencyAnalyticsMap = Partial<Record<Currency, CurrencyAnalytics>>;
@@ -120,6 +154,44 @@ export function buildReturnDistribution(pctReturns: readonly number[]): ReturnDi
     .map(([start, count]) => ({ range: `${start}% to ${start + 2}%`, count }));
 }
 
+/** Histogram of realized R-multiples in 1R buckets, clamped to [-5R, 10R]. */
+export function buildRMultipleDistribution(rValues: readonly number[]): ReturnDistributionBucket[] {
+  const buckets = new Map<number, number>();
+  for (const r of rValues) {
+    if (!Number.isFinite(r)) continue;
+    const start = Math.max(-5, Math.min(10, Math.floor(r)));
+    buckets.set(start, (buckets.get(start) ?? 0) + 1);
+  }
+  return [...buckets.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([start, count]) => ({ range: `${start}R to ${start + 1}R`, count }));
+}
+
+interface StatAccumulator {
+  pnl: number;
+  count: number;
+  wins: number;
+}
+
+function bumpStat(group: Map<string, StatAccumulator>, key: string, pnl: number, isWin: boolean): void {
+  const current = group.get(key) ?? { pnl: 0, count: 0, wins: 0 };
+  group.set(key, { pnl: round2(current.pnl + pnl), count: current.count + 1, wins: current.wins + (isWin ? 1 : 0) });
+}
+
+function toGroupStats(group: Map<string, StatAccumulator>): GroupStat[] {
+  return [...group.entries()]
+    .map(([name, stat]) => ({
+      name,
+      pnl: stat.pnl,
+      count: stat.count,
+      winPct: round2(stat.count ? (stat.wins / stat.count) * 100 : 0),
+      expectancy: round2(stat.count ? stat.pnl / stat.count : 0),
+    }))
+    .sort((left, right) => right.pnl - left.pnl);
+}
+
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 function buildOneCurrency(currency: Currency, outcomes: Outcome[]): CurrencyAnalytics {
   const wins: Outcome[] = [];
   const losses: Outcome[] = [];
@@ -131,15 +203,34 @@ function buildOneCurrency(currency: Currency, outcomes: Outcome[]): CurrencyAnal
   const plannedRRValues: number[] = [];
   const realizedRValues: number[] = [];
   const pctReturns: number[] = [];
+  const symbolAgg = new Map<string, StatAccumulator>();
+  const strategyAgg = new Map<string, StatAccumulator>();
+  const playbookAgg = new Map<string, StatAccumulator>();
+  const directionAgg = new Map<string, StatAccumulator>();
+  const weekdayAgg = WEEKDAY_LABELS.map(() => ({ pnl: 0, count: 0 }));
 
   for (const outcome of outcomes) {
     const { trade, rawPnl, pnl, date } = outcome;
-    (pnl >= 0 ? wins : losses).push(outcome);
+    const isWin = pnl >= 0;
+    (isWin ? wins : losses).push(outcome);
 
     addToGroup(categoryPnl, trade.assetClass || "Other", pnl);
     if (date) addToGroup(monthlyPnl, date.slice(0, 7), pnl);
     addToGroup(strategyPnl, trade.strategy || "No Strategy", pnl);
     addToGroup(playbookPnl, trade.playbook || "No Playbook", pnl);
+
+    bumpStat(symbolAgg, trade.instrument || "—", pnl, isWin);
+    bumpStat(strategyAgg, trade.strategy || "No Strategy", pnl, isWin);
+    bumpStat(playbookAgg, trade.playbook || "No Playbook", pnl, isWin);
+    bumpStat(directionAgg, trade.direction, pnl, isWin);
+    if (date) {
+      const parsed = Date.parse(date);
+      if (Number.isFinite(parsed)) {
+        const weekdayIndex = (new Date(parsed).getUTCDay() + 6) % 7;
+        weekdayAgg[weekdayIndex].pnl = round2(weekdayAgg[weekdayIndex].pnl + pnl);
+        weekdayAgg[weekdayIndex].count += 1;
+      }
+    }
 
     if (pnl < 0) {
       for (const tag of normalizedMistakeTags(trade.mistakeTags)) {
@@ -233,6 +324,17 @@ function buildOneCurrency(currency: Currency, outcomes: Outcome[]): CurrencyAnal
       .sort((left, right) => right[1] - left[1])
       .map(([tag, cost]) => ({ tag, cost })),
     returnDistribution: buildReturnDistribution(pctReturns),
+    rMultipleDistribution: buildRMultipleDistribution(realizedRValues),
+    symbolLeaderboard: [...symbolAgg.entries()]
+      .map(([symbol, stat]) => ({ symbol, pnl: stat.pnl, count: stat.count, winPct: round2(stat.count ? (stat.wins / stat.count) * 100 : 0) }))
+      .sort((left, right) => right.pnl - left.pnl),
+    weekdayPnl: WEEKDAY_LABELS.map((weekday, index) => ({ weekday, pnl: round2(weekdayAgg[index].pnl), count: weekdayAgg[index].count })),
+    strategyStats: toGroupStats(strategyAgg),
+    playbookStats: toGroupStats(playbookAgg),
+    directionSplit: (["Long", "Short"] as const).map((direction) => {
+      const stat = directionAgg.get(direction) ?? { pnl: 0, count: 0, wins: 0 };
+      return { direction, count: stat.count, pnl: round2(stat.pnl), winPct: round2(stat.count ? (stat.wins / stat.count) * 100 : 0) };
+    }),
   };
 }
 
