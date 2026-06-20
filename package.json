@@ -21,6 +21,7 @@
     "trade:verify": "tsx scripts/verify-trades.ts",
     "library:verify": "tsx scripts/verify-libraries.ts",
     "notes:verify": "tsx scripts/verify-notes.ts",
+    "search:verify": "tsx scripts/verify-search.ts",
     "demo:seed": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {

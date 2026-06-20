@@ -21,13 +21,37 @@ test("command palette opens, searches, and is keyboard-operable", async ({ page 
   const input = page.getByPlaceholder(/Search views, actions, records/i);
   await expect(input).toBeFocused();
   await expect(page.getByRole("group", { name: /Navigate/i })).toBeVisible();
-  await expect(page.getByText(/Long · \+₹4,200 · INR/)).toBeVisible();
-  await expect(page.getByText(/Short · −\$118\.40 · USD/)).toBeVisible();
+  await expect(palette.getByRole("group", { name: /Recent records & libraries/i })).toBeVisible({ timeout: 15_000 });
 
-  // Screenshot the open palette for owner review (desktop + mobile, light + dark).
+  // Screenshot the real mixed-record palette for owner review (desktop + mobile, light + dark).
   await page.screenshot({ path: testInfo.outputPath("command-palette-open.png"), animations: "disabled" });
 
-  // Filtering narrows results.
+  // Explicit server queries stay stable even while other parallel specs add journal rows.
+  await input.fill("SETUPINR");
+  await expect(palette.getByRole("option", { name: /SETUPINR Long · Closed/ })).toBeVisible();
+  await expect(palette.getByText(/Long · Closed · Equity · \+₹10 · INR/)).toBeVisible();
+
+  // Server-side filtering returns a real record, exposes only the public DTO, and deep-links exactly.
+  await input.fill("SETUPUSD");
+  const usdResult = palette.getByRole("option", { name: /SETUPUSD Long · Closed/ });
+  await expect(usdResult).toBeVisible();
+  await expect(usdResult).toContainText(/Long · Closed · Equity · \+\$5\.00 · USD/);
+  const payload = await page.evaluate(async () => (await fetch("/api/search?q=SETUPUSD")).json());
+  const tradePayload = payload.results.find((result: { kind: string }) => result.kind === "trade");
+  expect(tradePayload).toBeTruthy();
+  expect(tradePayload).not.toHaveProperty("searchText");
+  expect(tradePayload).not.toHaveProperty("bodyText");
+  expect(tradePayload.currency).toBe("USD");
+  await usdResult.click();
+  await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  // Filtering still narrows static actions from any gated view.
+  await page
+    .getByRole("button", { name: isMobile ? "Open command palette" : "Search your vault" })
+    .click();
+  await expect(palette).toBeVisible();
+  await expect(input).toBeFocused();
   await input.fill("theme");
   await expect(palette.getByText("Toggle light / dark theme")).toBeVisible();
   await expect(palette.getByText("Add trade")).toHaveCount(0);
@@ -36,10 +60,11 @@ test("command palette opens, searches, and is keyboard-operable", async ({ page 
   await page.keyboard.press("Escape");
   await expect(palette).toBeHidden();
 
-  // Keyboard shortcut reopens; Enter selects the highlighted first item (Overview).
+  // Keyboard shortcut reopens; a typed view remains keyboard-selectable.
   await page.keyboard.press("ControlOrMeta+k");
   await expect(palette).toBeVisible();
   await expect(input).toBeFocused();
+  await input.fill("Overview");
   await page.keyboard.press("Enter");
   await expect(palette).toBeHidden();
   await expect(page).toHaveURL(/\/$/);
