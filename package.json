@@ -18,7 +18,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:verify": "tsx scripts/verify-db-baseline.ts",
     "auth:verify": "tsx scripts/verify-auth.ts",
-    "trade:verify": "tsx scripts/verify-trades.ts"
+    "trade:verify": "tsx scripts/verify-trades.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.17",
