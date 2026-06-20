@@ -4,12 +4,7 @@ import { username } from "better-auth/plugins";
 
 import type { Database } from "@/db/client";
 import { authAccounts, authSessions, authVerifications, users } from "@/db/schema";
-
-/** Username rules shared by the runtime and the (future) sign-up form. */
-export const USERNAME_MIN_LENGTH = 3;
-export const USERNAME_MAX_LENGTH = 32;
-/** Password policy (S12): at least 12 characters. */
-export const PASSWORD_MIN_LENGTH = 12;
+import { PASSWORD_MIN_LENGTH, USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from "@/lib/auth-policy";
 
 /**
  * Build a Better Auth instance bound to a specific Drizzle database.

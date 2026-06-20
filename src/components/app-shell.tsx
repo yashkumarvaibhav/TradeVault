@@ -1,42 +1,18 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
 
 import { CommandPalette } from "@/components/command-palette";
 import { navItems } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Wordmark } from "@/components/wordmark";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Toaster, toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
-
-function Wordmark({ widthClass = "w-44" }: { widthClass?: string }) {
-  return (
-    <div className={cn("relative h-10", widthClass)} aria-label="TradeVault">
-      <Image
-        src="/brand/wordmark-light.png"
-        alt="TradeVault"
-        width={700}
-        height={116}
-        priority
-        className={cn("brand-wordmark-light h-auto", widthClass)}
-      />
-      <Image
-        src="/brand/wordmark-dark.png"
-        alt=""
-        width={700}
-        height={116}
-        priority
-        aria-hidden="true"
-        className={cn("brand-wordmark-dark absolute inset-0 h-auto", widthClass)}
-      />
-    </div>
-  );
-}
 
 function Navigation({ mobile = false }: { mobile?: boolean }) {
   return (

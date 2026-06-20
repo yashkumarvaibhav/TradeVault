@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
 import { tenantMemberships, tenants, tradingAccounts, users } from "@/db/schema";
+import { normalizeUsername } from "@/lib/auth-policy";
 import type { Currency } from "@/lib/domain/types";
 
 declare const tenantScopeBrand: unique symbol;
@@ -21,9 +22,7 @@ export function tenantScope(input: { tenantId: string; userId: string }): Tenant
   return input as TenantScope;
 }
 
-export function normalizeUsername(username: string) {
-  return username.trim().toLowerCase();
-}
+export { normalizeUsername };
 
 const SYNTHETIC_EMAIL_DOMAIN = "users.tradevault.local";
 
