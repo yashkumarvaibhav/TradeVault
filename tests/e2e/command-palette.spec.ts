@@ -42,7 +42,7 @@ test("command palette opens, searches, and is keyboard-operable", async ({ page 
   await expect(input).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(palette).toBeHidden();
-  await expect(page).toHaveURL(/#overview$/);
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("chrome stays overflow-free on very narrow viewports, palette open or closed", async ({ page }) => {

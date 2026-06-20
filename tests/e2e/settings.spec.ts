@@ -27,4 +27,9 @@ test("settings screen shows profile, appearance, and account controls", async ({
   // Toggling the theme preference updates the document theme.
   await page.getByRole("radio", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  // Regression: Overview is a real root route, not a hash appended to /settings.
+  await page.getByRole("link", { name: "Overview" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: /Good (morning|afternoon|evening)/i })).toBeVisible();
 });

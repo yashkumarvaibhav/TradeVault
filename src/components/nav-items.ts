@@ -12,7 +12,7 @@ import {
 export interface NavItem {
   label: string;
   icon: LucideIcon;
-  /** Anchor/route for the destination. `#overview` is live; others land once their phase ships. */
+  /** Route for the destination. `/` is the live overview; others land once their phase ships. */
   href: string;
   /** The single currently-reachable destination. */
   active?: boolean;
@@ -21,7 +21,7 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { label: "Overview", icon: LayoutDashboard, href: "#overview", active: true },
+  { label: "Overview", icon: LayoutDashboard, href: "/", active: true },
   { label: "My trades", icon: BarChart3, href: "#", soon: true },
   { label: "Analytics", icon: ChartNoAxesCombined, href: "#", soon: true },
   { label: "Review center", icon: ShieldCheck, href: "#", soon: true },

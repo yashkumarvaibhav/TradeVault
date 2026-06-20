@@ -5,6 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CommandPalette } from "./command-palette";
 
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
 function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = {}) {
   const [open, setOpen] = React.useState(true);
   return (
@@ -21,7 +27,7 @@ function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = 
 describe("command palette", () => {
   beforeEach(() => {
     document.documentElement.setAttribute("data-theme", "light");
-    window.location.hash = "";
+    pushMock.mockReset();
   });
 
   afterEach(() => {
@@ -67,7 +73,7 @@ describe("command palette", () => {
     await user.type(screen.getByPlaceholderText(/Search views/i), "Overview");
     await user.click(screen.getByText("Overview"));
 
-    expect(window.location.hash).toBe("#overview");
+    expect(pushMock).toHaveBeenCalledWith("/");
     expect(screen.queryByRole("dialog", { name: "Command palette" })).not.toBeInTheDocument();
   });
 });

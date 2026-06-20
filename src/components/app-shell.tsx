@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { LogOut, Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { signOutAction } from "@/app/login/actions";
 import { CommandPalette } from "@/components/command-palette";
@@ -26,6 +28,8 @@ function initialsFor(name: string) {
 }
 
 function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boolean }) {
+  const pathname = usePathname();
+
   return (
     <div className="flex h-full flex-col">
       <div className={cn("border-b border-line px-5 py-5", mobile && "pr-14")}>
@@ -34,17 +38,22 @@ function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boo
       </div>
 
       <nav className="flex-1 space-y-1 p-3" aria-label="Primary navigation">
-        {navItems.map(({ label, icon: Icon, href, active }) =>
-          active ? (
-            <a
+        {navItems.map(({ label, icon: Icon, href, active }) => {
+          const current = active && pathname === href;
+          return active ? (
+            <Link
               key={label}
               href={href}
-              aria-current="page"
-              className="flex min-h-11 items-center gap-3 rounded-md border border-line-strong bg-accent-soft px-3 text-sm font-semibold text-ink"
+              aria-current={current ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-hover hover:text-ink",
+                current && "border border-line-strong bg-accent-soft font-semibold text-ink",
+                !current && "text-muted",
+              )}
             >
-              <Icon className="size-[18px] text-accent" aria-hidden="true" />
+              <Icon className={cn("size-[18px]", current && "text-accent")} aria-hidden="true" />
               {label}
-            </a>
+            </Link>
           ) : (
             <span
               key={label}
@@ -55,18 +64,22 @@ function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boo
               <span className="flex-1">{label}</span>
               <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">Soon</span>
             </span>
-          ),
-        )}
+          );
+        })}
       </nav>
 
       <div className="border-t border-line p-3">
-        <a
+        <Link
           href="/settings"
-          className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-ink"
+          aria-current={pathname === "/settings" ? "page" : undefined}
+          className={cn(
+            "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-hover hover:text-ink",
+            pathname === "/settings" ? "border border-line-strong bg-accent-soft font-semibold text-ink" : "text-muted",
+          )}
         >
-          <Settings className="size-[18px]" aria-hidden="true" />
+          <Settings className={cn("size-[18px]", pathname === "/settings" && "text-accent")} aria-hidden="true" />
           Settings
-        </a>
+        </Link>
         <div className="mt-2 flex items-center gap-3 rounded-md border border-line bg-raised p-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-ink">
             {initialsFor(user.displayName)}

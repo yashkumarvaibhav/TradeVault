@@ -10,6 +10,7 @@ import {
   Plus,
   StickyNote,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { navItems } from "@/components/nav-items";
 import {
@@ -74,6 +75,7 @@ export interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+  const router = useRouter();
   // Run an action and close the palette. Closing first keeps focus return predictable.
   const run = React.useCallback(
     (action: () => void) => {
@@ -109,7 +111,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     onSelect={() =>
                       run(() => {
                         if (active) {
-                          window.location.hash = href;
+                          router.push(href);
                         } else {
                           toast.info(`${label} arrives in a later phase`, {
                             description: "Navigation is wired; this view is not built yet.",
