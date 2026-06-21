@@ -1,8 +1,8 @@
 import Link from "next/link";
 
+import { AuthButton } from "@/components/auth/auth-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
-import { Button } from "@/components/ui/button";
 
 const NAV = [
   { label: "Features", href: "/features" },
@@ -32,12 +32,10 @@ export function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <ThemeToggle />
-          <Button asChild variant="ghost" className="hidden sm:inline-flex">
-            <Link href="/login">Sign in</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/signup">Get started</Link>
-          </Button>
+          <AuthButton mode="signin" variant="ghost" className="hidden sm:inline-flex">
+            Sign in
+          </AuthButton>
+          <AuthButton mode="signup">Get started</AuthButton>
         </div>
       </div>
     </header>

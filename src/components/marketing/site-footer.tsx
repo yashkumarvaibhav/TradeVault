@@ -1,22 +1,16 @@
 import Link from "next/link";
 
+import { AuthTextLink } from "@/components/auth/auth-dialog";
 import { Wordmark } from "@/components/wordmark";
 
-const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] = [
-  {
-    heading: "Product",
-    links: [
-      { label: "Features", href: "/features" },
-      { label: "FAQ", href: "/faq" },
-    ],
-  },
-  {
-    heading: "Account",
-    links: [
-      { label: "Sign in", href: "/login" },
-      { label: "Create account", href: "/signup" },
-    ],
-  },
+const PRODUCT_LINKS = [
+  { label: "Features", href: "/features" },
+  { label: "FAQ", href: "/faq" },
+];
+
+const ACCOUNT_LINKS: { label: string; mode: "signin" | "signup" }[] = [
+  { label: "Sign in", mode: "signin" },
+  { label: "Create account", mode: "signup" },
 ];
 
 export function SiteFooter() {
@@ -32,20 +26,29 @@ export function SiteFooter() {
           </p>
         </div>
 
-        {COLUMNS.map((column) => (
-          <nav key={column.heading} aria-label={column.heading}>
-            <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-faint">{column.heading}</h2>
-            <ul className="mt-3 space-y-2">
-              {column.links.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted underline-offset-2 hover:text-ink hover:underline">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
+        <nav aria-label="Product">
+          <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-faint">Product</h2>
+          <ul className="mt-3 space-y-2">
+            {PRODUCT_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="text-sm text-muted underline-offset-2 hover:text-ink hover:underline">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <nav aria-label="Account">
+          <h2 className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-faint">Account</h2>
+          <ul className="mt-3 space-y-2">
+            {ACCOUNT_LINKS.map((link) => (
+              <li key={link.mode}>
+                <AuthTextLink mode={link.mode}>{link.label}</AuthTextLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
 
       <div className="border-t border-line">

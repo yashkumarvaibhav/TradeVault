@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ListChecks, LineChart, Repeat } from "lucide-react";
 
+import { AuthButton } from "@/components/auth/auth-dialog";
 import { FEATURES } from "@/components/marketing/features";
 import { Button } from "@/components/ui/button";
 
@@ -41,9 +42,9 @@ export function MarketingHome() {
             discipline, and see what your numbers are actually telling you — with INR and USD kept strictly apart.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
-              <Link href="/signup">Get started free<ArrowRight aria-hidden="true" /></Link>
-            </Button>
+            <AuthButton mode="signup" size="lg">
+              Get started free<ArrowRight aria-hidden="true" />
+            </AuthButton>
             <Button asChild size="lg" variant="outline">
               <Link href="/features">See what&apos;s inside</Link>
             </Button>
@@ -119,12 +120,12 @@ export function MarketingHome() {
             Free to start, private, and ready in under a minute — username and password only, no email required.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Button asChild size="lg">
-              <Link href="/signup">Create your account<ArrowRight aria-hidden="true" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/login">Sign in</Link>
-            </Button>
+            <AuthButton mode="signup" size="lg">
+              Create your account<ArrowRight aria-hidden="true" />
+            </AuthButton>
+            <AuthButton mode="signin" size="lg" variant="outline">
+              Sign in
+            </AuthButton>
           </div>
         </div>
       </section>

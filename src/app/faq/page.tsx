@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { AuthButton } from "@/components/auth/auth-dialog";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { Button } from "@/components/ui/button";
 
@@ -64,9 +65,9 @@ export default function FaqPage() {
         </dl>
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
-          <Button asChild size="lg">
-            <Link href="/signup">Create your account<ArrowRight aria-hidden="true" /></Link>
-          </Button>
+          <AuthButton mode="signup" size="lg">
+            Create your account<ArrowRight aria-hidden="true" />
+          </AuthButton>
           <Button asChild size="lg" variant="outline">
             <Link href="/features">See the features</Link>
           </Button>

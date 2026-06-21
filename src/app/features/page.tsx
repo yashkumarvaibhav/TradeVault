@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 
+import { AuthButton } from "@/components/auth/auth-dialog";
 import { FEATURES } from "@/components/marketing/features";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,9 @@ export default function FeaturesPage() {
         </div>
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
-          <Button asChild size="lg">
-            <Link href="/signup">Get started free<ArrowRight aria-hidden="true" /></Link>
-          </Button>
+          <AuthButton mode="signup" size="lg">
+            Get started free<ArrowRight aria-hidden="true" />
+          </AuthButton>
           <Button asChild size="lg" variant="outline">
             <Link href="/faq">Read the FAQ</Link>
           </Button>
