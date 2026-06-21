@@ -78,3 +78,24 @@ test("overview uses scoped journal data and is visually reviewable", async ({ pa
   await detailLink.click();
   await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}/);
 });
+
+test("the account/profile menu in the sidebar replaces the header log-out button", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const mobile = testInfo.project.name.startsWith("mobile");
+
+  // The top chrome no longer carries a Log out control.
+  await expect(page.getByRole("button", { name: /log out/i })).toHaveCount(0);
+
+  // On mobile the sidebar (and its profile section) lives inside the navigation drawer.
+  if (mobile) {
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("dialog", { name: "TradeVault navigation" })).toBeVisible();
+  }
+
+  // The profile section sits just below Settings; opening it reveals Sign out.
+  const account = page.getByRole("button", { name: /Account menu for .*pw_e2e_/i });
+  await expect(account).toBeVisible();
+  await account.click();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Account & settings" })).toBeVisible();
+});

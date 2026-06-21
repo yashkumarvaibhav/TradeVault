@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { LogOut, Menu, Plus, Search, Settings } from "lucide-react";
+import { Menu, Plus, Search, Settings } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
-import { signOutAction } from "@/app/login/actions";
 import { navItems } from "@/components/nav-items";
+import { ProfileMenu } from "@/components/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ export interface AppShellUser {
   username: string;
 }
 
-function Navigation({ mobile = false }: { mobile?: boolean }) {
+function Navigation({ mobile = false, user }: { mobile?: boolean; user: AppShellUser }) {
   const pathname = usePathname();
 
   return (
@@ -66,7 +66,7 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
         })}
       </nav>
 
-      <div className="border-t border-line p-3">
+      <div className="space-y-1 border-t border-line p-3">
         <Link
           href="/settings"
           aria-current={pathname === "/settings" ? "page" : undefined}
@@ -78,6 +78,7 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
           <Settings className={cn("size-[18px]", pathname === "/settings" && "text-accent")} aria-hidden="true" />
           Settings
         </Link>
+        <ProfileMenu user={user} />
       </div>
     </div>
   );
@@ -114,7 +115,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       </a>
       <div className="min-h-svh bg-page md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-line bg-sidebar md:block">
-          <Navigation />
+          <Navigation user={user} />
         </aside>
 
         <div className="min-w-0">
@@ -130,7 +131,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                   <SheetTitle>TradeVault navigation</SheetTitle>
                   <SheetDescription>Navigate the TradeVault workspace.</SheetDescription>
                 </div>
-                <Navigation mobile />
+                <Navigation mobile user={user} />
               </SheetContent>
             </Sheet>
 
@@ -172,11 +173,6 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             <Button size="compact" aria-label="Add trade" asChild>
               <Link href="/trades/new"><Plus aria-hidden="true" /><span className="hidden sm:inline">Add trade</span></Link>
             </Button>
-            <form action={signOutAction}>
-              <Button type="submit" variant="ghost" size="compact" aria-label={`Log out ${user.username}`} title="Log out">
-                <LogOut aria-hidden="true" /><span className="hidden sm:inline">Log out</span>
-              </Button>
-            </form>
           </header>
 
           <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
