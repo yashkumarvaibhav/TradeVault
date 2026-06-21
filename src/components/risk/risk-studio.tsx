@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Dices, Info, RotateCcw } from "lucide-react";
+import { AlertTriangle, Dices, Info, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 import { FanChart } from "@/components/charts/fan-chart";
+import { KellyGrowthChart } from "@/components/charts/kelly-growth-chart";
 import { ScopeControls } from "@/components/dashboard/scope-controls";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Chip } from "@/components/ui/chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { computeKelly, stressPositionSizes } from "@/lib/domain/risk-kelly";
 import {
   RISK_SIM_MIN_SAMPLE,
   type RiskSimInput,
@@ -129,6 +132,18 @@ export function RiskStudio({
   const { output, busy } = useRiskSim(input);
   const result = output && output.ok ? output : null;
 
+  // Kelly + position-size stress are cheap and pure → computed synchronously.
+  const kelly = React.useMemo(() => (hasSample ? computeKelly({ rSamples, currency }) : null), [hasSample, rSamples, currency]);
+  const stress = React.useMemo(() => {
+    if (!kelly || !kelly.ok) return null;
+    const cap = kelly.maxSafeFraction * 0.98;
+    const fractions = Array.from(
+      new Set([0.01, kelly.quarterKelly, kelly.halfKelly, kelly.kellyFraction, Math.min(kelly.kellyFraction * 1.5, cap), Math.min(kelly.kellyFraction * 2, cap)].filter((f) => f > 0 && f <= cap)),
+    ).sort((a, b) => a - b);
+    return stressPositionSizes({ rSamples, currency, fractions, paths: 1500, horizon, ruinThreshold: ruinPct / 100, outlierStressR: outlierCap || null, seed });
+  }, [kelly, rSamples, currency, horizon, ruinPct, outlierCap, seed]);
+  const overBetting = kelly?.ok ? riskPct / 100 > kelly.kellyFraction : false;
+
   function reset() {
     setPaths(2000);
     setHorizon(50);
@@ -213,6 +228,73 @@ export function RiskStudio({
               </section>
 
               <p className="text-xs text-muted">{result.label}. Each path draws {result.horizon} trades with replacement from your {result.sampleSize}-trade {currency} R distribution. Source trades are never modified.</p>
+
+              {kelly && kelly.ok ? (
+                <Card>
+                  <CardHeader className="flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div><CardTitle>Kelly &amp; position sizing</CardTitle><CardDescription>Growth-optimal sizing from your {currency} edge · {kelly.sampleSize} closed trades</CardDescription></div>
+                    <Chip tone="accent">{currency}</Chip>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {overBetting ? (
+                      <div className="flex items-start gap-2 rounded-md border border-loss/40 bg-loss/[0.06] p-3 text-sm text-ink">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-loss" aria-hidden="true" />
+                        <span>Your <strong>{riskPct}%</strong> risk per trade is above full Kelly (<strong>{pct(kelly.kellyFraction)}</strong>). Betting beyond Kelly deepens drawdowns and raises ruin without improving long-run growth — most traders use half or quarter Kelly.</span>
+                      </div>
+                    ) : null}
+
+                    <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                      <Metric label="Win rate" value={pct(kelly.winRate)} sub={`${kelly.sampleSize} closed trades`} />
+                      <Metric label="Payoff" value={kelly.payoffRatio == null ? "—" : `${kelly.payoffRatio.toFixed(2)}×`} sub="Avg win ÷ avg loss (R)" />
+                      <Metric label="Full Kelly" value={pct(kelly.kellyFraction)} sub="f* = W − (1−W)/R" />
+                      <Metric label="Half Kelly" value={pct(kelly.halfKelly)} sub="Safer · ~3/4 growth" tone="profit" />
+                      <Metric label="Quarter Kelly" value={pct(kelly.quarterKelly)} sub="Conservative" tone="profit" />
+                      <Metric label="Growth-optimal" value={pct(kelly.growthOptimalFraction)} sub="From your R curve" />
+                    </section>
+
+                    <KellyGrowthChart growthCurve={kelly.growthCurve} quarterKelly={kelly.quarterKelly} halfKelly={kelly.halfKelly} kellyFraction={kelly.kellyFraction} growthOptimalFraction={kelly.growthOptimalFraction} />
+
+                    {stress && stress.ok && stress.points.length > 0 ? (
+                      <div>
+                        <h3 className="font-serif text-lg text-ink">Position-size stress</h3>
+                        <p className="mb-2 text-xs text-muted">Same edge, different risk per trade — re-simulated over {result.horizon} trades to show the sizing trade-off.</p>
+                        <Table className="table-fixed">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[28%] px-2">Risk / trade</TableHead>
+                              <TableHead className="w-[24%] px-2 text-right">Risk of ruin</TableHead>
+                              <TableHead className="w-[24%] px-2 text-right">Median final</TableHead>
+                              <TableHead className="w-[24%] px-2 text-right">Max DD (95th)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {stress.points.map((point) => {
+                              const over = point.fraction > kelly.kellyFraction + 1e-9;
+                              return (
+                                <TableRow key={point.fraction} className={cn(over && "bg-loss/[0.05]")}>
+                                  <TableCell className="px-2 font-semibold text-ink">
+                                    {pct(point.fraction)}
+                                    {Math.abs(point.fraction - kelly.kellyFraction) < 1e-9 ? <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-accent">Full Kelly</span> : over ? <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-loss">Over-bet</span> : null}
+                                  </TableCell>
+                                  <TableCell className={cn("tnum px-2 text-right", point.riskOfRuin >= 0.2 ? "text-loss" : point.riskOfRuin <= 0.05 ? "text-profit" : "text-ink")}>{pct(point.riskOfRuin)}</TableCell>
+                                  <TableCell className={cn("tnum px-2 text-right", point.medianFinalEquity >= 1 ? "text-profit" : "text-loss")}>{mult(point.medianFinalEquity)}</TableCell>
+                                  <TableCell className="tnum px-2 text-right text-ink">{pct(point.maxDrawdown95)}</TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                          <TableCaption>{currency} · {kelly.label}. Higher risk per trade compounds faster but ruins more often.</TableCaption>
+                        </Table>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ) : kelly && !kelly.ok && kelly.reason === "no-edge" ? (
+                <div className="flex items-start gap-2 rounded-lg border border-line bg-sidebar p-4 text-sm text-muted">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+                  <span>{kelly.message}</span>
+                </div>
+              ) : null}
             </>
           ) : (
             <Card><CardContent className="px-6 py-16 text-center text-sm text-muted">{busy ? "Simulating…" : "Adjust the controls to run a simulation."}</CardContent></Card>
