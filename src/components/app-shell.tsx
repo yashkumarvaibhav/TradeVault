@@ -3,10 +3,10 @@
 import * as React from "react";
 import { LogOut, Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
 import { signOutAction } from "@/app/login/actions";
-import { CommandPalette } from "@/components/command-palette";
 import { navItems } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
@@ -16,6 +16,10 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+
+// The command palette (cmdk + the search client) is closed by default on every page, so it is
+// lazily loaded on first open instead of shipping in the eager bundle of every authenticated route.
+const CommandPalette = dynamic(() => import("@/components/command-palette").then((m) => m.CommandPalette));
 
 export interface AppShellUser {
   displayName: string;
@@ -101,12 +105,21 @@ function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boo
 
 export function AppShell({ children, user }: { children: React.ReactNode; user: AppShellUser }) {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
+  // Once the palette has been opened we keep it mounted, so its lazy chunk is fetched a single
+  // time (the first open) and subsequent opens/close animations are instant. Mounting is driven
+  // from the open handlers (not an effect) so the chunk request starts on the opening interaction.
+  const [paletteMounted, setPaletteMounted] = React.useState(false);
+  const openPalette = React.useCallback(() => {
+    setPaletteMounted(true);
+    setPaletteOpen(true);
+  }, []);
 
   // Cmd/Ctrl+K toggles the command palette from anywhere in the app.
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setPaletteMounted(true);
         setPaletteOpen((open) => !open);
       }
     }
@@ -151,7 +164,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             <Button
               variant="outline"
               className="hidden w-64 justify-start text-muted lg:inline-flex"
-              onClick={() => setPaletteOpen(true)}
+              onClick={openPalette}
               aria-haspopup="dialog"
             >
               <Search aria-hidden="true" />
@@ -165,7 +178,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                   variant="ghost"
                   size="icon"
                   className="lg:hidden"
-                  onClick={() => setPaletteOpen(true)}
+                  onClick={openPalette}
                   aria-haspopup="dialog"
                   aria-label="Open command palette"
                 >
@@ -189,7 +202,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
           </main>
         </div>
       </div>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      {paletteMounted ? <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} /> : null}
       <Toaster />
     </TooltipProvider>
   );
