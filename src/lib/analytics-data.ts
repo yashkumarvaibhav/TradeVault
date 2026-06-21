@@ -3,6 +3,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { trades } from "@/db/schema";
 import { buildCurrencyAnalytics, type AnalyticsTrade, type CurrencyAnalyticsMap } from "@/lib/domain/analytics";
 import { realizedR } from "@/lib/domain/pnl";
+import type { RiskWhatIfSample } from "@/lib/domain/risk-what-if";
 import type { Currency } from "@/lib/domain/types";
 import { dateKeyInTimeZone } from "@/lib/date-time";
 
@@ -67,4 +68,42 @@ export function buildRealizedRByCurrency(rows: TradeRow[], timeZone: string): Pa
     (samples[row.currency] ??= []).push(r);
   }
   return samples;
+}
+
+/**
+ * Realized-R evidence for What-If. Only fields that power an explicit filter
+ * cross the server/client boundary; samples remain single-currency and ordered.
+ */
+export function buildRiskWhatIfSamplesByCurrency(
+  rows: TradeRow[],
+  playbookNames: Map<string, string>,
+  timeZone: string,
+): Partial<Record<Currency, RiskWhatIfSample[]>> {
+  const empty = new Map<string, string>();
+  const samples: Partial<Record<Currency, (RiskWhatIfSample & { outcomeAt: number })[]>> = {};
+  for (const row of rows) {
+    if (row.status !== "closed") continue;
+    const r = realizedR(toAnalyticsTrade(row, empty, playbookNames, timeZone));
+    if (r == null || !Number.isFinite(r)) continue;
+    (samples[row.currency] ??= []).push({
+      r,
+      currency: row.currency,
+      quality: row.confidence,
+      playbook: (row.playbookId ? playbookNames.get(row.playbookId) : null) ?? null,
+      ruleFollowed: row.reviewedAt == null ? null : !row.ruleViolations,
+      outcomeAt: (row.exitAt ?? row.entryAt).getTime(),
+    });
+  }
+  return Object.fromEntries(
+    Object.entries(samples).map(([currency, values]) => [
+      currency,
+      values.sort((a, b) => a.outcomeAt - b.outcomeAt).map((sample) => ({
+        r: sample.r,
+        currency: sample.currency,
+        quality: sample.quality,
+        playbook: sample.playbook,
+        ruleFollowed: sample.ruleFollowed,
+      })),
+    ]),
+  );
 }

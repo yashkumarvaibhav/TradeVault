@@ -8,13 +8,16 @@ import { FanChart } from "@/components/charts/fan-chart";
 import { KellyGrowthChart } from "@/components/charts/kelly-growth-chart";
 import { ScopeControls } from "@/components/dashboard/scope-controls";
 import { PageHeader } from "@/components/layout/page-header";
+import { WhatIfWorkspace } from "@/components/risk/what-if-workspace";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { computeKelly, stressPositionSizes } from "@/lib/domain/risk-kelly";
+import type { RiskWhatIfSample } from "@/lib/domain/risk-what-if";
 import {
   RISK_SIM_MIN_SAMPLE,
   type RiskSimInput,
@@ -87,18 +90,18 @@ function interpretation(result: RiskSimResult): string {
 }
 
 export function RiskStudio({
-  rSamplesByCurrency,
+  whatIfSamplesByCurrency,
   defaultCurrency,
   scope,
   timeZone,
 }: {
-  rSamplesByCurrency: Partial<Record<Currency, number[]>>;
+  whatIfSamplesByCurrency: Partial<Record<Currency, RiskWhatIfSample[]>>;
   defaultCurrency: Currency;
   scope: DashboardScope;
   timeZone: string;
 }) {
-  const firstWithData = (["INR", "USD"] as Currency[]).find((c) => (rSamplesByCurrency[c]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE);
-  const initialCurrency = (rSamplesByCurrency[defaultCurrency]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE ? defaultCurrency : firstWithData ?? defaultCurrency;
+  const firstWithData = (["INR", "USD"] as Currency[]).find((c) => (whatIfSamplesByCurrency[c]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE);
+  const initialCurrency = (whatIfSamplesByCurrency[defaultCurrency]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE ? defaultCurrency : firstWithData ?? defaultCurrency;
 
   const [currency, setCurrency] = React.useState<Currency>(initialCurrency);
   const [paths, setPaths] = React.useState(2000);
@@ -109,7 +112,8 @@ export function RiskStudio({
   const [outlierCap, setOutlierCap] = React.useState(0);
   const [seed, setSeed] = React.useState(1);
 
-  const rSamples = React.useMemo(() => rSamplesByCurrency[currency] ?? [], [rSamplesByCurrency, currency]);
+  const whatIfSamples = React.useMemo(() => whatIfSamplesByCurrency[currency] ?? [], [whatIfSamplesByCurrency, currency]);
+  const rSamples = React.useMemo(() => whatIfSamples.map((sample) => sample.r), [whatIfSamples]);
   const sampleSize = rSamples.length;
   const hasSample = sampleSize >= RISK_SIM_MIN_SAMPLE;
 
@@ -158,12 +162,18 @@ export function RiskStudio({
     <div className="space-y-5 lg:space-y-6">
       <PageHeader
         eyebrow={<><Chip tone="accent">Risk Studio</Chip><Chip>{sampleSize} closed {currency} trades</Chip></>}
-        title="Monte Carlo"
-        description="Resample your realized-R edge into thousands of possible futures. Historical scenario, not a forecast."
+        title="Risk Studio"
+        description="Stress your realized-R edge, then explore transparent changes without altering a source trade. Historical scenarios, not forecasts."
       />
 
       <ScopeControls basePath="/risk" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
 
+      <Tabs defaultValue="monte-carlo">
+        <TabsList aria-label="Risk Studio mode" className="w-full sm:w-auto">
+          <TabsTrigger value="monte-carlo" className="flex-1 sm:min-w-36">Monte Carlo</TabsTrigger>
+          <TabsTrigger value="what-if" className="flex-1 sm:min-w-36">What-If</TabsTrigger>
+        </TabsList>
+        <TabsContent value="monte-carlo" className="mt-5 space-y-5">
       {!hasSample ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 px-6 py-16 text-center">
@@ -301,6 +311,11 @@ export function RiskStudio({
           )}
         </>
       )}
+        </TabsContent>
+        <TabsContent value="what-if" className="mt-5">
+          <WhatIfWorkspace samples={whatIfSamples} currency={currency} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -7,7 +7,8 @@ test.use({ storageState: AUTH_STATE });
 test("risk studio gates on the minimum sample and never mixes currency", async ({ page }, testInfo) => {
   await page.goto("/risk");
 
-  await expect(page.getByRole("heading", { name: "Monte Carlo", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Risk Studio", level: 1 })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Monte Carlo" })).toHaveAttribute("aria-selected", "true");
   // The throwaway e2e account has < 30 closed trades, so the honest min-sample
   // empty state must show (and name the requirement) rather than a misleading run.
   await expect(page.getByText(/Not enough closed (INR|USD) trades yet/)).toBeVisible();
@@ -17,6 +18,11 @@ test("risk studio gates on the minimum sample and never mixes currency", async (
   await page.getByRole("combobox", { name: "Currency scope" }).click();
   await page.getByRole("option", { name: "USD" }).click();
   await expect(page.getByText(/Not enough closed USD trades yet/)).toBeVisible();
+
+  // What-If is a real accessible tab and preserves the same honest sample gate.
+  await page.getByRole("tab", { name: "What-If" }).click();
+  await expect(page.getByRole("heading", { name: "Not enough closed USD trades for What-If" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "What-If" })).toHaveAttribute("aria-selected", "true");
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
