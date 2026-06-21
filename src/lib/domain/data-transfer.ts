@@ -264,6 +264,8 @@ function parseTrade(raw: unknown, index: number, timeZone: string, errors: strin
   const stopLoss = finiteNumber(raw.stop_loss ?? raw.stopLoss);
   const plannedTarget = finiteNumber(raw.planned_target ?? raw.plannedTarget);
   const manualPnl = finiteNumber(raw.manual_pnl ?? raw.manualPnl);
+  const mfePrice = finiteNumber(raw.mfe_price ?? raw.mfePrice);
+  const maePrice = finiteNumber(raw.mae_price ?? raw.maePrice);
   const fees = finiteNumber(raw.fees) ?? 0;
   const fxToAccount = finiteNumber(raw.fx_to_account ?? raw.fxToAccount) ?? 1;
   const confidenceRaw = finiteNumber(raw.execution_score ?? raw.confidence);
@@ -297,6 +299,8 @@ function parseTrade(raw: unknown, index: number, timeZone: string, errors: strin
     stopLoss,
     plannedTarget,
     manualPnl,
+    mfePrice,
+    maePrice,
     fees,
     fxToAccount,
     confidence,

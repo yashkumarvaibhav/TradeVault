@@ -61,6 +61,8 @@ export default async function EditTradePage({ params }: { params: Promise<{ trad
             manualPnl: num(trade.manualPnl),
             fees: num(trade.fees),
             fxToAccount: num(trade.fxToAccount),
+            mfePrice: num(trade.mfePrice),
+            maePrice: num(trade.maePrice),
             confidence: trade.confidence == null ? "" : String(trade.confidence),
             emotion: trade.emotion ?? "",
             subcategory: trade.subcategory ?? "",

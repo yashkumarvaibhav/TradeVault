@@ -74,10 +74,13 @@ async function main() {
     assert.equal(Number(created.realizedR), 1);
     assert.equal(created.strategyId, alphaLibraries.strategies[0].id);
     assert.equal(created.setupChecklist.length, 5);
-    const reviewed = await alphaTrades.saveReview({ accountId: alpha.account.id, tradeId: created.id, confidence: 5, emotion: "Calm", ruleViolations: null, notes: "Waited for confirmation.", completedChecklistIds: ["thesis", "invalidation"] });
+    const reviewed = await alphaTrades.saveReview({ accountId: alpha.account.id, tradeId: created.id, confidence: 5, emotion: "Calm", ruleViolations: null, notes: "Waited for confirmation.", completedChecklistIds: ["thesis", "invalidation"], mfePrice: 25_200, maePrice: 24_950 });
     assert.ok(reviewed?.reviewedAt);
     assert.equal(reviewed?.confidence, 5);
     assert.equal(reviewed?.setupChecklist.filter((item) => item.completed).length, 2);
+    assert.equal(Number(reviewed?.mfeR), 2, "review persists manual favorable excursion and recomputes 2R MFE");
+    assert.equal(Number(reviewed?.maeR), 0.5, "review persists manual adverse excursion and recomputes 0.5R MAE");
+    assert.equal(Number(reviewed?.capturedMovePct), 50, "review computes signed realized capture from raw evidence");
     assert.equal(await createTradeRepository(db, beta.scope).saveReview({ accountId: beta.account.id, tradeId: created.id, confidence: 1, emotion: "FOMO", ruleViolations: "foreign", notes: "foreign", completedChecklistIds: [] }), null, "foreign tenant cannot read or review a trade");
     assert.equal((await alphaTrades.list()).length, 1);
 
@@ -123,12 +126,15 @@ async function main() {
 
     // Close lifecycle: recompute realized P&L / R through the tested oracle, never mixing currency, fully tenant/account scoped.
     assert.equal((await alphaTrades.closeTrade({ accountId: alpha.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T15:00:00.000Z", exitPrice: 215, manualPnl: null, fees: 5, closeReasonId: null })).status, "missing", "a foreign tenant cannot close another tenant's trade");
-    const betaClose = await betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T15:00:00.000Z", exitPrice: 215, manualPnl: null, fees: 5, closeReasonId: betaLibraries.closeReasons[0].id });
+    const betaClose = await betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T15:00:00.000Z", exitPrice: 215, manualPnl: null, fees: 5, closeReasonId: betaLibraries.closeReasons[0].id, mfePrice: 220, maePrice: 198 });
     assert.ok(betaClose.status === "closed");
     assert.equal(betaClose.trade.status, "closed");
     assert.equal(betaClose.trade.currency, "USD", "closing never changes or mixes the trade currency");
     assert.equal(Number(betaClose.trade.realizedPnl), 75, "(215-200) * 5 * 1 = 75 USD");
     assert.equal(Number(betaClose.trade.realizedR), 3, "75 / (|200-195| * 5) = 3R");
+    assert.equal(Number(betaClose.trade.mfeR), 4, "close persists a 4R favorable excursion");
+    assert.equal(Number(betaClose.trade.maeR), 0.4, "close persists a 0.4R adverse excursion");
+    assert.equal(Number(betaClose.trade.capturedMovePct), 75, "close captures 75% of the favorable move on gross price P&L");
     assert.equal(betaClose.trade.closeReasonId, betaLibraries.closeReasons[0].id);
     assert.equal((await betaTrades.closeTrade({ accountId: beta.account.id, tradeId: betaCreated.id, exitAt: "2026-06-21T16:00:00.000Z", exitPrice: 220, manualPnl: null, fees: 0, closeReasonId: null })).status, "already-closed", "a closed trade cannot be re-closed");
     const betaOpen2 = await betaTrades.create({ accountId: beta.account.id, symbol: "MSFT", assetClass: "Equity", instrumentType: "Cash", direction: "Long", status: "open", currency: "USD", entryAt: "2026-06-20T09:30:00.000Z", entryPrice: 300, exitAt: null, exitPrice: null, quantity: 2, multiplier: 1, stopLoss: 290, plannedTarget: 320, manualPnl: null, fees: 0, fxToAccount: 1 });
@@ -144,12 +150,15 @@ async function main() {
       accountId: alpha.account.id, tradeId: created.id, symbol: "nifty", assetClass: "Index" as const, instrumentType: "Futures" as const,
       direction: "Long" as const, status: "closed" as const, currency: "INR" as const, entryAt: "2026-06-19T09:15:00.000Z",
       entryPrice: 25_000, exitAt: "2026-06-19T12:15:00.000Z", exitPrice: 25_200, quantity: 2, multiplier: 50,
-      stopLoss: 24_900, plannedTarget: 25_300, manualPnl: null, fees: 60, fxToAccount: 1, tags: ["breakout"],
+      stopLoss: 24_900, plannedTarget: 25_300, manualPnl: null, fees: 60, fxToAccount: 1,
+      mfePrice: 25_300, maePrice: 24_950, tags: ["breakout"],
     };
     const edited = await alphaTrades.update(updateInput);
     assert.ok(edited, "owner can edit their trade");
     assert.equal(Number(edited.realizedPnl), 20_000, "(25200-25000)*2*50 = 20000 INR after edit");
     assert.equal(Number(edited.realizedR), 2, "20000 / ((25000-24900)*2*50) = 2R after edit");
+    assert.equal(Number(edited.mfeR), 3, "editing recomputes excursion metrics from the retained raw prices");
+    assert.ok(Math.abs(Number(edited.capturedMovePct) - 200 / 300 * 100) < 0.000001, "editing recomputes captured move from the changed exit");
     assert.equal(edited.currency, "INR", "editing never changes or mixes the trade currency");
     assert.equal(edited.tags.length, 1);
     assert.equal(await createTradeRepository(db, beta.scope).update({ ...updateInput, accountId: beta.account.id }), null, "a foreign tenant cannot edit another tenant's trade");

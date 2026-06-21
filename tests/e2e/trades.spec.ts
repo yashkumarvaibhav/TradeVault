@@ -80,15 +80,24 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await page.getByRole("link", { name: "Close" }).click();
   await expect(page).toHaveURL(/mode=close/);
   await page.getByLabel("Exit price").fill("130");
+  await page.getByLabel("Maximum favorable price").fill("140");
+  await page.getByLabel("Maximum adverse price").fill("95");
   const closePreview = page.getByText("Close preview").locator("xpath=ancestor::aside");
   await expect(closePreview).toContainText("₹300");
   await expect(closePreview).toContainText("3.00R");
+  await expect(closePreview).toContainText("4.00R");
+  await expect(closePreview).toContainText("0.50R");
+  await expect(closePreview).toContainText("75%");
   await page.getByRole("button", { name: "Close trade" }).first().click();
   await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}\\?closed=1`));
   await expect(page.getByRole("status")).toContainText("Trade closed");
   const result = page.getByRole("region", { name: "Trade result" });
   await expect(result).toContainText("₹300");
   await expect(result).toContainText("3.00R");
+  const excursion = page.getByRole("region", { name: "Excursion & capture" });
+  await expect(excursion).toContainText("4.00R");
+  await expect(excursion).toContainText("0.50R");
+  await expect(excursion).toContainText("75.0%");
   await expect(page.getByRole("button", { name: "Closed" })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath("trade-closed.png"), fullPage: true, animations: "disabled" });
 
@@ -103,6 +112,7 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   const editedResult = page.getByRole("region", { name: "Trade result" });
   await expect(editedResult).toContainText("₹400");
   await expect(editedResult).toContainText("4.00R");
+  await expect(page.getByRole("region", { name: "Excursion & capture" })).toContainText("100.0%");
 
   // Attachments: upload → serve (gated) → caption → delete on the detail page.
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC", "base64");

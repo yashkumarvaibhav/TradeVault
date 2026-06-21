@@ -24,7 +24,7 @@ setup("create an authenticated session", async ({ page }) => {
   await page.waitForURL("http://127.0.0.1:3001/");
   await expect(page.getByRole("heading", { name: new RegExp(`Good afternoon, ${username}`, "i") })).toBeVisible();
 
-  async function addClosedTrade(symbol: string, currency: "INR" | "USD", entry: string, exit: string, stop: string, target: string) {
+  async function addClosedTrade(symbol: string, currency: "INR" | "USD", entry: string, exit: string, stop: string, target: string, favorable: string, adverse: string) {
     await page.goto("/trades/new");
     await page.getByLabel("Instrument / symbol").fill(symbol);
     await page.getByLabel("Currency").selectOption(currency);
@@ -35,11 +35,13 @@ setup("create an authenticated session", async ({ page }) => {
     await page.getByLabel("Status").selectOption("closed");
     await page.getByLabel("Exit date & time").fill("2026-06-10T10:00");
     await page.getByLabel("Exit price").fill(exit);
+    await page.getByLabel("Maximum favorable price").fill(favorable);
+    await page.getByLabel("Maximum adverse price").fill(adverse);
     await page.getByRole("button", { name: "Save trade" }).click();
     await page.waitForURL(/\/trades\?created=1$/);
   }
-  await addClosedTrade("SETUPINR", "INR", "100", "110", "90", "120");
-  await addClosedTrade("SETUPUSD", "USD", "200", "205", "190", "220");
+  await addClosedTrade("SETUPINR", "INR", "100", "110", "90", "120", "120", "95");
+  await addClosedTrade("SETUPUSD", "USD", "200", "205", "190", "220", "215", "195");
   await page.goto("/");
 
   await page.context().storageState({ path: AUTH_STATE });

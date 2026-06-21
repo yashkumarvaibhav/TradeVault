@@ -1,4 +1,5 @@
 import { effectiveUnits, plannedRisk, plannedRR, realizedPnl, realizedR } from "./pnl";
+import { evaluateExcursions } from "./excursions";
 import type { AssetClass, Currency, Direction, InstrumentType, TradeMath, TradeStatus } from "./types";
 
 export interface TradeEntryDraft {
@@ -19,6 +20,8 @@ export interface TradeEntryDraft {
   manualPnl: number | null;
   fees: number;
   fxToAccount: number;
+  mfePrice?: number | null;
+  maePrice?: number | null;
   confidence?: number | null;
 }
 
@@ -32,6 +35,13 @@ export interface TradeEntryPreview {
   plannedRewardRisk: number | null;
   realizedPnl: number | null;
   realizedR: number | null;
+  mfeAmount: number | null;
+  maeAmount: number | null;
+  mfePct: number | null;
+  maePct: number | null;
+  mfeR: number | null;
+  maeR: number | null;
+  capturedMovePct: number | null;
 }
 
 function positive(value: number) {
@@ -101,6 +111,8 @@ export function evaluateTradeEntry(draft: TradeEntryDraft): {
   const units = effectiveUnits(math);
   const validSizing = positive(draft.entryPrice) && positive(draft.quantity) && positive(draft.multiplier) && positive(draft.fxToAccount);
   const pnl = realizedPnl(math);
+  const excursion = evaluateExcursions({ ...math, mfePrice: draft.mfePrice, maePrice: draft.maePrice });
+  Object.assign(errors, excursion.errors);
 
   return {
     errors,
@@ -111,6 +123,7 @@ export function evaluateTradeEntry(draft: TradeEntryDraft): {
       plannedRewardRisk: plannedRR(math),
       realizedPnl: pnl,
       realizedR: realizedR(math, pnl),
+      ...excursion.metrics,
     },
   };
 }

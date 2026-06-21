@@ -7,6 +7,7 @@ import Link from "next/link";
 import { BarChart } from "@/components/charts/bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { EquityChart } from "@/components/charts/equity-chart";
+import { ExcursionChart } from "@/components/charts/excursion-chart";
 import { HistogramChart } from "@/components/charts/histogram-chart";
 import { ScopeControls } from "@/components/dashboard/scope-controls";
 import { PageHeader } from "@/components/layout/page-header";
@@ -17,6 +18,7 @@ import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmente
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CurrencyAnalytics, CurrencyAnalyticsMap, GroupStat } from "@/lib/domain/analytics";
+import type { CurrencyExcursionAnalytics, CurrencyExcursionAnalyticsMap } from "@/lib/domain/excursion-analytics";
 import type { Currency } from "@/lib/domain/types";
 import type { DashboardScope } from "@/lib/trade-scope";
 import { cn } from "@/lib/utils";
@@ -65,7 +67,7 @@ function GroupStatTable({ rows, currency, emptyLabel }: { rows: GroupStat[]; cur
   );
 }
 
-function AnalyticsBody({ data, currency }: { data: CurrencyAnalytics; currency: Currency }) {
+function AnalyticsBody({ data, excursion, currency }: { data: CurrencyAnalytics; excursion?: CurrencyExcursionAnalytics; currency: Currency }) {
   const [equityMode, setEquityMode] = React.useState<"equity" | "drawdown">("equity");
   const money = moneyFormatter(currency);
   const sample = data.totalTrades;
@@ -111,6 +113,36 @@ function AnalyticsBody({ data, currency }: { data: CurrencyAnalytics; currency: 
           </div>
         </CardHeader>
         <CardContent><EquityChart points={equityPoints} currency={currency} mode={equityMode} /></CardContent>
+      </Card>
+
+      {/* Manual MAE / MFE evidence */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Excursion efficiency</CardTitle>
+            <CardDescription>How much favorable movement became realized R · {currency} · manual evidence only</CardDescription>
+          </div>
+          <Chip tone="accent">{excursion?.sampleSize ?? 0} captured</Chip>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-5 xl:grid-cols-12 xl:items-center">
+            <div className="xl:col-span-8"><ExcursionChart points={excursion?.points ?? []} currency={currency} /></div>
+            <dl className="grid grid-cols-2 gap-3 xl:col-span-4 xl:grid-cols-1">
+              {[
+                { label: "Avg MFE", value: excursion ? `${excursion.avgMfeR.toFixed(2)}R` : "—", detail: `${excursion?.sampleSize ?? 0} favorable samples` },
+                { label: "Avg MAE", value: excursion?.avgMaeR == null ? "—" : `${excursion.avgMaeR.toFixed(2)}R`, detail: `${excursion?.maeSampleSize ?? 0} adverse samples` },
+                { label: "Median captured", value: excursion ? `${excursion.medianCapturedMovePct.toFixed(1)}%` : "—", detail: "Signed realized P&L ÷ MFE" },
+              ].map((metric) => (
+                <div key={metric.label} className="rounded-md border border-line bg-page p-4">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{metric.label}</dt>
+                  <dd className="tnum mt-1 font-serif text-2xl font-medium text-ink">{metric.value}</dd>
+                  <dd className="mt-1 text-xs text-muted">{metric.detail}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-muted">Only manually entered maximum favorable and adverse prices are included. Missing evidence stays missing; TradeVault does not infer candles or market data.</p>
+        </CardContent>
       </Card>
 
       {/* Diagnostics: monthly / return distribution / R histogram */}
@@ -227,7 +259,7 @@ function AnalyticsBody({ data, currency }: { data: CurrencyAnalytics; currency: 
   );
 }
 
-export function AnalyticsDashboard({ analyticsByCurrency, scope, timeZone }: { analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope; timeZone?: string }) {
+export function AnalyticsDashboard({ analyticsByCurrency, excursionByCurrency, scope, timeZone }: { analyticsByCurrency: CurrencyAnalyticsMap; excursionByCurrency: CurrencyExcursionAnalyticsMap; scope: DashboardScope; timeZone?: string }) {
   const [currency, setCurrency] = React.useState<Currency>("INR");
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
   const data = analyticsByCurrency[currency];
@@ -250,7 +282,7 @@ export function AnalyticsDashboard({ analyticsByCurrency, scope, timeZone }: { a
       <ScopeControls basePath="/analytics" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
 
       {data ? (
-        <AnalyticsBody key={currency} data={data} currency={currency} />
+        <AnalyticsBody key={currency} data={data} excursion={excursionByCurrency[currency]} currency={currency} />
       ) : (
         <Card>
           <CardContent className="px-6 py-16 text-center">

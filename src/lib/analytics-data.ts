@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 
 import type { trades } from "@/db/schema";
 import { buildCurrencyAnalytics, type AnalyticsTrade, type CurrencyAnalyticsMap } from "@/lib/domain/analytics";
+import { buildExcursionAnalyticsByCurrency, type CurrencyExcursionAnalyticsMap } from "@/lib/domain/excursion-analytics";
 import { realizedR } from "@/lib/domain/pnl";
 import type { RiskWhatIfSample } from "@/lib/domain/risk-what-if";
 import type { Currency } from "@/lib/domain/types";
@@ -51,6 +52,18 @@ export function buildAnalyticsByCurrency(
 ): CurrencyAnalyticsMap {
   const mapped = rows.map((row) => toAnalyticsTrade(row, strategyNames, playbookNames, timeZone));
   return buildCurrencyAnalytics(mapped);
+}
+
+/** Read persisted manual excursion evidence into strictly per-currency diagnostics. */
+export function buildPersistedExcursionAnalyticsByCurrency(rows: TradeRow[]): CurrencyExcursionAnalyticsMap {
+  return buildExcursionAnalyticsByCurrency(rows.map((row) => ({
+    symbol: row.symbol,
+    currency: row.currency,
+    realizedR: row.realizedR == null ? null : Number(row.realizedR),
+    mfeR: row.mfeR == null ? null : Number(row.mfeR),
+    maeR: row.maeR == null ? null : Number(row.maeR),
+    capturedMovePct: row.capturedMovePct == null ? null : Number(row.capturedMovePct),
+  })));
 }
 
 /**

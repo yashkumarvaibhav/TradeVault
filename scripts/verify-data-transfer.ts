@@ -53,6 +53,8 @@ async function main() {
       stopLoss: 24_900,
       plannedTarget: 25_300,
       manualPnl: null,
+      mfePrice: 25_200,
+      maePrice: 24_950,
       fees: 25,
       fxToAccount: 1,
       strategyId: libraries.strategies[0].id,
@@ -112,6 +114,10 @@ async function main() {
     ));
     assert.equal(targetTrade.symbol, "NIFTY");
     assert.equal(Number(targetTrade.realizedPnl), 10_000, "derived P&L is recomputed through the domain oracle");
+    assert.equal(Number(targetTrade.mfePrice), 25_200, "raw favorable excursion survives backup and restore");
+    assert.equal(Number(targetTrade.maePrice), 24_950, "raw adverse excursion survives backup and restore");
+    assert.equal(Number(targetTrade.mfeR), 2, "restored excursion metrics are recomputed through the domain oracle");
+    assert.equal(Number(targetTrade.capturedMovePct), 50, "restored capture is recomputed instead of trusted from JSON");
     assert.equal(targetNote.linkedTradeId, targetTrade.id, "export ref resolves to the new tenant-local trade");
     assert.notEqual(targetTrade.id, trade.id);
     assert.notEqual(targetNote.linkedPlaybookId, note.linkedPlaybookId);

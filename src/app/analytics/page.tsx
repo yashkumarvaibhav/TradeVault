@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { ensureDefaultTradeLibraries, getTradeEntryLibraries } from "@/db/repositories/libraries";
 import { createTradeRepository } from "@/db/repositories/trades";
 import { getDb } from "@/db/server";
-import { buildAnalyticsByCurrency } from "@/lib/analytics-data";
+import { buildAnalyticsByCurrency, buildPersistedExcursionAnalyticsByCurrency } from "@/lib/analytics-data";
 import { parseTradeScope, scopeTradeRows } from "@/lib/trade-scope";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
 
@@ -30,10 +30,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const strategyNames = new Map(libraries.strategies.map((strategy) => [strategy.id, strategy.name]));
   const playbookNames = new Map(libraries.playbooks.map((playbook) => [playbook.id, playbook.name]));
   const analyticsByCurrency = buildAnalyticsByCurrency(scopedRows, strategyNames, playbookNames, timeZone);
+  const excursionByCurrency = buildPersistedExcursionAnalyticsByCurrency(scopedRows);
 
   return (
     <AppShell user={shellUser}>
-      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} timeZone={timeZone} />
+      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} excursionByCurrency={excursionByCurrency} scope={dashboardScope} timeZone={timeZone} />
     </AppShell>
   );
 }

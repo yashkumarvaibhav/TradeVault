@@ -60,6 +60,8 @@ export function CloseTradeForm({
   const [exitPrice, setExitPrice] = React.useState("");
   const [manualPnl, setManualPnl] = React.useState("");
   const [fees, setFees] = React.useState(String(trade.fees));
+  const [mfePrice, setMfePrice] = React.useState("");
+  const [maePrice, setMaePrice] = React.useState("");
   const isForex = trade.assetClass === "Forex";
 
   const evaluated = evaluateTradeEntry({
@@ -80,6 +82,8 @@ export function CloseTradeForm({
     manualPnl: numberOrNull(manualPnl),
     fees: Number(fees) || 0,
     fxToAccount: trade.fxToAccount,
+    mfePrice: numberOrNull(mfePrice),
+    maePrice: numberOrNull(maePrice),
   });
   const errors = state.fieldErrors ?? {};
   const money = (amount: number | null) =>
@@ -127,6 +131,12 @@ export function CloseTradeForm({
               {closeReasons.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </Field>
+          <Field label="Maximum favorable price" name="mfePrice" error={errors.mfePrice ?? evaluated.errors.mfePrice} hint={`${trade.direction === "Long" ? "Highest" : "Lowest"} observed price while open · optional manual evidence.`}>
+            <Input id="mfePrice" name="mfePrice" type="number" min="0" step="any" value={mfePrice} onChange={(e) => setMfePrice(e.target.value)} aria-invalid={!!(errors.mfePrice ?? evaluated.errors.mfePrice)} />
+          </Field>
+          <Field label="Maximum adverse price" name="maePrice" error={errors.maePrice ?? evaluated.errors.maePrice} hint={`${trade.direction === "Long" ? "Lowest" : "Highest"} observed price while open · optional manual evidence.`}>
+            <Input id="maePrice" name="maePrice" type="number" min="0" step="any" value={maePrice} onChange={(e) => setMaePrice(e.target.value)} aria-invalid={!!(errors.maePrice ?? evaluated.errors.maePrice)} />
+          </Field>
         </div>
 
         <aside className="h-fit rounded-md border border-line bg-page p-4">
@@ -146,6 +156,7 @@ export function CloseTradeForm({
                 : `${evaluated.preview.realizedR.toFixed(2)}R realized`}
           </p>
           <p className="mt-3 border-t border-line pt-3 text-[11px] leading-relaxed text-muted">Uses the same tested, direction-aware engine as Add Trade. Fees are not folded into gross P&amp;L.</p>
+          <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3 text-center"><div><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">MFE</dt><dd className="tnum mt-1 text-sm font-semibold text-ink">{evaluated.preview.mfeR == null ? "—" : `${evaluated.preview.mfeR.toFixed(2)}R`}</dd></div><div><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">MAE</dt><dd className="tnum mt-1 text-sm font-semibold text-ink">{evaluated.preview.maeR == null ? "—" : `${evaluated.preview.maeR.toFixed(2)}R`}</dd></div><div><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Capture</dt><dd className="tnum mt-1 text-sm font-semibold text-ink">{evaluated.preview.capturedMovePct == null ? "—" : `${evaluated.preview.capturedMovePct.toFixed(0)}%`}</dd></div></dl>
         </aside>
       </div>
 

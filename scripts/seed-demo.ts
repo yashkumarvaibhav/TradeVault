@@ -7,6 +7,7 @@ import { createNoteRepository } from "../src/db/repositories/notes";
 import { createTradeRepository } from "../src/db/repositories/trades";
 import { createTradingAccountRepository, ensureWorkspaceForUser, type TenantScope } from "../src/db/repositories/workspaces";
 import { playbooks, trades, users } from "../src/db/schema";
+import { evaluateExcursions } from "../src/lib/domain/excursions";
 import type { AssetClass, Currency, InstrumentType } from "../src/lib/domain/types";
 
 const markets: Array<{ symbol: string; assetClass: AssetClass; instrumentType: InstrumentType; currency: Currency; entry: number; multiplier: number }> = [
@@ -22,6 +23,17 @@ const markets: Array<{ symbol: string; assetClass: AssetClass; instrumentType: I
 ];
 const emotions = ["Focused", "Calm", "Confident", "Anxious", "FOMO", "Revenge"];
 const styles = ["Intraday", "Swing", "Position"];
+const numeric = (value: number | null) => value == null ? null : String(value);
+
+function demoExtrema(direction: "Long" | "Short", status: "open" | "closed", entry: number, exit: number | null, stop: number | null, index: number) {
+  if (status !== "closed" || exit == null) return { mfePrice: null, maePrice: null };
+  const riskMove = stop == null ? entry * 0.01 : Math.abs(entry - stop);
+  const favorablePadding = riskMove * (0.35 + index % 4 * 0.2);
+  const adversePadding = riskMove * (0.15 + index % 3 * 0.1);
+  return direction === "Long"
+    ? { mfePrice: Math.max(entry, exit) + favorablePadding, maePrice: Math.max(Number.EPSILON, Math.min(entry, exit) - adversePadding) }
+    : { mfePrice: Math.max(Number.EPSILON, Math.min(entry, exit) - favorablePadding), maePrice: Math.max(entry, exit) + adversePadding };
+}
 
 async function main() {
   const client = createDatabase();
@@ -38,16 +50,26 @@ async function main() {
     if (existing.length) {
       await client.db.transaction(async (tx) => {
         for (const [index, trade] of existing.entries()) {
+          const mfeMae = demoExtrema(trade.direction, trade.status, Number(trade.entryPrice), trade.exitPrice == null ? null : Number(trade.exitPrice), trade.stopLoss == null ? null : Number(trade.stopLoss), index);
+          const excursion = evaluateExcursions({
+            status: trade.status, direction: trade.direction, currency: trade.currency, entryPrice: Number(trade.entryPrice),
+            stopLoss: trade.stopLoss == null ? null : Number(trade.stopLoss), plannedTarget: trade.plannedTarget == null ? null : Number(trade.plannedTarget),
+            exitPrice: trade.exitPrice == null ? null : Number(trade.exitPrice), quantity: Number(trade.quantity), multiplier: Number(trade.multiplier),
+            manualPnl: trade.manualPnl == null ? null : Number(trade.manualPnl), fxToAccount: Number(trade.fxToAccount), ...mfeMae,
+          });
           await tx.update(trades).set({
             strategyId: libraries.strategies[index % libraries.strategies.length].id,
             playbookId: libraries.playbooks[index % libraries.playbooks.length].id,
             closeReasonId: trade.status === "closed" ? libraries.closeReasons[index % libraries.closeReasons.length].id : null,
             setupChecklist: libraries.checklistTemplates[0].items.map((item, itemIndex) => ({ ...item, completed: itemIndex < (trade.status === "closed" ? 5 : 3) })),
+            mfePrice: numeric(mfeMae.mfePrice), maePrice: numeric(mfeMae.maePrice),
+            mfeAmount: numeric(excursion.metrics.mfeAmount), maeAmount: numeric(excursion.metrics.maeAmount),
+            mfeR: numeric(excursion.metrics.mfeR), maeR: numeric(excursion.metrics.maeR), capturedMovePct: numeric(excursion.metrics.capturedMovePct),
             updatedAt: new Date(),
           }).where(and(eq(trades.id, trade.id), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId)));
         }
       });
-      console.log(`Demo seed enriched: ${existing.length} existing trades linked to strategies, playbooks, close reasons, and checklists.`);
+      console.log(`Demo seed enriched: ${existing.length} existing trades linked to libraries and synthetic manual excursion evidence.`);
     } else {
     const anchor = Date.UTC(2026, 5, 18, 9, 15);
     for (let index = 0; index < 72; index += 1) {
@@ -66,12 +88,13 @@ async function main() {
       const exitAt = status === "closed" ? new Date(entryAt.getTime() + (2 + index % 72) * 60 * 60 * 1000) : null;
       const quantity = market.assetClass === "Forex" ? 10_000 : market.assetClass === "Crypto" ? 0.2 + (index % 4) * 0.1 : 1 + index % 8;
       const manualPnl = market.assetClass === "Forex" && status === "closed" && index % 2 === 0 ? (won ? 180 : -95) : null;
+      const mfeMae = demoExtrema(direction, status, market.entry, exitPrice, stopLoss, index);
 
       await repository.create({
         accountId: account.id, symbol: market.symbol, assetClass: market.assetClass, instrumentType: market.instrumentType,
         direction, status, currency: market.currency, entryAt: entryAt.toISOString(), entryPrice: market.entry,
         exitAt: exitAt?.toISOString() ?? null, exitPrice, quantity, multiplier: market.multiplier, stopLoss, plannedTarget,
-        manualPnl, fees: market.currency === "INR" ? 35 + index % 20 : 1.5 + index % 5, fxToAccount: 1,
+        manualPnl, fees: market.currency === "INR" ? 35 + index % 20 : 1.5 + index % 5, fxToAccount: 1, ...mfeMae,
         subcategory: market.assetClass === "Equity" ? "Large cap" : "Core market", tradingStyle: styles[index % styles.length],
         platform: market.currency === "INR" ? "Zerodha" : "Interactive Brokers", confidence: 1 + index % 5,
         emotion: emotions[index % emotions.length], tags: ["demo-seed-v1", won ? "clean-execution" : "review-needed"],

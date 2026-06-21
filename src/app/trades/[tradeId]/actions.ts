@@ -39,6 +39,8 @@ export async function closeTradeAction(_prev: CloseTradeState, formData: FormDat
       fees: feesRaw == null ? 0 : feesRaw,
       closeReasonId: value(formData, "closeReasonId") || null,
       notes: formData.has("notes") ? value(formData, "notes") : undefined,
+      mfePrice: numberOrNull(formData, "mfePrice"),
+      maePrice: numberOrNull(formData, "maePrice"),
     });
   } catch (error) {
     const fieldErrors = (error as { fieldErrors?: TradeEntryErrors }).fieldErrors;
@@ -59,15 +61,23 @@ export async function saveTradeReviewAction(formData: FormData) {
   const { scope, account } = await requireWorkspaceSession();
   const tradeId = value(formData, "tradeId");
   const confidence = Number(value(formData, "confidence"));
-  const reviewed = await createTradeRepository(getDb(), scope).saveReview({
-    accountId: account.id,
-    tradeId,
-    confidence: Number.isInteger(confidence) && confidence >= 1 && confidence <= 5 ? confidence : null,
-    emotion: value(formData, "emotion"),
-    ruleViolations: value(formData, "ruleViolations"),
-    notes: value(formData, "notes"),
-    completedChecklistIds: formData.getAll("checklistCompleted").map(String),
-  });
+  let reviewed: Awaited<ReturnType<ReturnType<typeof createTradeRepository>["saveReview"]>>;
+  try {
+    reviewed = await createTradeRepository(getDb(), scope).saveReview({
+      accountId: account.id,
+      tradeId,
+      confidence: Number.isInteger(confidence) && confidence >= 1 && confidence <= 5 ? confidence : null,
+      emotion: value(formData, "emotion"),
+      ruleViolations: value(formData, "ruleViolations"),
+      notes: value(formData, "notes"),
+      completedChecklistIds: formData.getAll("checklistCompleted").map(String),
+      mfePrice: numberOrNull(formData, "mfePrice"),
+      maePrice: numberOrNull(formData, "maePrice"),
+    });
+  } catch (error) {
+    if ((error as { fieldErrors?: TradeEntryErrors }).fieldErrors) redirect(`/trades/${tradeId}?mode=review&reviewError=excursion`);
+    throw error;
+  }
   if (!reviewed) redirect("/trades?review=missing");
   revalidatePath("/trades");
   revalidatePath("/review");

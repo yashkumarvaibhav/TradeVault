@@ -48,7 +48,7 @@ export interface TradeQueryOptions {
   sort?: "entry-desc" | "entry-asc" | "pnl-desc" | "pnl-asc" | "symbol-asc" | "r-desc";
 }
 
-function numeric(value: number | null) {
+function numeric(value: number | null | undefined) {
   return value == null ? null : String(value);
 }
 
@@ -165,18 +165,41 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
       return changed.length;
     },
 
-    saveReview: async (input: { accountId: string; tradeId: string; confidence: number | null; emotion: string | null; ruleViolations: string | null; notes: string | null; completedChecklistIds: string[] }) => {
-      const existing = await db.select({ setupChecklist: trades.setupChecklist }).from(trades).where(and(
+    saveReview: async (input: { accountId: string; tradeId: string; confidence: number | null; emotion: string | null; ruleViolations: string | null; notes: string | null; completedChecklistIds: string[]; mfePrice?: number | null; maePrice?: number | null }) => {
+      const existing = await db.select().from(trades).where(and(
         eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
       )).limit(1);
       if (!existing[0]) return null;
+      const row = existing[0];
+      const evaluated = evaluateTradeEntry({
+        symbol: row.symbol, assetClass: row.assetClass, instrumentType: row.instrumentType,
+        direction: row.direction, status: row.status, currency: row.currency,
+        entryAt: row.entryAt.toISOString(), entryPrice: Number(row.entryPrice),
+        exitAt: row.exitAt?.toISOString() ?? null, exitPrice: row.exitPrice == null ? null : Number(row.exitPrice),
+        quantity: Number(row.quantity), multiplier: Number(row.multiplier),
+        stopLoss: row.stopLoss == null ? null : Number(row.stopLoss), plannedTarget: row.plannedTarget == null ? null : Number(row.plannedTarget),
+        manualPnl: row.manualPnl == null ? null : Number(row.manualPnl), fees: Number(row.fees), fxToAccount: Number(row.fxToAccount),
+        mfePrice: input.mfePrice, maePrice: input.maePrice,
+      });
+      if (Object.keys(evaluated.errors).length > 0) {
+        const error = new Error("Review validation failed.");
+        Object.assign(error, { fieldErrors: evaluated.errors });
+        throw error;
+      }
       const completed = new Set(input.completedChecklistIds);
       const [reviewed] = await db.update(trades).set({
         confidence: input.confidence && input.confidence >= 1 && input.confidence <= 5 ? input.confidence : null,
         emotion: cleanOptional(input.emotion),
         ruleViolations: cleanOptional(input.ruleViolations),
         notes: cleanOptional(input.notes),
-        setupChecklist: existing[0].setupChecklist.map((item) => ({ ...item, completed: completed.has(item.id) })),
+        setupChecklist: row.setupChecklist.map((item) => ({ ...item, completed: completed.has(item.id) })),
+        mfePrice: numeric(input.mfePrice),
+        maePrice: numeric(input.maePrice),
+        mfeAmount: numeric(evaluated.preview.mfeAmount),
+        maeAmount: numeric(evaluated.preview.maeAmount),
+        mfeR: numeric(evaluated.preview.mfeR),
+        maeR: numeric(evaluated.preview.maeR),
+        capturedMovePct: numeric(evaluated.preview.capturedMovePct),
         reviewedAt: new Date(),
         updatedAt: new Date(),
       }).where(and(
@@ -198,6 +221,8 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
       fees: number;
       closeReasonId: string | null;
       notes?: string | null;
+      mfePrice?: number | null;
+      maePrice?: number | null;
     }): Promise<{ status: "missing" } | { status: "already-closed" } | { status: "closed"; trade: typeof trades.$inferSelect }> => {
       const [existing] = await db.select().from(trades).where(and(
         eq(trades.id, input.tradeId), eq(trades.tenantId, scope.tenantId), eq(trades.createdByUserId, scope.userId), eq(trades.accountId, input.accountId),
@@ -229,6 +254,8 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         manualPnl: input.manualPnl,
         fees: input.fees,
         fxToAccount: Number(existing.fxToAccount),
+        mfePrice: input.mfePrice,
+        maePrice: input.maePrice,
       };
       const evaluated = evaluateTradeEntry(draft);
       if (Object.keys(evaluated.errors).length > 0) {
@@ -248,6 +275,13 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
         plannedRewardRisk: numeric(evaluated.preview.plannedRewardRisk),
         realizedPnl: numeric(evaluated.preview.realizedPnl),
         realizedR: numeric(evaluated.preview.realizedR),
+        mfePrice: numeric(input.mfePrice),
+        maePrice: numeric(input.maePrice),
+        mfeAmount: numeric(evaluated.preview.mfeAmount),
+        maeAmount: numeric(evaluated.preview.maeAmount),
+        mfeR: numeric(evaluated.preview.mfeR),
+        maeR: numeric(evaluated.preview.maeR),
+        capturedMovePct: numeric(evaluated.preview.capturedMovePct),
         notes: input.notes === undefined ? existing.notes : cleanOptional(input.notes),
         updatedAt: new Date(),
       }).where(and(
@@ -338,6 +372,13 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
           plannedRewardRisk: numeric(evaluated.preview.plannedRewardRisk),
           realizedPnl: numeric(evaluated.preview.realizedPnl),
           realizedR: numeric(evaluated.preview.realizedR),
+          mfePrice: numeric(input.mfePrice),
+          maePrice: numeric(input.maePrice),
+          mfeAmount: numeric(evaluated.preview.mfeAmount),
+          maeAmount: numeric(evaluated.preview.maeAmount),
+          mfeR: numeric(evaluated.preview.mfeR),
+          maeR: numeric(evaluated.preview.maeR),
+          capturedMovePct: numeric(evaluated.preview.capturedMovePct),
           confidence: input.confidence ?? null,
           emotion: cleanOptional(input.emotion),
           setupChecklist: input.setupChecklist ?? [],
@@ -427,6 +468,13 @@ export function createTradeRepository(db: Database, scope: TenantScope) {
           plannedRewardRisk: numeric(evaluated.preview.plannedRewardRisk),
           realizedPnl: numeric(evaluated.preview.realizedPnl),
           realizedR: numeric(evaluated.preview.realizedR),
+          mfePrice: numeric(input.mfePrice),
+          maePrice: numeric(input.maePrice),
+          mfeAmount: numeric(evaluated.preview.mfeAmount),
+          maeAmount: numeric(evaluated.preview.maeAmount),
+          mfeR: numeric(evaluated.preview.mfeR),
+          maeR: numeric(evaluated.preview.maeR),
+          capturedMovePct: numeric(evaluated.preview.capturedMovePct),
           confidence: input.confidence ?? null,
           emotion: cleanOptional(input.emotion),
           setupChecklist: input.setupChecklist ?? [],

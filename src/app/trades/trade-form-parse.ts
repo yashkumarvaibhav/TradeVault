@@ -56,6 +56,8 @@ export function parseTradeDraftFromForm(form: FormData, defaultCurrency: Currenc
     manualPnl: optionalNumber(form, "manualPnl"),
     fees: Number(value(form, "fees") || "0"),
     fxToAccount: Number(value(form, "fxToAccount") || "1"),
+    mfePrice: optionalNumber(form, "mfePrice"),
+    maePrice: optionalNumber(form, "maePrice"),
     subcategory: value(form, "subcategory"),
     tradingStyle: value(form, "tradingStyle"),
     platform: value(form, "platform"),

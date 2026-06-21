@@ -20,6 +20,8 @@ const base: TradeEntryDraft = {
   manualPnl: null,
   fees: 40,
   fxToAccount: 1,
+  mfePrice: null,
+  maePrice: null,
 };
 
 describe("trade-entry validation and live preview", () => {
@@ -33,6 +35,13 @@ describe("trade-entry validation and live preview", () => {
       plannedRewardRisk: 3,
       realizedPnl: null,
       realizedR: null,
+      mfeAmount: null,
+      maeAmount: null,
+      mfePct: null,
+      maePct: null,
+      mfeR: null,
+      maeR: null,
+      capturedMovePct: null,
     });
   });
 
@@ -85,5 +94,27 @@ describe("trade-entry validation and live preview", () => {
       quantity: expect.any(String),
       confidence: expect.any(String),
     });
+  });
+
+  it("previews and validates manual excursion evidence through the same oracle", () => {
+    const result = evaluateTradeEntry({
+      ...base,
+      status: "closed",
+      exitAt: "2026-06-20T10:15",
+      exitPrice: 25100,
+      mfePrice: 25300,
+      maePrice: 24950,
+    });
+    expect(result.errors).toEqual({});
+    expect(result.preview).toMatchObject({ mfeR: 3, maeR: 0.5, capturedMovePct: 100 / 300 * 100 });
+
+    expect(evaluateTradeEntry({
+      ...base,
+      status: "closed",
+      exitAt: "2026-06-20T10:15",
+      exitPrice: 25100,
+      mfePrice: 25050,
+      maePrice: 25050,
+    }).errors).toMatchObject({ mfePrice: expect.any(String), maePrice: expect.any(String) });
   });
 });
