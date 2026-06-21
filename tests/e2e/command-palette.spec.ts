@@ -35,7 +35,9 @@ test("command palette opens, searches, and is keyboard-operable", async ({ page 
   await input.fill("SETUPUSD");
   const usdResult = palette.getByRole("option", { name: /SETUPUSD Long · Closed/ });
   await expect(usdResult).toBeVisible();
-  await expect(usdResult).toContainText(/Long · Closed · Equity · \+\$5\.00 · USD/);
+  // USD trades default to the International/Forex workspace (the setup logs SETUPUSD via the
+  // currency-pair form), so the asset class is Forex.
+  await expect(usdResult).toContainText(/Long · Closed · Forex · \+\$5\.00 · USD/);
   const payload = await page.evaluate(async () => (await fetch("/api/search?q=SETUPUSD")).json());
   const tradePayload = payload.results.find((result: { kind: string }) => result.kind === "trade");
   expect(tradePayload).toBeTruthy();

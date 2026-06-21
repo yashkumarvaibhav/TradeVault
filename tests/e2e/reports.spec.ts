@@ -20,7 +20,8 @@ test("reports previews one currency, exports safely, and re-imports idempotently
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: testInfo.outputPath("reports-preview.png"), fullPage: true, animations: "disabled" });
 
-  await page.getByRole("radio", { name: "USD" }).click();
+  // Currency is driven by the global market switch now (P17 removed the per-page currency radios).
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByRole("article", { name: "USD performance report preview" })).toBeVisible();
   await expect(page.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
 

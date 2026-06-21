@@ -47,7 +47,8 @@
      on charts/large KPIs. Loss #c0392b is already ~5.4:1. */
   --profit: #18794d;
   --loss: #c0392b;
-  --warn: #d9822b;
+  /* Darkened from #d9822b so warn text meets WCAG AA (>=4.5:1) on white; ~4.86:1. */
+  --warn: #a85f1a;
   --info: #3b6fb0;
   --danger: #8d2a2a;
 

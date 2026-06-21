@@ -44,6 +44,9 @@ test("settings screen shows profile, appearance, and account controls", async ({
 test("password change requires the current password then TOTP", async ({ page }, testInfo) => {
   // Isolate this mutation from the shared authenticated fixture used by parallel specs.
   await page.context().clearCookies();
+  // clearCookies also drops the tour-suppression cookie; re-add it so the per-screen tour card
+  // doesn't overlap controls in this fresh-account flow.
+  await page.context().addCookies([{ name: "tv_tours_off", value: "1", url: "http://127.0.0.1:3001" }]);
   const projectTag = testInfo.project.name.replace(/[^a-z0-9]/gi, "").slice(0, 4);
   const username = `pw_e2e_pw_${projectTag}_${Date.now().toString(36)}`;
   const currentPassword = "current-password-passphrase-2026";
