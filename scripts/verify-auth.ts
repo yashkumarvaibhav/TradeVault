@@ -14,6 +14,7 @@ import * as schema from "../src/db/schema";
 import { authTwoFactors, users } from "../src/db/schema";
 import { ensureWorkspaceForUser, synthesizeAuthEmail } from "../src/db/repositories/workspaces";
 import { recoverPasswordWithTotp } from "../src/lib/auth-recovery";
+import { isTotpEnrolled, markTotpEnrolled, verifyUserTotp } from "../src/lib/auth-totp";
 
 const ORACLE_SECRET = "verify-auth-oracle-secret-key-0123456789abcdef";
 process.env.BETTER_AUTH_SECRET = ORACLE_SECRET;
@@ -108,24 +109,40 @@ async function main() {
   const accountCount = Number(((await rawQuery("select count(*) from trading_accounts")).rows[0] as { count: string | number }).count);
   assert.equal(accountCount, 1, "re-provision did not duplicate the account");
 
-  // Email-free password recovery: enroll a known TOTP secret + backup codes, then reset.
+  // Mandatory TOTP, DECOUPLED from the login challenge. Enrollment marks a secret verified but
+  // never flips two_factor_enabled; recovery + sensitive actions key off the enrolled secret.
+  assert.equal(await isTotpEnrolled(db as unknown as Database, userId), false, "not enrolled before setup");
+
   const rawTotpSecret = "ORACLEtotpSECRETrawKEY32charsXX0";
   const backupCodes = ["ORCL-AAAA-1111", "ORCL-BBBB-2222"];
+  // enableTwoFactor stores the secret with verified=false; mirror that here.
   await db.insert(authTwoFactors).values({
     userId,
     secret: await symmetricEncrypt({ key: ORACLE_SECRET, data: rawTotpSecret }),
     backupCodes: await symmetricEncrypt({ key: ORACLE_SECRET, data: JSON.stringify(backupCodes) }),
-    verified: true,
+    verified: false,
   });
-  await db.update(users).set({ twoFactorEnabled: true }).where(eq(users.id, userId));
+  assert.equal(await isTotpEnrolled(db as unknown as Database, userId), false, "an unverified factor is not yet enrollment");
+  assert.equal(
+    await verifyUserTotp(db as unknown as Database, userId, await createOTP(rawTotpSecret, { period: 30, digits: 6 }).totp()),
+    true,
+    "verifyUserTotp accepts a current code",
+  );
+  assert.equal(await verifyUserTotp(db as unknown as Database, userId, "000000"), false, "verifyUserTotp rejects a wrong code");
+  await markTotpEnrolled(db as unknown as Database, userId);
+  assert.equal(await isTotpEnrolled(db as unknown as Database, userId), true, "enrolled once the secret is verified");
 
-  // A current TOTP code resets the password; the new password is then accepted at sign-in.
+  // Enrollment must NOT have enabled the login challenge.
+  const afterEnroll = (await rawQuery("select two_factor_enabled from users limit 1")).rows[0] as { two_factor_enabled: boolean };
+  assert.equal(afterEnroll.two_factor_enabled, false, "enrollment leaves the login challenge off");
+
+  // Email-free recovery works for an enrolled account even with at-login 2FA OFF.
   const newPassword = "reset-via-totp-passphrase-2026";
   const totpCode = await createOTP(rawTotpSecret, { period: 30, digits: 6 }).totp();
-  assert.equal(await recoverPasswordWithTotp(db as unknown as Database, { username, code: totpCode, newPassword }), "ok", "TOTP recovery succeeded");
+  assert.equal(await recoverPasswordWithTotp(db as unknown as Database, { username, code: totpCode, newPassword }), "ok", "TOTP recovery succeeded (enrolled, login-2FA off)");
 
   const reSignIn = await auth.api.signInUsername({ body: { username, password: newPassword } });
-  assert.ok(reSignIn && "twoFactorRedirect" in reSignIn && reSignIn.twoFactorRedirect, "new password accepted (2FA prompted)");
+  assert.ok(reSignIn && "token" in reSignIn && reSignIn.token, "new password accepted with a token (login-2FA off → no challenge)");
   let oldRejected = false;
   try {
     await auth.api.signInUsername({ body: { username, password } });
@@ -150,6 +167,11 @@ async function main() {
     "invalid",
     "wrong TOTP code is rejected",
   );
+
+  // Opting into a code at every sign-in re-introduces the Better Auth login challenge.
+  await db.update(users).set({ twoFactorEnabled: true }).where(eq(users.id, userId));
+  const challenged = await auth.api.signInUsername({ body: { username, password: "backup-reset-passphrase-2026" } });
+  assert.ok(challenged && "twoFactorRedirect" in challenged && challenged.twoFactorRedirect, "with login-2FA on, sign-in is challenged");
 
   await db.execute(sql`select 1`);
   await pglite.close();

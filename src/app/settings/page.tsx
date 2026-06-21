@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button";
 import { getAuth } from "@/lib/auth-server";
 import { getDb } from "@/db/server";
 import { getUserTimeZone } from "@/db/repositories/preferences";
+import { isTotpEnrolled } from "@/lib/auth-totp";
 import { supportedTimeZones, timeZoneLabel } from "@/lib/date-time";
 
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { TimeZonePreference } from "./time-zone-preference";
-import { TwoFactorSetup } from "./two-factor-setup";
+import { TwoFactorSettings } from "./two-factor-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,9 @@ export default async function SettingsPage() {
   if (!session) redirect("/login");
 
   const user = session.user;
+  // TOTP enrollment is mandatory — un-enrolled accounts finish setup before reaching Settings.
+  if (!(await isTotpEnrolled(getDb(), user.id))) redirect("/onboarding/2fa");
+
   const displayName = user.name || user.username || "Trader";
   const username = user.username ?? "";
   const timeZone = await getUserTimeZone(getDb(), user.id);
@@ -72,8 +76,8 @@ export default async function SettingsPage() {
           <TimeZonePreference current={timeZone} zones={supportedTimeZones()} />
         </SettingsSection>
 
-        <SettingsSection title="Two-factor authentication" description="Email-free account recovery with an authenticator app.">
-          <TwoFactorSetup enabled={Boolean((user as { twoFactorEnabled?: boolean }).twoFactorEnabled)} />
+        <SettingsSection title="Two-factor authentication" description="Authenticator app for sensitive actions, recovery, and optional sign-in protection.">
+          <TwoFactorSettings enrolled loginRequired={Boolean((user as { twoFactorEnabled?: boolean }).twoFactorEnabled)} />
         </SettingsSection>
 
         <SettingsSection title="Account">

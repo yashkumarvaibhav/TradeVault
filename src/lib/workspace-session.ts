@@ -7,10 +7,14 @@ import { createTradingAccountRepository, ensureWorkspaceForUser } from "@/db/rep
 import { getUserTimeZone } from "@/db/repositories/preferences";
 import { getDb } from "@/db/server";
 import { getAuth } from "@/lib/auth-server";
+import { isTotpEnrolled } from "@/lib/auth-totp";
 
 export async function requireWorkspaceSession() {
   const session = await getAuth().api.getSession({ headers: await headers() }).catch(() => null);
   if (!session) redirect("/login");
+
+  // TOTP enrollment is mandatory — block every gated route until the authenticator is set up.
+  if (!(await isTotpEnrolled(getDb(), session.user.id))) redirect("/onboarding/2fa");
 
   const user = session.user;
   const displayName = user.name || user.username || "Trader";

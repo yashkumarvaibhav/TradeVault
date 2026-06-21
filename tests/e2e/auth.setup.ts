@@ -1,6 +1,7 @@
 import { expect, test as setup } from "@playwright/test";
 
 import { AUTH_STATE } from "./auth-paths";
+import { totpFromDisplayedSecret } from "./totp";
 
 // A throwaway account used by the gated specs (overview, command palette).
 // Teardown deletes everything matching the `pw_e2e_` prefix.
@@ -20,7 +21,15 @@ setup("create an authenticated session", async ({ page }) => {
   await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
 
-  // Successful sign-up + onboarding lands on the gated overview.
+  // TOTP enrollment is mandatory — sign-up lands on the forced setup before the app.
+  await page.waitForURL(/\/onboarding\/2fa$/);
+  await page.getByLabel("Confirm your password to begin").fill(password);
+  await page.getByRole("button", { name: "Set up authenticator" }).click();
+  const secret = (await page.getByTestId("totp-secret").innerText()).trim();
+  await page.getByLabel("Verification code").fill(await totpFromDisplayedSecret(secret));
+  await page.getByRole("button", { name: "Finish setup" }).click();
+
+  // Enrollment unlocks the gated overview.
   await page.waitForURL("http://127.0.0.1:3001/");
   await expect(page.getByRole("heading", { name: new RegExp(`Good afternoon, ${username}`, "i") })).toBeVisible();
 

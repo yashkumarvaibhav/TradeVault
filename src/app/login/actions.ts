@@ -120,5 +120,6 @@ export async function signUpAction(_prev: AuthFormState, formData: FormData): Pr
   // Provision the new user's personal tenant + default Main account (idempotent).
   await ensureWorkspaceForUser(getDb(), { userId, slugBase: username, tenantName: `${displayUsername}'s vault` });
 
-  redirect("/");
+  // TOTP enrollment is mandatory — every new account sets up an authenticator before using the app.
+  redirect("/onboarding/2fa");
 }

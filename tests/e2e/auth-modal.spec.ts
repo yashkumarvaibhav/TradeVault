@@ -31,7 +31,7 @@ test("the landing page opens, toggles, and closes the auth modal", async ({ page
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("signing up through the landing modal reaches the authenticated app", async ({ page }) => {
+test("signing up through the landing modal forces mandatory TOTP setup", async ({ page }) => {
   const username = `pw_e2e_${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
   const password = "playwright-e2e-passphrase-2026";
 
@@ -45,7 +45,7 @@ test("signing up through the landing modal reaches the authenticated app", async
   await dialog.getByLabel("Confirm password").fill(password);
   await dialog.getByRole("button", { name: "Create account" }).click();
 
-  // Sign-up + onboarding leaves the marketing landing for the authenticated app shell.
-  await page.waitForURL("http://127.0.0.1:3001/");
-  await expect(page.getByRole("link", { name: "Add trade" }).first()).toBeVisible();
+  // Sign-up leaves the landing for the mandatory authenticator setup (not the app yet).
+  await page.waitForURL(/\/onboarding\/2fa$/);
+  await expect(page.getByRole("heading", { name: "Set up two-factor authentication" })).toBeVisible();
 });
