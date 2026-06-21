@@ -39,11 +39,11 @@ function Kpi({ label, value, sub, tone = "neutral" }: { label: string; value: st
   );
 }
 
-function GroupStatTable({ rows, currency, emptyLabel }: { rows: GroupStat[]; currency: Currency; emptyLabel: string }) {
+function GroupStatTable({ rows, currency, emptyLabel, label }: { rows: GroupStat[]; currency: Currency; emptyLabel: string; label: string }) {
   const money = moneyFormatter(currency);
   if (rows.length === 0) return <p className="text-sm text-faint">{emptyLabel}</p>;
   return (
-    <Table className="table-fixed">
+    <Table className="table-fixed" regionLabel={label}>
       <TableHeader>
         <TableRow>
           <TableHead className="w-[40%] px-2">Name</TableHead>
@@ -226,11 +226,11 @@ function AnalyticsBody({ data, excursion, currency }: { data: CurrencyAnalytics;
       <section className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader><div><CardTitle>Strategy expectancy</CardTitle><CardDescription>Win rate &amp; expectancy by strategy · {currency}</CardDescription></div></CardHeader>
-          <CardContent><GroupStatTable rows={data.strategyStats} currency={currency} emptyLabel="No closed trades in this scope." /></CardContent>
+          <CardContent><GroupStatTable rows={data.strategyStats} currency={currency} emptyLabel="No closed trades in this scope." label={`Per-strategy expectancy (${currency})`} /></CardContent>
         </Card>
         <Card>
           <CardHeader><div><CardTitle>Playbook expectancy</CardTitle><CardDescription>Win rate &amp; expectancy by playbook · {currency}</CardDescription></div></CardHeader>
-          <CardContent><GroupStatTable rows={data.playbookStats} currency={currency} emptyLabel="No closed trades in this scope." /></CardContent>
+          <CardContent><GroupStatTable rows={data.playbookStats} currency={currency} emptyLabel="No closed trades in this scope." label={`Per-playbook expectancy (${currency})`} /></CardContent>
         </Card>
       </section>
 

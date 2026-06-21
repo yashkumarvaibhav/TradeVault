@@ -139,7 +139,7 @@ function DayButton({ date, day, currency, selected, compact = false, onSelect }:
     >
       <span className="font-semibold">{utcDate(date).getUTCDate()}</span>
       {!compact && day?.pnl != null ? <span className="max-w-full truncate text-[9px] font-semibold">{compactMoney(currency, day.pnl)}</span> : null}
-      {!compact && day?.count ? <span className="text-[8px] opacity-80">{day.count} trade{day.count === 1 ? "" : "s"}</span> : null}
+      {!compact && day?.count ? <span className="text-[9px]">{day.count} trade{day.count === 1 ? "" : "s"}</span> : null}
       {day?.reviewCount ? <span className="absolute right-1 top-1 size-1.5 rounded-full bg-accent" aria-hidden="true" /> : null}
     </button>
   );

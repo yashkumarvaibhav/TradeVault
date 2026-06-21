@@ -2,9 +2,22 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, containerClassName, ...props }: React.ComponentProps<"table"> & { containerClassName?: string }) {
+function Table({
+  className,
+  containerClassName,
+  regionLabel,
+  ...props
+}: React.ComponentProps<"table"> & { containerClassName?: string; regionLabel?: string }) {
+  // The wrapper can scroll horizontally on narrow viewports, so it must be reachable by
+  // keyboard (WCAG 2.1.1 / axe scrollable-region-focusable). tabIndex makes it focusable
+  // and scrollable with arrow keys; when a label is supplied it becomes a named region.
   return (
-    <div className={cn("w-full overflow-x-auto rounded-md border border-line", containerClassName)}>
+    <div
+      className={cn("w-full overflow-x-auto rounded-md border border-line", containerClassName)}
+      tabIndex={0}
+      role={regionLabel ? "region" : undefined}
+      aria-label={regionLabel}
+    >
       <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );

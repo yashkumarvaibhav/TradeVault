@@ -25,7 +25,7 @@ const money = (currency: Currency, amount: number) => new Intl.NumberFormat("en-
 const number = (value: string | null) => value == null ? null : Number(value);
 
 function Fact({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return <div className="rounded-md border border-line bg-page p-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 text-sm font-semibold text-ink tnum">{value}</dd>{detail ? <p className="mt-0.5 text-xs text-faint">{detail}</p> : null}</div>;
+  return <div className="rounded-md border border-line bg-page p-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 text-sm font-semibold text-ink tnum">{value}{detail ? <span className="mt-0.5 block text-xs font-normal text-faint">{detail}</span> : null}</dd></div>;
 }
 
 export default async function TradeDetailPage({ params, searchParams }: { params: Promise<{ tradeId: string }>; searchParams: Promise<{ mode?: string; reviewed?: string; closed?: string; close?: string; updated?: string; reviewError?: string }> }) {

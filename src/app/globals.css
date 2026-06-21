@@ -10,17 +10,24 @@
 :root {
   color-scheme: light;
 
-  /* Brand / accent */
-  --accent: #3fada8;
-  --accent-hover: #359a95;
-  --accent-soft: rgba(63, 173, 168, 0.12);
+  /* Brand / accent
+     The brand teal #3fada8 is the identity, but white-on-#3fada8 (and #3fada8
+     text/links/focus-ring on white) is only ~2.7:1 — below WCAG AA. On light
+     surfaces we therefore use an accessible deeper teal of the same family for
+     interactive fills, link/icon text, and the focus ring. #277a75 clears 4.5:1
+     against white AND the soft grey surfaces (sidebar #f5f6f6), so white-on-teal
+     and teal-on-surface both pass. Dark mode keeps the bright #7ce4de, which
+     already clears AA on the dark surfaces. */
+  --accent: #277a75;
+  --accent-hover: #1f615d;
+  --accent-soft: rgba(39, 122, 117, 0.12);
   --accent-contrast: #ffffff;
 
   /* Ink / text */
   --ink: #333333;
   --body: #4d4d4d;
   --muted: #666666;
-  --faint: #808080;
+  --faint: #6f6f6f; /* AA on white (~5:1); #808080 was only 3.95:1 */
 
   /* Surfaces */
   --page: #ffffff;
@@ -31,10 +38,14 @@
 
   /* Lines */
   --line: rgba(51, 51, 51, 0.10);
-  --line-strong: rgba(63, 173, 168, 0.35);
+  --line-strong: rgba(39, 122, 117, 0.35);
 
-  /* Outcome + status semantics */
-  --profit: #2f9e6f;
+  /* Outcome + status semantics
+     #2f9e6f green is only ~3.4:1 on white, so small profit text fails AA; the
+     deeper #18794d clears 4.5:1 even on the soft green/grey surfaces it sits on
+     (tinted pills #e8f3ee, sidebar #f5f6f6) and still reads as the outcome green
+     on charts/large KPIs. Loss #c0392b is already ~5.4:1. */
+  --profit: #18794d;
   --loss: #c0392b;
   --warn: #d9822b;
   --info: #3b6fb0;
@@ -179,6 +190,33 @@ h1, h2, h3, h4 {
   border-radius: var(--radius-sm);
 }
 
+/* Skip-to-content: the first focusable element, off-screen until focused, so
+   keyboard/screen-reader users can bypass the nav (WCAG 2.4.1 Bypass Blocks). */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 60;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: top 0.15s ease;
+}
+.skip-link:focus-visible {
+  top: 0.75rem;
+  outline: 2px solid var(--accent-contrast);
+  outline-offset: 2px;
+}
+/* The target gets focus programmatically; never show a ring on the region itself. */
+main:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+
 @media print {
   /* The polished report is the server-generated A4-portrait PDF (Download PDF
      report). This block only keeps an in-browser Ctrl+P of the live preview from
@@ -187,7 +225,7 @@ h1, h2, h3, h4 {
   [data-sonner-toaster], .print-hidden, aside, body > next-route-announcer { display: none !important; }
   html, body { background: #ffffff !important; color: #333333 !important; }
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  main#overview { max-width: none !important; overflow: visible !important; padding: 0 !important; }
+  main#main-content { max-width: none !important; overflow: visible !important; padding: 0 !important; }
   .report-preview { border: 0 !important; background: #ffffff !important; box-shadow: none !important; color: #333333 !important; }
   .report-preview h2, .report-preview h3, .report-preview dd { color: #333333; }
   .report-preview section { break-inside: avoid; }

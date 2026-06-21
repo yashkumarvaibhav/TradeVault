@@ -236,7 +236,9 @@ export function OverviewDashboard({ dataByCurrency, displayName, asOf, scope, re
             <div className="rounded-md border border-warn/25 bg-warn/10 p-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-ink">Open 1R at risk</span>
-                <span className="tnum font-serif text-xl text-warn">{formatMoney.format(data.openRisk)}</span>
+                {/* Caution is carried by the amber icon + tinted card, not the figure's
+                    colour (amber-on-amber-tint can't reach AA); keep the number high-contrast. */}
+                <span className="tnum font-serif text-xl text-ink">{formatMoney.format(data.openRisk)}</span>
               </div>
               <p className="mt-1 text-xs text-muted">Across {data.openPositions} open positions · {currency}</p>
             </div>

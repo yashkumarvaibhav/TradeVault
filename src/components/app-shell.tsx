@@ -116,6 +116,9 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
 
   return (
     <TooltipProvider>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <div className="min-h-svh bg-page md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-line bg-sidebar md:block">
           <Navigation user={user} />
@@ -181,7 +184,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </Button>
           </header>
 
-          <main id="overview" className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>
