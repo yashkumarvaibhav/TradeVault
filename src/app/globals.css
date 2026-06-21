@@ -47,8 +47,9 @@
      on charts/large KPIs. Loss #c0392b is already ~5.4:1. */
   --profit: #18794d;
   --loss: #c0392b;
-  /* Darkened from #d9822b so warn text meets WCAG AA (>=4.5:1) on white; ~4.86:1. */
-  --warn: #a85f1a;
+  /* Darkened from #d9822b so warn text meets WCAG AA (>=4.5:1) both on white (~6.5:1) and on the
+     warn/10 chip tint used for "Open"-status chips (~5.6:1). */
+  --warn: #8a4f14;
   --info: #3b6fb0;
   --danger: #8d2a2a;
 
