@@ -39,8 +39,8 @@ setup("create an authenticated session", async ({ page }) => {
 
   async function addClosedTrade(symbol: string, currency: "INR" | "USD", entry: string, exit: string, stop: string, target: string, favorable: string, adverse: string) {
     await page.goto("/trades/new");
-    await page.getByLabel("Instrument / symbol").fill(symbol);
-    await page.getByLabel("Currency").selectOption(currency);
+    if (currency === "USD") await page.getByRole("button", { name: "Switch to International/Forex Trades" }).click();
+    await page.getByLabel(currency === "USD" ? "Currency pair" : "Stock symbol").fill(symbol);
     await page.getByLabel("Entry date & time").fill("2026-06-10T09:00");
     await page.getByLabel("Entry price").fill(entry);
     await page.getByLabel("Initial stop", { exact: true }).fill(stop);

@@ -10,6 +10,7 @@ const legacy = {
     instrument: "nifty",
     asset_category: "Index",
     instrument_type: "Futures",
+    expiry_date: "2026-06-25",
     direction: "Long",
     status: "closed",
     currency: "INR",
@@ -43,6 +44,7 @@ describe("TradeVault import contract", () => {
       entryAt: "2026-06-20T03:45:00.000Z",
       exitAt: "2026-06-20T04:45:00.000Z",
       multiplier: 50,
+      expiryDate: "2026-06-25",
       strategyName: "Opening range",
       playbookName: "Index momentum",
       closeReasonName: "Target",
@@ -59,7 +61,7 @@ describe("TradeVault import contract", () => {
       username: "someone",
       password: "bad",
       storage_key: "/secret/path",
-      trades: [{ ...legacy.trades[0], export_ref: "trade-1", fees: 20, fx_to_account: 1, mfe_price: 25_200, mae_price: 24_950, setup_checklist: [{ id: "a", label: "Risk sized", phase: "entry", completed: true }] }],
+      trades: [{ ...legacy.trades[0], instrument_type: "Options", export_ref: "trade-1", expiry_date: "2026-06-25", option_side: "Call", strike_price: 25_000, fees: 20, fx_to_account: 1, mfe_price: 25_200, mae_price: 24_950, setup_checklist: [{ id: "a", label: "Risk sized", phase: "entry", completed: true }] }],
       notes: [{ export_ref: "note-1", title: "Review", body_text: "Patient entry", note_type: "post-trade", collection: "setups", linked_trade_ref: "trade-1" }],
     }, "Asia/Kolkata");
     expect(result.ok).toBe(true);
@@ -68,7 +70,7 @@ describe("TradeVault import contract", () => {
     expect(result.value).not.toHaveProperty("password");
     expect(result.value).not.toHaveProperty("storage_key");
     expect(result.value.trades[0].setupChecklist).toEqual([{ id: "a", label: "Risk sized", phase: "entry", completed: true }]);
-    expect(result.value.trades[0]).toMatchObject({ mfePrice: 25_200, maePrice: 24_950 });
+    expect(result.value.trades[0]).toMatchObject({ expiryDate: "2026-06-25", optionSide: "Call", strikePrice: 25_000, mfePrice: 25_200, maePrice: 24_950 });
     expect(result.value.notes[0]).toMatchObject({ title: "Review", linkedTradeRef: "trade-1", noteType: "post-trade" });
   });
 

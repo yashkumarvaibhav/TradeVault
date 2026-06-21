@@ -7,12 +7,19 @@ test.use({ storageState: AUTH_STATE });
 test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }, testInfo) => {
   await page.goto("/trades/new");
   await expect(page.getByRole("heading", { name: "Add trade", level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Switch to International/Forex Trades" }).click();
+  await expect(page.getByLabel("Trade currency")).toHaveValue("USD");
+  await expect(page.getByLabel("Currency pair")).toBeVisible();
+  await expect(page.getByLabel("Quote-to-USD conversion")).toBeVisible();
+  await page.getByRole("button", { name: "Switch to Indian/INR Trades" }).click();
+  await expect(page.getByLabel("Trade currency")).toHaveValue("INR");
+  await page.getByText("Futures", { exact: true }).click();
 
   const symbol = `PW${testInfo.project.name.replace(/[^a-z]/gi, "").slice(0, 8)}`.toUpperCase();
-  await page.getByLabel("Instrument / symbol").fill(symbol);
+  await page.getByLabel("Futures contract").fill(symbol);
   await page.getByLabel("Entry price").fill("100");
-  await page.getByLabel("Quantity").fill("2");
-  await page.getByLabel("Lot / contract multiplier").fill("5");
+  await page.getByLabel("Number of lots / contracts").fill("2");
+  await page.getByLabel("Lot / contract size").fill("5");
   await page.getByLabel("Initial stop", { exact: true }).fill("90");
   await page.getByLabel("Planned target").fill("130");
   await page.getByLabel("Strategy").selectOption({ label: "Breakout" });
@@ -104,7 +111,7 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   // Edit the trade — metrics recompute through the same oracle. Exit 130→140 ⇒ ₹400 = 4.00R.
   await page.getByRole("link", { name: "Edit" }).click();
   await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}/edit`));
-  await expect(page.getByLabel("Quantity")).toHaveValue("2");
+  await expect(page.getByLabel("Number of lots / contracts")).toHaveValue("2");
   await page.getByLabel("Exit price").fill("140");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page).toHaveURL(new RegExp(`/trades/${tradeId}\\?updated=1`));
@@ -131,10 +138,11 @@ test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }
   await expect(page.getByText("No attachments yet.")).toBeVisible();
 
   await page.goto("/trades/new");
-  await page.getByLabel("Instrument / symbol").fill(symbol);
+  await page.getByLabel("Stock symbol").fill(symbol);
   await expect(page.getByRole("status")).toContainText(`Saved defaults applied for ${symbol}`);
-  await expect(page.getByLabel("Quantity")).toHaveValue("2.000000");
-  await expect(page.getByLabel("Lot / contract multiplier")).toHaveValue("5.000000");
+  await expect(page.getByRole("radio", { name: "Futures" })).toBeChecked();
+  await expect(page.getByLabel("Number of lots / contracts")).toHaveValue("2.000000");
+  await expect(page.getByLabel("Lot / contract size")).toHaveValue("5.000000");
 
   // Whole-row navigation (P4): clicking anywhere on a desktop row except the checkbox opens the detail.
   if ((page.viewportSize()?.width ?? 1280) >= 768) {

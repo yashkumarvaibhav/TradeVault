@@ -23,6 +23,9 @@ export interface TradeEntryDraft {
   mfePrice?: number | null;
   maePrice?: number | null;
   confidence?: number | null;
+  expiryDate?: string | null;
+  optionSide?: "Call" | "Put" | null;
+  strikePrice?: number | null;
 }
 
 export type TradeEntryField = keyof TradeEntryDraft;
@@ -67,6 +70,8 @@ export function evaluateTradeEntry(draft: TradeEntryDraft): {
   if (!positive(draft.fxToAccount)) errors.fxToAccount = "FX conversion must be greater than zero.";
   if (!optionalFinite(draft.stopLoss)) errors.stopLoss = "Enter a valid stop price.";
   if (!optionalFinite(draft.plannedTarget)) errors.plannedTarget = "Enter a valid target price.";
+  if (draft.expiryDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.expiryDate)) errors.expiryDate = "Enter a valid contract expiry date.";
+  if (draft.strikePrice != null && !positive(draft.strikePrice)) errors.strikePrice = "Strike price must be greater than zero.";
   if (draft.confidence != null && (!Number.isInteger(draft.confidence) || draft.confidence < 1 || draft.confidence > 5)) {
     errors.confidence = "Confidence must be between 1 and 5.";
   }

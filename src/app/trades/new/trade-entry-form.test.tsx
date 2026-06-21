@@ -19,7 +19,7 @@ const libraries: TradeEntryLibraries = {
   instruments: [{
     id: "instrument-1", symbol: "NIFTY", name: null, assetClass: "Index", instrumentType: "Futures",
     subcategory: "Core market", tradingStyle: "Intraday", quantity: "2.000000", multiplier: "50.000000",
-    platform: "Zerodha", currency: "INR",
+    platform: "Zerodha", currency: "INR", expiryDate: "2026-06-25", optionSide: null, strikePrice: null,
   }],
 };
 
@@ -28,15 +28,39 @@ describe("trade entry libraries", () => {
     const user = userEvent.setup();
     render(<TradeEntryForm initialEntryAt="2026-06-20T09:15" libraries={libraries} />);
 
-    await user.type(screen.getByLabelText("Instrument / symbol"), "nifty");
+    await user.type(screen.getByLabelText("Stock symbol"), "nifty");
 
     expect(screen.getByRole("status")).toHaveTextContent("Saved defaults applied for NIFTY");
-    expect(screen.getByLabelText("Instrument type")).toHaveValue("Futures");
-    expect(screen.getByLabelText("Quantity")).toHaveValue(2);
-    expect(screen.getByLabelText("Lot / contract multiplier")).toHaveValue(50);
+    expect(screen.getByRole("radio", { name: "Futures" })).toBeChecked();
+    expect(screen.queryByLabelText("Instrument type")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Number of lots / contracts")).toHaveValue(2);
+    expect(screen.getByLabelText("Lot / contract size")).toHaveValue(50);
+    expect(screen.getByLabelText("Contract expiry (optional)")).toHaveValue("2026-06-25");
     expect(screen.getByLabelText("Trading style")).toHaveValue("Intraday");
     expect(screen.getByLabelText("Platform")).toHaveValue("Zerodha");
     expect(screen.getByLabelText("Strategy")).toHaveDisplayValue("Not set");
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);
+  });
+
+  it("switches between INR and international forms and reveals only relevant fields", async () => {
+    const user = userEvent.setup();
+    render(<TradeEntryForm initialEntryAt="2026-06-20T09:15" libraries={{ ...libraries, instruments: [] }} />);
+
+    expect(screen.getByLabelText("Trade currency")).toHaveValue("INR");
+    expect(screen.getByLabelText("Shares")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Instrument type")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Options" }));
+    expect(screen.getByLabelText("Underlying market")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Option type" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Strike price (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Entry premium")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Switch to International/Forex Trades" }));
+    expect(screen.getByLabelText("Trade currency")).toHaveValue("USD");
+    expect(screen.getByLabelText("Currency pair")).toBeInTheDocument();
+    expect(screen.getByLabelText("Position size (units)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Quote-to-USD conversion")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch to Indian/INR Trades" })).toBeInTheDocument();
   });
 });

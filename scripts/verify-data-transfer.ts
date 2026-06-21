@@ -41,6 +41,7 @@ async function main() {
       symbol: "NIFTY",
       assetClass: "Index",
       instrumentType: "Futures",
+      expiryDate: "2026-06-25",
       direction: "Long",
       status: "closed",
       currency: "INR",
@@ -95,6 +96,7 @@ async function main() {
     assert.equal(exported.attachments.included, false);
     assert.equal(exported.attachments.count, 1);
     assert.equal(exported.trades[0].attachment_count, 1);
+    assert.equal(exported.trades[0].expiry_date, "2026-06-25");
     for (const secret of [source.user.id, source.tenant.id, source.account.id, trade.id, note.id, source.user.username, source.user.email, storageKey, "broker-account-chart.png"]) {
       assert.equal(json.includes(secret), false, `export must not contain ${secret}`);
     }
@@ -116,6 +118,7 @@ async function main() {
     assert.equal(Number(targetTrade.realizedPnl), 10_000, "derived P&L is recomputed through the domain oracle");
     assert.equal(Number(targetTrade.mfePrice), 25_200, "raw favorable excursion survives backup and restore");
     assert.equal(Number(targetTrade.maePrice), 24_950, "raw adverse excursion survives backup and restore");
+    assert.equal(targetTrade.expiryDate, "2026-06-25", "derivative expiry survives backup and restore");
     assert.equal(Number(targetTrade.mfeR), 2, "restored excursion metrics are recomputed through the domain oracle");
     assert.equal(Number(targetTrade.capturedMovePct), 50, "restored capture is recomputed instead of trusted from JSON");
     assert.equal(targetNote.linkedTradeId, targetTrade.id, "export ref resolves to the new tenant-local trade");

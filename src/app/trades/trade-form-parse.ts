@@ -59,6 +59,11 @@ export function parseTradeDraftFromForm(form: FormData, defaultCurrency: Currenc
     mfePrice: optionalNumber(form, "mfePrice"),
     maePrice: optionalNumber(form, "maePrice"),
     subcategory: value(form, "subcategory"),
+    expiryDate: value(form, "expiryDate") || null,
+    optionSide: (value(form, "optionSide") === "Call" || value(form, "optionSide") === "Put")
+      ? value(form, "optionSide") as "Call" | "Put"
+      : null,
+    strikePrice: optionalNumber(form, "strikePrice"),
     tradingStyle: value(form, "tradingStyle"),
     platform: value(form, "platform"),
     confidence: optionalNumber(form, "confidence"),

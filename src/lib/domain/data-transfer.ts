@@ -38,6 +38,9 @@ export interface ImportInstrument {
   multiplier: number | null;
   platform: string | null;
   currency: Currency;
+  expiryDate: string | null;
+  optionSide: "Call" | "Put" | null;
+  strikePrice: number | null;
 }
 
 export interface ImportChecklistItem {
@@ -124,6 +127,11 @@ function optionalDate(value: unknown, timeZone: string): string | null {
   if (zoned) return zoned;
   const timestamp = Date.parse(raw);
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function optionalDateOnly(value: unknown): string | null {
+  const raw = optionalString(value, 10);
+  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
 }
 
 function stringArray(value: unknown, limit = 100, maxLength = 200): string[] {
@@ -238,6 +246,10 @@ function parseInstruments(value: unknown, errors: string[]): ImportInstrument[] 
       multiplier: multiplier != null && multiplier > 0 ? multiplier : null,
       platform: optionalString(raw.platform ?? raw.defaultPlatform, 200),
       currency: enumValue(raw.currency ?? raw.default_currency, CURRENCIES, "INR"),
+      expiryDate: optionalDateOnly(raw.expiry_date ?? raw.expiryDate),
+      optionSide: raw.option_side === "Call" || raw.optionSide === "Call" ? "Call"
+        : raw.option_side === "Put" || raw.optionSide === "Put" ? "Put" : null,
+      strikePrice: finiteNumber(raw.strike_price ?? raw.strikePrice),
     });
   });
   return result;
@@ -270,6 +282,7 @@ function parseTrade(raw: unknown, index: number, timeZone: string, errors: strin
   const fxToAccount = finiteNumber(raw.fx_to_account ?? raw.fxToAccount) ?? 1;
   const confidenceRaw = finiteNumber(raw.execution_score ?? raw.confidence);
   const confidence = confidenceRaw == null ? null : Math.trunc(confidenceRaw);
+  const optionSideRaw = raw.option_side ?? raw.optionSide;
 
   if (!symbol) errors.push(`${path} needs an instrument or symbol.`);
   if (!entryAt) errors.push(`${path} needs a valid entry date and time.`);
@@ -304,6 +317,9 @@ function parseTrade(raw: unknown, index: number, timeZone: string, errors: strin
     fees,
     fxToAccount,
     confidence,
+    expiryDate: optionalDateOnly(raw.expiry_date ?? raw.expiryDate),
+    optionSide: optionSideRaw === "Call" || optionSideRaw === "Put" ? optionSideRaw : null,
+    strikePrice: finiteNumber(raw.strike_price ?? raw.strikePrice),
     strategyName: optionalString(raw.strategy, 200),
     playbookName: optionalString(raw.playbook_name ?? raw.playbookName, 200),
     closeReasonName: optionalString(raw.close_reason ?? raw.closeReason, 200),

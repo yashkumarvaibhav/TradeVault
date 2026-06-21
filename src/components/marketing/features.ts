@@ -15,7 +15,7 @@ export const FEATURES: MarketingFeature[] = [
     title: "A disciplined journal",
     blurb: "Log every trade with the risk you actually planned — entry, stop, target, R, and fees.",
     points: [
-      "Asset class × instrument type (equity, index, forex, commodity, crypto, US index × cash, futures, options).",
+      "Asset-specific entry for equities, indices, forex, commodities, crypto, futures, and options.",
       "Per-instrument defaults — multiplier, lot size and currency are remembered and backfilled.",
       "Planned and realized R captured the same, direction-aware way for longs and shorts.",
     ],

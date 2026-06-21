@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -43,6 +44,9 @@ export const instruments = pgTable("instruments", {
   assetClass: assetClass("asset_class").notNull(),
   instrumentType: instrumentType("instrument_type").notNull(),
   subcategory: text("subcategory"),
+  expiryDate: date("expiry_date"),
+  optionSide: text("option_side"),
+  strikePrice: numeric("strike_price", { precision: 20, scale: 6 }),
   defaultTradingStyle: text("default_trading_style"),
   defaultQuantity: numeric("default_quantity", { precision: 20, scale: 6 }),
   defaultMultiplier: numeric("default_multiplier", { precision: 20, scale: 6 }),
@@ -58,6 +62,8 @@ export const instruments = pgTable("instruments", {
   check("instruments_symbol_not_blank_check", sql`length(trim(${table.symbol})) > 0`),
   check("instruments_default_quantity_positive_check", sql`${table.defaultQuantity} is null or ${table.defaultQuantity} > 0`),
   check("instruments_default_multiplier_positive_check", sql`${table.defaultMultiplier} is null or ${table.defaultMultiplier} > 0`),
+  check("instruments_option_side_check", sql`${table.optionSide} is null or ${table.optionSide} in ('Call', 'Put')`),
+  check("instruments_strike_price_positive_check", sql`${table.strikePrice} is null or ${table.strikePrice} > 0`),
 ]);
 
 export const strategies = pgTable("strategies", {
@@ -130,6 +136,9 @@ export const trades = pgTable("trades", {
   assetClass: assetClass("asset_class").notNull(),
   instrumentType: instrumentType("instrument_type").notNull(),
   subcategory: text("subcategory"),
+  expiryDate: date("expiry_date"),
+  optionSide: text("option_side"),
+  strikePrice: numeric("strike_price", { precision: 20, scale: 6 }),
   tradingStyle: text("trading_style"),
   platform: text("platform"),
   direction: tradeDirection("direction").notNull(),
@@ -211,6 +220,8 @@ export const trades = pgTable("trades", {
   check("trades_multiplier_positive_check", sql`${table.multiplier} > 0`),
   check("trades_fees_nonnegative_check", sql`${table.fees} >= 0`),
   check("trades_fx_positive_check", sql`${table.fxToAccount} > 0`),
+  check("trades_option_side_check", sql`${table.optionSide} is null or ${table.optionSide} in ('Call', 'Put')`),
+  check("trades_strike_price_positive_check", sql`${table.strikePrice} is null or ${table.strikePrice} > 0`),
   check("trades_confidence_range_check", sql`${table.confidence} is null or ${table.confidence} between 1 and 5`),
   check("trades_mfe_price_positive_check", sql`${table.mfePrice} is null or ${table.mfePrice} > 0`),
   check("trades_mae_price_positive_check", sql`${table.maePrice} is null or ${table.maePrice} > 0`),

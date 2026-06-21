@@ -71,6 +71,9 @@ export default async function EditTradePage({ params }: { params: Promise<{ trad
             strategyId: trade.strategyId ?? "",
             playbookId: trade.playbookId ?? "",
             closeReasonId: trade.closeReasonId ?? "",
+            expiryDate: trade.expiryDate ?? "",
+            optionSide: trade.optionSide === "Call" || trade.optionSide === "Put" ? trade.optionSide : "",
+            strikePrice: num(trade.strikePrice),
           }}
           initialChecklist={trade.setupChecklist}
           initialText={{

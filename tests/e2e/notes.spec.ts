@@ -12,10 +12,11 @@ test("Notes workspace surfaces trade notes linked to their source and filters by
 
   // Create a trade carrying an entry note and a review/exit note.
   await page.goto("/trades/new");
-  await page.getByLabel("Instrument / symbol").fill(symbol);
+  await page.getByText("Futures", { exact: true }).click();
+  await page.getByLabel("Futures contract").fill(symbol);
   await page.getByLabel("Entry price").fill("100");
-  await page.getByLabel("Quantity").fill("2");
-  await page.getByLabel("Lot / contract multiplier").fill("5");
+  await page.getByLabel("Number of lots / contracts").fill("2");
+  await page.getByLabel("Lot / contract size").fill("5");
   await page.getByLabel("Initial stop", { exact: true }).fill("90");
   await page.getByLabel("Planned target").fill("130");
   await page.getByLabel("Linked note").fill(entryText);

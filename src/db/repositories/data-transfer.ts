@@ -97,6 +97,9 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
           instrument: trade.symbol,
           direction: trade.direction,
           instrument_type: trade.instrumentType,
+          expiry_date: trade.expiryDate,
+          option_side: trade.optionSide,
+          strike_price: trade.strikePrice == null ? null : Number(trade.strikePrice),
           lot_size: Number(trade.multiplier),
           platform: trade.platform,
           currency: trade.currency,
@@ -138,6 +141,9 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
           subcategory: instrument.subcategory,
           trading_style: instrument.defaultTradingStyle,
           instrument_type: instrument.instrumentType,
+          expiry_date: instrument.expiryDate,
+          option_side: instrument.optionSide,
+          strike_price: instrument.strikePrice == null ? null : Number(instrument.strikePrice),
           lot_size: instrument.defaultMultiplier == null ? null : Number(instrument.defaultMultiplier),
           quantity: instrument.defaultQuantity == null ? null : Number(instrument.defaultQuantity),
           platform: instrument.defaultPlatform,
@@ -222,11 +228,13 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
             tenantId: scope.tenantId, symbol: item.symbol, name: item.name, assetClass: item.assetClass, instrumentType: item.instrumentType,
             subcategory: item.subcategory, defaultTradingStyle: item.tradingStyle, defaultQuantity: numeric(item.quantity),
             defaultMultiplier: numeric(item.multiplier), defaultPlatform: item.platform, defaultCurrency: item.currency,
+            expiryDate: item.expiryDate, optionSide: item.optionSide, strikePrice: numeric(item.strikePrice),
           }).onConflictDoUpdate({
             target: [instruments.tenantId, instruments.symbol, instruments.instrumentType],
             set: { name: item.name, assetClass: item.assetClass, subcategory: item.subcategory, defaultTradingStyle: item.tradingStyle,
               defaultQuantity: numeric(item.quantity), defaultMultiplier: numeric(item.multiplier), defaultPlatform: item.platform,
-              defaultCurrency: item.currency, archivedAt: null, updatedAt: new Date() },
+              defaultCurrency: item.currency, expiryDate: item.expiryDate, optionSide: item.optionSide,
+              strikePrice: numeric(item.strikePrice), archivedAt: null, updatedAt: new Date() },
           });
         }
 
@@ -263,11 +271,13 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
             tenantId: scope.tenantId, symbol: trade.symbol, assetClass: trade.assetClass, instrumentType: trade.instrumentType,
             subcategory: trade.subcategory, defaultTradingStyle: trade.tradingStyle, defaultQuantity: numeric(trade.quantity),
             defaultMultiplier: numeric(trade.multiplier), defaultPlatform: trade.platform, defaultCurrency: trade.currency,
+            expiryDate: trade.expiryDate, optionSide: trade.optionSide, strikePrice: numeric(trade.strikePrice),
           }).onConflictDoUpdate({
             target: [instruments.tenantId, instruments.symbol, instruments.instrumentType],
             set: { assetClass: trade.assetClass, subcategory: trade.subcategory, defaultTradingStyle: trade.tradingStyle,
               defaultQuantity: numeric(trade.quantity), defaultMultiplier: numeric(trade.multiplier), defaultPlatform: trade.platform,
-              defaultCurrency: trade.currency, archivedAt: null, updatedAt: new Date() },
+              defaultCurrency: trade.currency, expiryDate: trade.expiryDate, optionSide: trade.optionSide,
+              strikePrice: numeric(trade.strikePrice), archivedAt: null, updatedAt: new Date() },
           }).returning({ id: instruments.id });
           const [created] = await tx.insert(trades).values({
             tenantId: scope.tenantId, accountId, createdByUserId: scope.userId, instrumentId: instrument.id,
@@ -275,6 +285,7 @@ export function createDataTransferRepository(db: Database, scope: TenantScope) {
             playbookId: trade.playbookName ? playbookIds.get(key(trade.playbookName)) ?? null : null,
             closeReasonId: trade.status === "closed" && trade.closeReasonName ? reasonIds.get(key(trade.closeReasonName)) ?? null : null,
             symbol: trade.symbol, assetClass: trade.assetClass, instrumentType: trade.instrumentType, subcategory: trade.subcategory,
+            expiryDate: trade.expiryDate, optionSide: trade.optionSide, strikePrice: numeric(trade.strikePrice),
             tradingStyle: trade.tradingStyle, platform: trade.platform, direction: trade.direction, status: trade.status, currency: trade.currency,
             entryAt: new Date(trade.entryAt), entryPrice: numeric(trade.entryPrice)!, exitAt: trade.exitAt ? new Date(trade.exitAt) : null,
             exitPrice: numeric(trade.exitPrice), quantity: numeric(trade.quantity)!, multiplier: numeric(trade.multiplier)!, stopLoss: numeric(trade.stopLoss),
