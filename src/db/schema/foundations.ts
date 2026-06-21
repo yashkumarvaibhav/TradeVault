@@ -148,3 +148,20 @@ export const tradingAccountsRelations = relations(tradingAccounts, ({ one }) => 
   tenant: one(tenants, { fields: [tradingAccounts.tenantId], references: [tenants.id] }),
   owner: one(users, { fields: [tradingAccounts.ownerUserId], references: [users.id] }),
 }));
+
+/**
+ * Per-user onboarding state: which screen tours a user has already seen. Onboarding is a property
+ * of the person, not a tenant, so this is keyed on `users.id`. One row per (user, screen-key);
+ * its existence means the welcome card no longer auto-opens for that screen. `status` records
+ * whether they finished the spotlight walkthrough or dismissed the card.
+ */
+export const tourProgress = pgTable("tour_progress", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tourKey: text("tour_key").notNull(),
+  status: text("status").notNull().default("completed"),
+  seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("tour_progress_user_key_unique").on(table.userId, table.tourKey),
+  index("tour_progress_user_idx").on(table.userId),
+]);

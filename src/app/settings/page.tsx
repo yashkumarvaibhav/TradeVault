@@ -12,6 +12,7 @@ import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "./change-password-form";
 import { ThemePreference } from "./theme-preference";
 import { TimeZonePreference } from "./time-zone-preference";
+import { TourSettings } from "./tour-settings";
 import { TwoFactorSettings } from "./two-factor-settings";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,10 @@ export default async function SettingsPage() {
 
         <SettingsSection title="Change password" description="Confirm your current password and authenticator code.">
           <ChangePasswordForm />
+        </SettingsSection>
+
+        <SettingsSection title="Guided tours" description="See the per-screen welcome walkthrough again.">
+          <TourSettings />
         </SettingsSection>
 
         <SettingsSection title="Account">

@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { navItems } from "@/components/nav-items";
 import { MarketModeSwitch } from "@/components/market-mode-switch";
 import { ProfileMenu } from "@/components/profile-menu";
+import { TourProvider } from "@/components/tour/tour-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ export interface AppShellUser {
   displayName: string;
   username: string;
   currency?: Currency;
+  /** Screen-tour keys the user has already seen (server-persisted onboarding state). */
+  completedTours?: string[];
 }
 
 function Navigation({ mobile = false, user }: { mobile?: boolean; user: AppShellUser }) {
@@ -112,6 +115,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
   }, []);
 
   return (
+    <TourProvider seen={user.completedTours ?? []}>
     <TooltipProvider>
       <a href="#main-content" className="skip-link">
         Skip to main content
@@ -173,7 +177,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
             </Tooltip>
 
             <ThemeToggle />
-            <Button size="compact" aria-label="Add trade" asChild>
+            <Button size="compact" aria-label="Add trade" asChild data-tour="add-trade">
               <Link href="/trades/new"><Plus aria-hidden="true" /><span className="hidden sm:inline">Add trade</span></Link>
             </Button>
           </header>
@@ -188,5 +192,6 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       {paletteMounted ? <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} /> : null}
       <Toaster />
     </TooltipProvider>
+    </TourProvider>
   );
 }

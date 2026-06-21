@@ -24,7 +24,7 @@ export function MarketModeSwitch({ currency }: { currency: Currency }) {
   }
 
   return (
-    <section className="border-b border-line bg-accent-soft" aria-label="Active trade market">
+    <section data-tour="market-switch" className="border-b border-line bg-accent-soft" aria-label="Active trade market">
       <div className="mx-auto flex w-full max-w-[1540px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-raised text-accent"><Globe2 className="size-4" aria-hidden="true" /></span>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createTradingAccountRepository, ensureWorkspaceForUser } from "@/db/repositories/workspaces";
 import { getUserTimeZone } from "@/db/repositories/preferences";
+import { getSeenTourKeys } from "@/db/repositories/tours";
 import { getDb } from "@/db/server";
 import { getAuth } from "@/lib/auth-server";
 import { isTotpEnrolled } from "@/lib/auth-totp";
@@ -26,12 +27,19 @@ export async function requireWorkspaceSession() {
     slugBase: username || user.name,
     tenantName: `${displayName}'s vault`,
   });
-  const [account, timeZone] = await Promise.all([
+  const [account, timeZone, completedTours] = await Promise.all([
     createTradingAccountRepository(getDb(), scope).getDefault(),
     getUserTimeZone(getDb(), user.id),
+    getSeenTourKeys(getDb(), user.id),
   ]);
   if (!account) throw new Error("Your default trading account is unavailable.");
   const marketCurrency = parseMarketCurrency((await cookies()).get(MARKET_CURRENCY_COOKIE)?.value, account.defaultCurrency);
 
-  return { session, scope, account, timeZone, shellUser: { displayName, username, currency: marketCurrency } };
+  return {
+    session,
+    scope,
+    account,
+    timeZone,
+    shellUser: { displayName, username, currency: marketCurrency, completedTours },
+  };
 }

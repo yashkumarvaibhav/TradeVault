@@ -11,6 +11,10 @@ const username = `pw_e2e_${Date.now().toString(36)}`;
 const password = E2E_PASSWORD;
 
 setup("create an authenticated session", async ({ page }) => {
+  // Suppress the per-screen onboarding tour for the whole authenticated suite (this cookie is read
+  // by TourProvider). Saved into storageState so every gated spec inherits it deterministically.
+  await page.context().addCookies([{ name: "tv_tours_off", value: "1", url: "http://127.0.0.1:3001" }]);
+
   // Auth is a landing-page modal; the deep link auto-opens it in create-account mode.
   await page.goto("/?auth=signup");
   // The modal hydrates after SSR; on a cold dev compile a plain click can land before React

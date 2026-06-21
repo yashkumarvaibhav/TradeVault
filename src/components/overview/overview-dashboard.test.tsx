@@ -63,7 +63,9 @@ describe("overview visual milestone", () => {
 
   it("opens an accessible mobile navigation dialog", async () => {
     const user = userEvent.setup();
-    render(<AppShell user={{ displayName: "TraderJoe", username: "traderjoe" }}><p>Dashboard body</p></AppShell>);
+    // Mark the overview tour seen so the first-visit welcome card doesn't trap focus during this
+    // mobile-nav assertion (the tour system has its own coverage).
+    render(<AppShell user={{ displayName: "TraderJoe", username: "traderjoe", completedTours: ["overview"] }}><p>Dashboard body</p></AppShell>);
 
     await user.click(screen.getByRole("button", { name: "Open navigation" }));
     expect(screen.getByRole("dialog", { name: "TradeVault navigation" })).toBeVisible();
