@@ -38,8 +38,9 @@ function demoExtrema(direction: "Long" | "Short", status: "open" | "closed", ent
 async function main() {
   const client = createDatabase();
   try {
-    const [user] = await client.db.select().from(users).where(inArray(users.username, ["demo1", "yashdemo1"])).limit(1);
-    if (!user) throw new Error("Demo user not found (expected demo1 or yashdemo1).");
+    const demoUsers = await client.db.select().from(users).where(inArray(users.username, ["demo1", "yashdemo1"]));
+    if (!demoUsers.length) throw new Error("Demo user not found (expected demo1 or yashdemo1).");
+    for (const user of demoUsers) {
     const scope = await ensureWorkspaceForUser(client.db, { userId: user.id, slugBase: user.username, tenantName: `${user.name}'s vault` });
     const account = await createTradingAccountRepository(client.db, scope).getDefault();
     if (!account) throw new Error("Demo account has no default trading account.");
@@ -112,6 +113,7 @@ async function main() {
 
     const recentForLinks = await repository.list({ accountId: account.id, limit: 6 });
     await seedDemoNotes(client.db, scope, account.id, libraries, recentForLinks.map((trade) => ({ id: trade.id, symbol: trade.symbol })));
+    }
   } finally {
     await client.pool.end();
   }
