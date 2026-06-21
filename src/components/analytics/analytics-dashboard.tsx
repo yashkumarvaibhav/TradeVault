@@ -259,16 +259,14 @@ function AnalyticsBody({ data, excursion, currency }: { data: CurrencyAnalytics;
   );
 }
 
-export function AnalyticsDashboard({ analyticsByCurrency, excursionByCurrency, scope, timeZone }: { analyticsByCurrency: CurrencyAnalyticsMap; excursionByCurrency: CurrencyExcursionAnalyticsMap; scope: DashboardScope; timeZone?: string }) {
-  const [currency, setCurrency] = React.useState<Currency>("INR");
+export function AnalyticsDashboard({ analyticsByCurrency, excursionByCurrency, currency, scope, timeZone }: { analyticsByCurrency: CurrencyAnalyticsMap; excursionByCurrency: CurrencyExcursionAnalyticsMap; currency: Currency; scope: DashboardScope; timeZone?: string }) {
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
   const data = analyticsByCurrency[currency];
-  const totalTrades = (analyticsByCurrency.INR?.totalTrades ?? 0) + (analyticsByCurrency.USD?.totalTrades ?? 0);
 
   return (
     <div className="space-y-6 lg:space-y-8">
       <PageHeader
-        eyebrow={<><Chip tone="accent">Performance</Chip><Chip>{totalTrades} closed trades</Chip></>}
+        eyebrow={<><Chip tone="accent">Performance</Chip><Chip>{data?.totalTrades ?? 0} {currency} closed trades</Chip></>}
         title="Analytics"
         description="Where is the edge and risk? Every metric stays inside a single currency and counts only closed trades."
         actions={
@@ -279,7 +277,7 @@ export function AnalyticsDashboard({ analyticsByCurrency, excursionByCurrency, s
         }
       />
 
-      <ScopeControls basePath="/analytics" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
+      <ScopeControls basePath="/analytics" scope={scope} currency={currency} timeZone={timeZone} />
 
       {data ? (
         <AnalyticsBody key={currency} data={data} excursion={excursionByCurrency[currency]} currency={currency} />
@@ -287,7 +285,7 @@ export function AnalyticsDashboard({ analyticsByCurrency, excursionByCurrency, s
         <Card>
           <CardContent className="px-6 py-16 text-center">
             <h2 className="font-serif text-2xl text-ink">No closed {currency} trades in this scope.</h2>
-            <p className="mt-2 text-sm text-muted">Switch currency or widen the date/asset scope above. Analytics only count closed trades with a computable result.</p>
+            <p className="mt-2 text-sm text-muted">Use the global market switch or widen the date/asset scope above. Analytics only count closed trades with a computable result.</p>
           </CardContent>
         </Card>
       )}

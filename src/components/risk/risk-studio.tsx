@@ -94,19 +94,15 @@ function interpretation(result: RiskSimResult): string {
 
 export function RiskStudio({
   whatIfSamplesByCurrency,
-  defaultCurrency,
+  currency,
   scope,
   timeZone,
 }: {
   whatIfSamplesByCurrency: Partial<Record<Currency, RiskWhatIfSample[]>>;
-  defaultCurrency: Currency;
+  currency: Currency;
   scope: DashboardScope;
   timeZone: string;
 }) {
-  const firstWithData = (["INR", "USD"] as Currency[]).find((c) => (whatIfSamplesByCurrency[c]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE);
-  const initialCurrency = (whatIfSamplesByCurrency[defaultCurrency]?.length ?? 0) >= RISK_SIM_MIN_SAMPLE ? defaultCurrency : firstWithData ?? defaultCurrency;
-
-  const [currency, setCurrency] = React.useState<Currency>(initialCurrency);
   const [paths, setPaths] = React.useState(2000);
   const [horizon, setHorizon] = React.useState(50);
   const [riskPct, setRiskPct] = React.useState(1);
@@ -169,7 +165,7 @@ export function RiskStudio({
         description="Stress your realized-R edge, then explore transparent changes without altering a source trade. Historical scenarios, not forecasts."
       />
 
-      <ScopeControls basePath="/risk" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
+      <ScopeControls basePath="/risk" scope={scope} currency={currency} timeZone={timeZone} />
 
       <Tabs defaultValue="monte-carlo">
         <TabsList aria-label="Risk Studio mode" className="w-full sm:w-auto">

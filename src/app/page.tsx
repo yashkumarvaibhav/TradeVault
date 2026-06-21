@@ -44,6 +44,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   return <AppShell user={shellUser}>
     <OverviewDashboard
       dataByCurrency={buildOverviewData(scopedRows, now, timeZone)}
+      currency={shellUser.currency}
       displayName={shellUser.displayName}
       asOf={formatDateInTimeZone(now, timeZone, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
       scope={{ ...dashboardScope, month: scopeMonth(now, timeZone) }}

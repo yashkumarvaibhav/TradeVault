@@ -14,7 +14,6 @@ import { Chip } from "@/components/ui/chip";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { toast } from "@/components/ui/toaster";
 import type { CurrencyAnalytics, CurrencyAnalyticsMap } from "@/lib/domain/analytics";
 import type { Currency } from "@/lib/domain/types";
@@ -197,10 +196,8 @@ function SensitiveActionDialog({
   );
 }
 
-export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurrency, scope, timeZone, generatedAt }: { accountName: string; defaultCurrency: Currency; analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope; timeZone: string; generatedAt: string }) {
+export function ReportsWorkspace({ accountName, currency, analyticsByCurrency, scope, timeZone, generatedAt }: { accountName: string; currency: Currency; analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope; timeZone: string; generatedAt: string }) {
   const router = useRouter();
-  const availableDefault = analyticsByCurrency[defaultCurrency] ? defaultCurrency : analyticsByCurrency.INR ? "INR" : analyticsByCurrency.USD ? "USD" : defaultCurrency;
-  const [currency, setCurrency] = React.useState<Currency>(availableDefault);
   const [sensitiveIntent, setSensitiveIntent] = React.useState<SensitiveIntent | null>(null);
   const data = analyticsByCurrency[currency];
   const tradeCount = data?.totalTrades ?? 0;
@@ -280,7 +277,7 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
                 {scope.period === "custom" && scope.to ? <input type="hidden" name="to" value={scope.to} /> : null}
                 <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Asset<select name="asset" defaultValue={scope.asset} onChange={(event) => event.currentTarget.form?.requestSubmit()} className="mt-2 h-11 w-full rounded-md border border-line bg-raised px-3 text-sm font-normal normal-case tracking-normal text-ink">{ASSET_OPTIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
               </form>
-              <fieldset><legend className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Currency</legend><SegmentedControl type="single" value={currency} onValueChange={(value) => value && setCurrency(value as Currency)} aria-label="Report currency" className="mt-2 w-full"><SegmentedControlItem value="INR" className="flex-1">INR</SegmentedControlItem><SegmentedControlItem value="USD" className="flex-1">USD</SegmentedControlItem></SegmentedControl></fieldset>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Market workspace</p><p className="mt-1 text-sm font-semibold text-ink">{currency === "INR" ? "Indian / INR trades" : "International / USD trades"}</p></div>
               <div className="rounded-md border border-line bg-sidebar p-3"><p className="text-xs font-semibold text-ink">{tradeCount} closed trades</p><p className="mt-1 text-xs leading-relaxed text-muted">{scopePeriodLabel(scope)} · {scope.asset} · {currency}</p></div>
               {data ? (
                 <Button type="button" className="w-full" onClick={() => setSensitiveIntent({ kind: "pdf", href: pdfHref })}><FileText aria-hidden="true" />Download PDF report</Button>
@@ -302,7 +299,7 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
         </aside>
 
         <main className="min-w-0">
-          {data ? <ReportPreview key={currency} data={data} currency={currency} accountName={accountName} period={`${scopePeriodLabel(scope)} · ${scope.asset}`} generatedAt={generatedAt} timeZone={timeZone} /> : <Card className="report-preview"><CardContent className="px-6 py-20 text-center"><h2 className="font-serif text-2xl text-ink">No closed {currency} trades in this scope.</h2><p className="mt-2 text-sm text-muted">Switch currency or widen the report period. Currency totals are never combined.</p></CardContent></Card>}
+          {data ? <ReportPreview key={currency} data={data} currency={currency} accountName={accountName} period={`${scopePeriodLabel(scope)} · ${scope.asset}`} generatedAt={generatedAt} timeZone={timeZone} /> : <Card className="report-preview"><CardContent className="px-6 py-20 text-center"><h2 className="font-serif text-2xl text-ink">No closed {currency} trades in this scope.</h2><p className="mt-2 text-sm text-muted">Use the global market switch or widen the report period. Currency totals are never combined.</p></CardContent></Card>}
         </main>
       </div>
       <SensitiveActionDialog intent={sensitiveIntent} onClose={() => setSensitiveIntent(null)} onAuthorized={runAuthorized} />

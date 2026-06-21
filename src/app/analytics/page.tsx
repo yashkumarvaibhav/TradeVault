@@ -34,7 +34,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <AppShell user={shellUser}>
-      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} excursionByCurrency={excursionByCurrency} scope={dashboardScope} timeZone={timeZone} />
+      <AnalyticsDashboard analyticsByCurrency={analyticsByCurrency} excursionByCurrency={excursionByCurrency} currency={shellUser.currency} scope={dashboardScope} timeZone={timeZone} />
     </AppShell>
   );
 }

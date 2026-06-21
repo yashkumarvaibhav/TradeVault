@@ -34,8 +34,8 @@ test("overview uses scoped journal data and is visually reviewable", async ({ pa
     await page.getByRole("button", { name: "Close navigation" }).click();
   }
 
-  await page.getByRole("combobox", { name: "Currency scope" }).click();
-  await page.getByRole("option", { name: "USD" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
+  await expect(page.getByText("International / USD trades")).toBeVisible();
   await expect(page.getByText("$5.00", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
 

@@ -32,7 +32,7 @@ export default async function RiskPage({ searchParams }: { searchParams: Promise
     <AppShell user={shellUser}>
       <RiskStudio
         whatIfSamplesByCurrency={whatIfSamplesByCurrency}
-        defaultCurrency={account.defaultCurrency}
+        currency={shellUser.currency}
         scope={dashboardScope}
         timeZone={timeZone}
       />

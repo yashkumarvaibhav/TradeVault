@@ -15,8 +15,7 @@ test("risk studio gates on the minimum sample and never mixes currency", async (
   await expect(page.getByText(/at least\s+30\s+closed/i)).toBeVisible();
 
   // Currency stays isolated — switching the scope currency keeps the gate honest.
-  await page.getByRole("combobox", { name: "Currency scope" }).click();
-  await page.getByRole("option", { name: "USD" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByText(/Not enough closed USD trades yet/)).toBeVisible();
 
   // What-If is a real accessible tab and preserves the same honest sample gate.

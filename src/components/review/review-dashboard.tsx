@@ -272,16 +272,14 @@ function ReviewBody({ data, currency, scope, nowIso, timeZone }: { data: ReviewA
   );
 }
 
-export function ReviewDashboard({ analyticsByCurrency, scope, nowIso, timeZone = DEFAULT_TIME_ZONE }: { analyticsByCurrency: ReviewAnalyticsMap; scope: DashboardScope; nowIso: string; timeZone?: string }) {
-  const [currency, setCurrency] = React.useState<Currency>("INR");
+export function ReviewDashboard({ analyticsByCurrency, currency, scope, nowIso, timeZone = DEFAULT_TIME_ZONE }: { analyticsByCurrency: ReviewAnalyticsMap; currency: Currency; scope: DashboardScope; nowIso: string; timeZone?: string }) {
   const data = analyticsByCurrency[currency];
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
-  const totalPending = analyticsByCurrency.INR.pendingReviewCount + analyticsByCurrency.USD.pendingReviewCount;
 
   return (
     <div className="space-y-6 lg:space-y-8">
-      <PageHeader eyebrow={<><Chip tone="accent">Review loop</Chip><Chip>{totalPending} pending across currencies</Chip></>} title="Review Center" description="Which behaviors help or hurt? Evidence stays currency-separated, sample-labelled, and linked back to the trades behind it." actions={<>{scopeActive ? <Button asChild variant="outline" size="compact"><Link href="/review"><RotateCcw aria-hidden="true" />Reset scope</Link></Button> : null}<Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button></>} />
-      <ScopeControls basePath="/review" scope={scope} currency={currency} onCurrencyChange={setCurrency} timeZone={timeZone} />
+      <PageHeader eyebrow={<><Chip tone="accent">Review loop</Chip><Chip>{data.pendingReviewCount} pending · {currency}</Chip></>} title="Review Center" description="Which behaviors help or hurt? Evidence stays currency-separated, sample-labelled, and linked back to the trades behind it." actions={<>{scopeActive ? <Button asChild variant="outline" size="compact"><Link href="/review"><RotateCcw aria-hidden="true" />Reset scope</Link></Button> : null}<Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button></>} />
+      <ScopeControls basePath="/review" scope={scope} currency={currency} timeZone={timeZone} />
       <ReviewBody key={currency} data={data} currency={currency} scope={scope} nowIso={nowIso} timeZone={timeZone} />
     </div>
   );

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createTradingAccountRepository, ensureWorkspaceForUser } from "@/db/repositories/workspaces";
@@ -8,6 +8,7 @@ import { getUserTimeZone } from "@/db/repositories/preferences";
 import { getDb } from "@/db/server";
 import { getAuth } from "@/lib/auth-server";
 import { isTotpEnrolled } from "@/lib/auth-totp";
+import { MARKET_CURRENCY_COOKIE, parseMarketCurrency } from "@/lib/market-mode";
 
 export async function requireWorkspaceSession() {
   const session = await getAuth().api.getSession({ headers: await headers() }).catch(() => null);
@@ -29,6 +30,7 @@ export async function requireWorkspaceSession() {
     getUserTimeZone(getDb(), user.id),
   ]);
   if (!account) throw new Error("Your default trading account is unavailable.");
+  const marketCurrency = parseMarketCurrency((await cookies()).get(MARKET_CURRENCY_COOKIE)?.value, account.defaultCurrency);
 
-  return { session, scope, account, timeZone, shellUser: { displayName, username } };
+  return { session, scope, account, timeZone, shellUser: { displayName, username, currency: marketCurrency } };
 }

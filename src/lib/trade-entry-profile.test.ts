@@ -35,7 +35,8 @@ describe("adaptive trade-entry classification", () => {
     });
     expect(tradeEntryProfile("Forex", "international")).toMatchObject({
       symbolLabel: "Currency pair",
-      showFxConversion: true,
+      symbolPlaceholder: "EURUSD, GBPUSD, AUDUSD",
+      showMultiplier: true,
     });
     expect(tradeEntryProfile("Equity", "domestic")).toMatchObject({ quantityLabel: "Shares", showMultiplier: false });
   });

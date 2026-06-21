@@ -7,10 +7,10 @@ test.use({ storageState: AUTH_STATE });
 test("Add Trade previews risk, saves, and renders in My Trades", async ({ page }, testInfo) => {
   await page.goto("/trades/new");
   await expect(page.getByRole("heading", { name: "Add trade", level: 1 })).toBeVisible();
-  await page.getByRole("button", { name: "Switch to International/Forex Trades" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByLabel("Trade currency")).toHaveValue("USD");
   await expect(page.getByLabel("Currency pair")).toBeVisible();
-  await expect(page.getByLabel("Quote-to-USD conversion")).toBeVisible();
+  await expect(page.getByText(/automatic risk and price-based P&L assume a USD-quoted pair/i)).toBeVisible();
   await page.getByRole("button", { name: "Switch to Indian/INR Trades" }).click();
   await expect(page.getByLabel("Trade currency")).toHaveValue("INR");
   await page.getByText("Futures", { exact: true }).click();

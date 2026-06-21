@@ -39,7 +39,7 @@ setup("create an authenticated session", async ({ page }) => {
 
   async function addClosedTrade(symbol: string, currency: "INR" | "USD", entry: string, exit: string, stop: string, target: string, favorable: string, adverse: string) {
     await page.goto("/trades/new");
-    if (currency === "USD") await page.getByRole("button", { name: "Switch to International/Forex Trades" }).click();
+    if (currency === "USD") await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
     await page.getByLabel(currency === "USD" ? "Currency pair" : "Stock symbol").fill(symbol);
     await page.getByLabel("Entry date & time").fill("2026-06-10T09:00");
     await page.getByLabel("Entry price").fill(entry);
@@ -55,6 +55,7 @@ setup("create an authenticated session", async ({ page }) => {
   }
   await addClosedTrade("SETUPINR", "INR", "100", "110", "90", "120", "120", "95");
   await addClosedTrade("SETUPUSD", "USD", "200", "205", "190", "220", "215", "195");
+  await page.getByRole("button", { name: "Switch to Indian/INR Trades" }).click();
   await page.goto("/");
 
   await page.context().storageState({ path: AUTH_STATE });

@@ -32,5 +32,5 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     closeReasons: new Map(libraries.closeReasons.map(({ id, name }) => [id, name])),
   }, dashboardScope, now, timeZone);
 
-  return <AppShell user={shellUser}><ReviewDashboard analyticsByCurrency={analyticsByCurrency} scope={dashboardScope} nowIso={now.toISOString()} timeZone={timeZone} /></AppShell>;
+  return <AppShell user={shellUser}><ReviewDashboard analyticsByCurrency={analyticsByCurrency} currency={shellUser.currency} scope={dashboardScope} nowIso={now.toISOString()} timeZone={timeZone} /></AppShell>;
 }

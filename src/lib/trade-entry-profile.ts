@@ -55,7 +55,6 @@ export interface TradeEntryProfile {
   showUnderlying: boolean;
   showExpiry: boolean;
   showOptionDetails: boolean;
-  showFxConversion: boolean;
 }
 
 /** Asset-specific copy/field contract used by Add and Edit Trade. */
@@ -69,7 +68,6 @@ export function tradeEntryProfile(choice: TradeAssetChoice, mode: TradeMarketMod
     showUnderlying: false,
     showExpiry: false,
     showOptionDetails: false,
-    showFxConversion: false,
   };
 
   if (choice === "Futures") return {
@@ -105,7 +103,7 @@ export function tradeEntryProfile(choice: TradeAssetChoice, mode: TradeMarketMod
   if (choice === "Forex") return {
     ...common,
     symbolLabel: "Currency pair",
-    symbolPlaceholder: "EURUSD, GBPJPY",
+    symbolPlaceholder: "EURUSD, GBPUSD, AUDUSD",
     quantityLabel: "Position size (units)",
     multiplierLabel: "Lot multiplier",
     multiplierHint: "Use 1 for units, or the units represented by one lot.",
@@ -113,7 +111,6 @@ export function tradeEntryProfile(choice: TradeAssetChoice, mode: TradeMarketMod
     subcategoryLabel: "Pair type",
     subcategoryPlaceholder: "Major, minor, cross…",
     showMultiplier: true,
-    showFxConversion: true,
   };
   if (choice === "Crypto") return {
     ...common,

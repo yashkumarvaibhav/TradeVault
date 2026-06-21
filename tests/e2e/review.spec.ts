@@ -24,8 +24,7 @@ test("review center renders behavioral evidence and opens the review queue", asy
 
   await page.screenshot({ path: testInfo.outputPath("review-center.png"), fullPage: true, animations: "disabled" });
 
-  await page.getByRole("combobox", { name: "Currency scope" }).click();
-  await page.getByRole("option", { name: "USD" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByText(/Money metrics are isolated to/)).toContainText("USD");
 
   const reviewLink = page.locator('a[href^="/trades/"][href*="mode=review"]:visible').first();

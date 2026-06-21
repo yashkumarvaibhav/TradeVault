@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 import { signOutAction } from "@/app/login/actions";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { getAuth } from "@/lib/auth-server";
-import { getDb } from "@/db/server";
-import { getUserTimeZone } from "@/db/repositories/preferences";
-import { isTotpEnrolled } from "@/lib/auth-totp";
 import { supportedTimeZones, timeZoneLabel } from "@/lib/date-time";
+import { requireWorkspaceSession } from "@/lib/workspace-session";
 
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "./change-password-form";
@@ -40,24 +35,12 @@ function SettingsSection({ title, description, children }: {
 }
 
 export default async function SettingsPage() {
-  let session = null;
-  try {
-    session = await getAuth().api.getSession({ headers: await headers() });
-  } catch {
-    session = null;
-  }
-  if (!session) redirect("/login");
-
+  const { session, shellUser, timeZone } = await requireWorkspaceSession();
   const user = session.user;
-  // TOTP enrollment is mandatory — un-enrolled accounts finish setup before reaching Settings.
-  if (!(await isTotpEnrolled(getDb(), user.id))) redirect("/onboarding/2fa");
-
-  const displayName = user.name || user.username || "Trader";
-  const username = user.username ?? "";
-  const timeZone = await getUserTimeZone(getDb(), user.id);
+  const { displayName, username } = shellUser;
 
   return (
-    <AppShell user={{ displayName, username }}>
+    <AppShell user={shellUser}>
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <PageHeader eyebrow="Account" title="Settings" description="Manage your profile and how TradeVault looks." />
 

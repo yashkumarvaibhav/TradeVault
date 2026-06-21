@@ -16,5 +16,5 @@ export default async function AddTradePage({ searchParams }: { searchParams: Pro
   const libraries = await getTradeEntryLibraries(getDb(), scope);
   const { saved } = await searchParams;
   const initialEntryAt = dateTimeLocalValue(new Date(), timeZone);
-  return <AppShell user={shellUser}><PageHeader eyebrow={<Chip tone="accent">P2 · Trade entry</Chip>} title="Add trade" description="Capture the position quickly, with risk feedback before you commit." /><div className="mt-8"><TradeEntryForm initialEntryAt={initialEntryAt} libraries={libraries} saved={saved === "1"} timeZone={timeZone} /></div></AppShell>;
+  return <AppShell user={shellUser}><PageHeader eyebrow={<Chip tone="accent">P2 · Trade entry</Chip>} title="Add trade" description="Capture the position quickly, with risk feedback before you commit." /><div className="mt-8"><TradeEntryForm key={shellUser.currency} initialEntryAt={initialEntryAt} initialCurrency={shellUser.currency} libraries={libraries} saved={saved === "1"} timeZone={timeZone} /></div></AppShell>;
 }

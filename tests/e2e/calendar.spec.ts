@@ -31,8 +31,7 @@ test("calendar renders recent, month, year, and keyboard day activity", async ({
   await page.screenshot({ path: testInfo.outputPath("calendar-month.png"), fullPage: true, animations: "disabled" });
 
   // Currency switching replaces every money cell and day card, never combines them.
-  await page.getByRole("combobox", { name: "Currency scope" }).click();
-  await page.getByRole("option", { name: "USD" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByRole("link", { name: "View SETUPUSD trade detail" })).toBeVisible();
   await expect(page.getByText(/Money cells are isolated to/)).toContainText("USD");
   await expect(page.getByText("SETUPINR")).toHaveCount(0);

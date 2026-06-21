@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
 import { navItems } from "@/components/nav-items";
+import { MarketModeSwitch } from "@/components/market-mode-switch";
 import { ProfileMenu } from "@/components/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
@@ -15,6 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import type { Currency } from "@/lib/domain/types";
 
 // The command palette (cmdk + the search client) is closed by default on every page, so it is
 // lazily loaded on first open instead of shipping in the eager bundle of every authenticated route.
@@ -23,6 +25,7 @@ const CommandPalette = dynamic(() => import("@/components/command-palette").then
 export interface AppShellUser {
   displayName: string;
   username: string;
+  currency?: Currency;
 }
 
 function Navigation({ mobile = false, user }: { mobile?: boolean; user: AppShellUser }) {
@@ -174,6 +177,8 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               <Link href="/trades/new"><Plus aria-hidden="true" /><span className="hidden sm:inline">Add trade</span></Link>
             </Button>
           </header>
+
+          <MarketModeSwitch currency={user.currency ?? "INR"} />
 
           <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children}

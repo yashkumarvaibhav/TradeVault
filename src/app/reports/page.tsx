@@ -37,7 +37,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     <AppShell user={shellUser}>
       <ReportsWorkspace
         accountName={account.name}
-        defaultCurrency={account.defaultCurrency}
+        currency={shellUser.currency}
         analyticsByCurrency={analyticsByCurrency}
         scope={reportScope}
         timeZone={timeZone}

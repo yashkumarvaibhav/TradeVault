@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { AlertCircle, ArrowLeftRight, Calculator, Check, Globe2, Plus } from "lucide-react";
+import { AlertCircle, Calculator, Check, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ export function TradeEntryForm({
   hiddenFields,
   cancelHref = "/trades",
   timeZone = DEFAULT_TIME_ZONE,
+  initialCurrency: preferredCurrency = "INR",
 }: {
   initialEntryAt: string;
   libraries: TradeEntryLibraries;
@@ -77,17 +78,17 @@ export function TradeEntryForm({
   hiddenFields?: Record<string, string>;
   cancelHref?: string;
   timeZone?: string;
+  initialCurrency?: Currency;
 }) {
   const isEdit = mode === "edit";
   const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, {});
-  const initialAssetClass = initialValues?.assetClass ?? "Equity";
+  const initialTradeCurrency = initialValues?.currency ?? preferredCurrency;
+  const initialAssetClass = initialValues?.assetClass ?? (initialTradeCurrency === "USD" ? "Forex" : "Equity");
   const initialInstrumentType = initialValues?.instrumentType ?? "Cash";
-  const initialCurrency = initialValues?.currency ?? "INR";
-  const [marketMode, setMarketMode] = React.useState<TradeMarketMode>(() => marketModeForTrade(initialCurrency));
   const [assetChoice, setAssetChoice] = React.useState<TradeAssetChoice>(() => assetChoiceForStored(initialAssetClass, initialInstrumentType));
   const [v, setV] = React.useState<Values>({
-    symbol: "", assetClass: "Equity", instrumentType: "Cash", direction: "Long", status: "open",
-    currency: "INR", entryAt: initialEntryAt, entryPrice: "", exitAt: "", exitPrice: "", quantity: "1",
+    symbol: "", assetClass: initialAssetClass, instrumentType: initialInstrumentType, direction: "Long", status: "open",
+    currency: initialTradeCurrency, entryAt: initialEntryAt, entryPrice: "", exitAt: "", exitPrice: "", quantity: "1",
     multiplier: "1", stopLoss: "", plannedTarget: "", manualPnl: "", fees: "0", fxToAccount: "1",
     mfePrice: "", maePrice: "", confidence: "", emotion: "", subcategory: "", tradingStyle: "", platform: "", strategyId: "",
     playbookId: "", closeReasonId: "", expiryDate: "", optionSide: "", strikePrice: "",
@@ -109,6 +110,7 @@ export function TradeEntryForm({
     confidence: numberOrNull(v.confidence),
   });
   const errors = state.fieldErrors ?? {};
+  const marketMode: TradeMarketMode = marketModeForTrade(v.currency);
   const profile = tradeEntryProfile(assetChoice, marketMode);
   const assetChoices = marketMode === "domestic" ? domesticAssetChoices : internationalAssetChoices;
   const money = (amount: number | null) => amount == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: v.currency, maximumFractionDigits: v.currency === "INR" ? 0 : 2 }).format(amount);
@@ -120,8 +122,8 @@ export function TradeEntryForm({
   };
   const applyInstrumentDefaults = (symbol: string) => {
     const normalized = symbol.trim().toUpperCase();
-    const savedInstrument = libraries.instruments.find((item) => item.symbol === normalized && item.instrumentType === v.instrumentType)
-      ?? libraries.instruments.find((item) => item.symbol === normalized);
+    const savedInstrument = libraries.instruments.find((item) => item.symbol === normalized && item.instrumentType === v.instrumentType && item.currency === v.currency)
+      ?? libraries.instruments.find((item) => item.symbol === normalized && item.currency === v.currency);
     if (!savedInstrument) {
       update("symbol", normalized);
       setDefaultsApplied("");
@@ -142,7 +144,6 @@ export function TradeEntryForm({
       multiplier: savedInstrument.multiplier ?? current.multiplier,
       platform: savedInstrument.platform ?? "",
     }));
-    setMarketMode(marketModeForTrade(savedInstrument.currency));
     setAssetChoice(assetChoiceForStored(savedInstrument.assetClass, savedInstrument.instrumentType));
     setDefaultsApplied(`Saved defaults applied for ${savedInstrument.symbol}.`);
   };
@@ -161,27 +162,6 @@ export function TradeEntryForm({
     }));
     setDefaultsApplied("");
   };
-  const switchMarket = () => {
-    const nextMode: TradeMarketMode = marketMode === "domestic" ? "international" : "domestic";
-    const nextChoice: TradeAssetChoice = nextMode === "international" ? "Forex" : "Equity";
-    const next = classificationForChoice(nextChoice, nextMode);
-    setMarketMode(nextMode);
-    setAssetChoice(nextChoice);
-    setV((current) => ({
-      ...current,
-      ...next,
-      symbol: "",
-      quantity: "1",
-      multiplier: "1",
-      subcategory: "",
-      expiryDate: "",
-      optionSide: "",
-      strikePrice: "",
-      manualPnl: "",
-      fxToAccount: "1",
-    }));
-    setDefaultsApplied("");
-  };
   const applyChecklistTemplate = (id: string) => {
     setTemplateId(id);
     const template = libraries.checklistTemplates.find((item) => item.id === id);
@@ -197,15 +177,7 @@ export function TradeEntryForm({
     <input type="hidden" name="instrumentType" value={v.instrumentType} />
     <input type="hidden" name="currency" value={v.currency} />
     {!profile.showMultiplier ? <input type="hidden" name="multiplier" value="1" /> : null}
-    {!profile.showFxConversion ? <input type="hidden" name="fxToAccount" value="1" /> : null}
-
-    <section className="mb-6 flex flex-col gap-4 rounded-lg border border-line-strong bg-accent-soft p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-raised text-accent"><Globe2 className="size-5" aria-hidden="true" /></span>
-        <div><p className="font-serif text-lg text-ink">{marketMode === "domestic" ? "Indian trades" : "International & Forex trades"}</p><p className="text-sm text-muted">{marketMode === "domestic" ? "INR workspace · Indian equities, indices and derivatives" : "USD workspace · Forex and international markets"}</p></div>
-      </div>
-      <Button type="button" variant="secondary" onClick={switchMarket}><ArrowLeftRight aria-hidden="true" />{marketMode === "domestic" ? "Switch to International/Forex Trades" : "Switch to Indian/INR Trades"}</Button>
-    </section>
+    <input type="hidden" name="fxToAccount" value={v.fxToAccount || "1"} />
 
     <fieldset className="mb-6"><legend className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted">Asset class</legend><p className="mb-3 text-sm text-muted">Choose the trade structure—the form will show only the fields that matter.</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">{assetChoices.map((asset) => <label key={asset} className={cn("flex min-h-11 cursor-pointer items-center justify-center rounded-md border px-3 text-center text-sm font-semibold transition-colors", assetChoice === asset ? "border-line-strong bg-accent-soft text-ink" : "border-line bg-raised text-muted hover:bg-hover")}><input type="radio" name="assetChoice" value={asset} checked={assetChoice === asset} onChange={() => chooseAsset(asset)} className="sr-only" />{asset === "Equity" && marketMode === "international" ? "US Equity" : asset}</label>)}</div></fieldset>
 
@@ -222,8 +194,7 @@ export function TradeEntryForm({
             <fieldset className="space-y-1.5"><legend className="text-sm font-medium text-ink">Direction</legend><div className="grid grid-cols-2 gap-2">{(["Long", "Short"] as Direction[]).map((direction) => <label key={direction} className={cn("flex min-h-11 cursor-pointer items-center justify-center rounded-md border text-sm font-semibold", v.direction === direction ? "border-line-strong bg-accent-soft text-ink" : "border-line text-muted")}><input className="sr-only" type="radio" name="direction" value={direction} checked={v.direction === direction} onChange={() => update("direction", direction)} />{direction}</label>)}</div></fieldset>
             <Field label={profile.quantityLabel} name="quantity" error={errors.quantity}><Input id="quantity" name="quantity" type="number" min="0" step="any" value={v.quantity} onChange={(e) => update("quantity", e.target.value)} aria-invalid={!!errors.quantity} /></Field>
             {profile.showMultiplier ? <Field label={profile.multiplierLabel} name="multiplier" error={errors.multiplier} hint={profile.multiplierHint}><Input id="multiplier" name="multiplier" type="number" min="0" step="any" value={v.multiplier} onChange={(e) => update("multiplier", e.target.value)} aria-invalid={!!errors.multiplier} /></Field> : null}
-            {profile.showFxConversion ? <Field label="Quote-to-USD conversion" name="fxToAccount" error={errors.fxToAccount} hint="Use 1 when the pair is already quoted in USD; otherwise enter the conversion factor."><Input id="fxToAccount" name="fxToAccount" type="number" min="0" step="any" value={v.fxToAccount} onChange={(e) => update("fxToAccount", e.target.value)} aria-invalid={!!errors.fxToAccount} /></Field> : null}
-          </div>
+          </div>{assetChoice === "Forex" ? <p className="mt-4 rounded-md border border-line bg-sidebar px-3 py-2 text-xs leading-relaxed text-muted"><strong className="text-ink">Forex calculation:</strong> automatic risk and price-based P&amp;L assume a USD-quoted pair such as EURUSD. For a pair quoted in another currency, enter the final signed USD result under Manual P&amp;L when closing the trade.</p> : null}
         </section>
 
         <section className="rounded-lg border border-line bg-raised p-5"><h2 className="font-serif text-xl text-ink">Entry, risk & target</h2><p className="mb-5 text-sm text-muted">Directional checks update as you type.</p><div className="grid gap-4 sm:grid-cols-2">

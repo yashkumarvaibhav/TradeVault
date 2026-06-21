@@ -1,6 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 import { AppShell } from "@/components/app-shell";
 import { OverviewDashboard, type PreviewData } from "./overview-dashboard";
@@ -21,7 +26,7 @@ const scope = { period: "all", asset: "Overall", month: "2026-06" } as const;
 describe("overview visual milestone", () => {
   it("keeps money metrics in the selected currency and switches the whole view", async () => {
     const user = userEvent.setup();
-    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" scope={scope} />);
+    const { rerender } = render(<OverviewDashboard dataByCurrency={dataByCurrency} currency="INR" displayName="Yash" asOf="20 June 2026" scope={scope} />);
 
     expect(screen.getAllByText("₹18,420")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("INR");
@@ -37,9 +42,7 @@ describe("overview visual milestone", () => {
     await user.click(screen.getByRole("tab", { name: "Outcome intensity" }));
     expect(screen.getByRole("img", { name: /Daily outcome intensity heatmap/i })).toBeVisible();
 
-    const currency = screen.getByRole("combobox", { name: "Currency scope" });
-    await user.click(currency);
-    await user.click(screen.getByRole("option", { name: "USD" }));
+    rerender(<OverviewDashboard dataByCurrency={dataByCurrency} currency="USD" displayName="Yash" asOf="20 June 2026" scope={scope} />);
 
     expect(screen.getAllByText("$486.75")[0]).toBeVisible();
     expect(screen.getByText(/Money metrics are isolated to/)).toHaveTextContent("USD");
@@ -48,7 +51,7 @@ describe("overview visual milestone", () => {
   });
 
   it("deep-links recent trades and open positions and reflects active scope", () => {
-    render(<OverviewDashboard dataByCurrency={dataByCurrency} displayName="Yash" asOf="20 June 2026" scope={{ period: "30d", asset: "Forex", month: "2026-06" }} />);
+    render(<OverviewDashboard dataByCurrency={dataByCurrency} currency="INR" displayName="Yash" asOf="20 June 2026" scope={{ period: "30d", asset: "Forex", month: "2026-06" }} />);
     expect(screen.getByRole("link", { name: /TEST/ })).toHaveAttribute("href", "/trades/trade-1");
     expect(screen.getByRole("link", { name: /OPENPOS/ })).toHaveAttribute("href", "/trades/open-1");
     expect(screen.getByRole("link", { name: "Review closed trades" })).toHaveAttribute("href", "/review#review-queue");

@@ -277,17 +277,15 @@ function YearGrid({ data, currency, year, selected, onSelect }: { data: Calendar
   </>;
 }
 
-function CalendarScope({ asset, currency, timeZone, onAsset, onCurrency }: { asset: ScopeAsset; currency: Currency; timeZone: string; onAsset: (asset: ScopeAsset) => void; onCurrency: (currency: Currency) => void }) {
-  return <ScopeToolbar label="Calendar scope" note={<>Money cells are isolated to <strong className="text-ink">{currency}</strong>. INR and USD are never combined; switching asset or currency recomputes every day. Dates use <strong className="text-ink">{timeZone}</strong>. <Link href="/settings" className="font-semibold text-accent underline-offset-2 hover:underline">Change</Link></>}>
+function CalendarScope({ asset, currency, timeZone, onAsset }: { asset: ScopeAsset; currency: Currency; timeZone: string; onAsset: (asset: ScopeAsset) => void }) {
+  return <ScopeToolbar label="Calendar scope" note={<>Money cells are isolated to the global <strong className="text-ink">{currency}</strong> workspace. INR and USD are never combined; switching asset recomputes every day. Dates use <strong className="text-ink">{timeZone}</strong>. <Link href="/settings" className="font-semibold text-accent underline-offset-2 hover:underline">Change</Link></>}>
     <ScopeField label="Asset"><Select value={asset} onValueChange={(value) => onAsset(value as ScopeAsset)}><SelectTrigger aria-label="Asset class scope" className="w-full sm:w-44"><SelectValue /></SelectTrigger><SelectContent>{ASSET_OPTIONS.map((option) => <SelectItem value={option} key={option}>{option}</SelectItem>)}</SelectContent></Select></ScopeField>
-    <ScopeField label="Currency"><Select value={currency} onValueChange={(value) => onCurrency(value as Currency)}><SelectTrigger aria-label="Currency scope" className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="INR">INR</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent></Select></ScopeField>
   </ScopeToolbar>;
 }
 
-export function CalendarDashboard({ dataByAsset, nowIso, initialMode = "month", initialMonth, initialYear, initialDay, initialFrom, initialTo, initialAsset = "Overall", initialCurrency = "INR", rangeError, timeZone = DEFAULT_TIME_ZONE }: { dataByAsset: CalendarDataByAsset; nowIso: string; initialMode?: CalendarMode; initialMonth: string; initialYear: number; initialDay?: string; initialFrom?: string; initialTo?: string; initialAsset?: ScopeAsset; initialCurrency?: Currency; rangeError?: string; timeZone?: string }) {
+export function CalendarDashboard({ dataByAsset, nowIso, initialMode = "month", initialMonth, initialYear, initialDay, initialFrom, initialTo, initialAsset = "Overall", currency, rangeError, timeZone = DEFAULT_TIME_ZONE }: { dataByAsset: CalendarDataByAsset; nowIso: string; initialMode?: CalendarMode; initialMonth: string; initialYear: number; initialDay?: string; initialFrom?: string; initialTo?: string; initialAsset?: ScopeAsset; currency: Currency; rangeError?: string; timeZone?: string }) {
   const now = React.useMemo(() => utcDate(dateKeyInTimeZone(new Date(nowIso), timeZone)), [nowIso, timeZone]);
   const [asset, setAsset] = React.useState<ScopeAsset>(initialAsset);
-  const [currency, setCurrency] = React.useState<Currency>(initialCurrency);
   const [mode, setModeState] = React.useState<CalendarMode>(initialMode);
   const [month, setMonth] = React.useState(initialMonth);
   const [year, setYear] = React.useState(initialYear);
@@ -321,17 +319,12 @@ export function CalendarDashboard({ dataByAsset, nowIso, initialMode = "month", 
     setAsset(next);
     pickFor(dataByAsset[next][currency], mode, month, year);
   }
-  function changeCurrency(next: Currency) {
-    setCurrency(next);
-    pickFor(dataByAsset[asset][next], mode, month, year);
-  }
-
   return <div className="space-y-6 lg:space-y-8">
-    <PageHeader eyebrow={<><Chip tone="accent">Trading calendar</Chip><Chip>{dataByAsset.Overall.INR.totalClosed + dataByAsset.Overall.USD.totalClosed} closed outcomes</Chip></>} title="Calendar" description="When did results and reviews happen? Every money cell stays inside one currency, and a no-trade day is never painted as zero." actions={<Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button>} />
-    <CalendarScope asset={asset} currency={currency} timeZone={timeZone} onAsset={changeAsset} onCurrency={changeCurrency} />
+    <PageHeader eyebrow={<><Chip tone="accent">Trading calendar</Chip><Chip>{dataByAsset.Overall[currency].totalClosed} {currency} closed outcomes</Chip></>} title="Calendar" description="When did results and reviews happen? Every money cell stays inside one currency, and a no-trade day is never painted as zero." actions={<Button asChild size="compact"><Link href="/trades/new"><Plus aria-hidden="true" />Add trade</Link></Button>} />
+    <CalendarScope asset={asset} currency={currency} timeZone={timeZone} onAsset={changeAsset} />
     <Card>
       <CardHeader className="flex-col sm:flex-row sm:items-center"><div><CardTitle>Calendar mode</CardTitle><CardDescription>{mode === "recent" || mode === "custom" ? `${longDate(dateKey(visibleRange.start))}–${longDate(dateKey(visibleRange.end))}` : mode === "month" ? monthLabel(month) : String(year)} · exit-date outcomes and actual review dates</CardDescription></div><SegmentedControl type="single" value={mode} onValueChange={(value) => value && setMode(value as CalendarMode)} aria-label="Calendar mode"><SegmentedControlItem value="recent">Recent</SegmentedControlItem><SegmentedControlItem value="month">Month</SegmentedControlItem><SegmentedControlItem value="year">Year</SegmentedControlItem><SegmentedControlItem value="custom">Custom</SegmentedControlItem></SegmentedControl></CardHeader>
-      {mode === "custom" ? <CardContent><form action="/calendar" method="get" className="grid gap-3 rounded-md border border-line bg-page p-3 sm:grid-cols-[minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_auto] sm:items-end"><input type="hidden" name="mode" value="custom" /><input type="hidden" name="asset" value={asset} /><input type="hidden" name="currency" value={currency} /><label className="text-xs font-semibold text-muted">From<input type="date" name="from" required defaultValue={initialFrom} className="mt-1 h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink" /></label><label className="text-xs font-semibold text-muted">To<input type="date" name="to" required defaultValue={initialTo} className="mt-1 h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink" /></label><Button type="submit" variant="outline">Apply range</Button></form>{rangeError ? <p role="alert" className="mt-2 text-xs font-semibold text-danger">{rangeError}</p> : null}</CardContent> : null}
+      {mode === "custom" ? <CardContent><form action="/calendar" method="get" className="grid gap-3 rounded-md border border-line bg-page p-3 sm:grid-cols-[minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_auto] sm:items-end"><input type="hidden" name="mode" value="custom" /><input type="hidden" name="asset" value={asset} /><label className="text-xs font-semibold text-muted">From<input type="date" name="from" required defaultValue={initialFrom} className="mt-1 h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink" /></label><label className="text-xs font-semibold text-muted">To<input type="date" name="to" required defaultValue={initialTo} className="mt-1 h-11 w-full rounded-md border border-line bg-raised px-3 text-sm text-ink" /></label><Button type="submit" variant="outline">Apply range</Button></form>{rangeError ? <p role="alert" className="mt-2 text-xs font-semibold text-danger">{rangeError}</p> : null}</CardContent> : null}
     </Card>
     <section className="grid min-w-0 gap-4 xl:grid-cols-12" aria-label={`${mode} calendar and selected day activity`}>
       <Card className="min-w-0 xl:col-span-8 2xl:col-span-9">

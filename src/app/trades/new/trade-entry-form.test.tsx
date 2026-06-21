@@ -42,9 +42,9 @@ describe("trade entry libraries", () => {
     expect(screen.getAllByRole("checkbox")).toHaveLength(2);
   });
 
-  it("switches between INR and international forms and reveals only relevant fields", async () => {
+  it("inherits the global market currency and reveals only relevant asset fields", async () => {
     const user = userEvent.setup();
-    render(<TradeEntryForm initialEntryAt="2026-06-20T09:15" libraries={{ ...libraries, instruments: [] }} />);
+    const { rerender } = render(<TradeEntryForm initialEntryAt="2026-06-20T09:15" initialCurrency="INR" libraries={{ ...libraries, instruments: [] }} />);
 
     expect(screen.getByLabelText("Trade currency")).toHaveValue("INR");
     expect(screen.getByLabelText("Shares")).toBeInTheDocument();
@@ -56,11 +56,11 @@ describe("trade entry libraries", () => {
     expect(screen.getByLabelText("Strike price (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Entry premium")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Switch to International/Forex Trades" }));
+    rerender(<TradeEntryForm key="USD" initialEntryAt="2026-06-20T09:15" initialCurrency="USD" libraries={{ ...libraries, instruments: [] }} />);
     expect(screen.getByLabelText("Trade currency")).toHaveValue("USD");
     expect(screen.getByLabelText("Currency pair")).toBeInTheDocument();
     expect(screen.getByLabelText("Position size (units)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Quote-to-USD conversion")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch to Indian/INR Trades" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Quote-to-USD conversion")).not.toBeInTheDocument();
+    expect(screen.getByText(/automatic risk and price-based P&L assume a USD-quoted pair/i)).toBeVisible();
   });
 });

@@ -85,6 +85,8 @@ test.describe("authenticated core routes", () => {
     test(`${route.name} has no WCAG A/AA violations`, async ({ page }) => {
       await page.goto(route.path);
       await waitForContent(page);
+      await expect(page.getByRole("region", { name: "Active trade market" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Switch to International/USD Trades" })).toBeVisible();
       await audit(page);
     });
   }

@@ -27,7 +27,7 @@ const dataByAsset = Object.fromEntries(ASSET_OPTIONS.map((asset) => [asset, { IN
 describe("CalendarDashboard", () => {
   it("shows selected-day evidence, switches modes, and keeps currencies isolated", async () => {
     const user = userEvent.setup();
-    render(<CalendarDashboard dataByAsset={dataByAsset} nowIso="2026-06-20T12:00:00Z" initialMonth="2026-06" initialYear={2026} initialDay="2026-06-10" />);
+    const { rerender } = render(<CalendarDashboard key="INR" dataByAsset={dataByAsset} currency="INR" nowIso="2026-06-20T12:00:00Z" initialMonth="2026-06" initialYear={2026} initialDay="2026-06-10" />);
 
     expect(screen.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
     expect(screen.getByRole("link", { name: "View TESTINR trade detail" })).toHaveAttribute("href", "/trades/trade-1");
@@ -36,8 +36,7 @@ describe("CalendarDashboard", () => {
     await user.click(screen.getByRole("radio", { name: "Year" }));
     expect(screen.getByRole("heading", { name: "2026 intensity" })).toBeVisible();
 
-    await user.click(screen.getByRole("combobox", { name: "Currency scope" }));
-    await user.click(screen.getByRole("option", { name: "USD" }));
+    rerender(<CalendarDashboard key="USD" dataByAsset={dataByAsset} currency="USD" nowIso="2026-06-20T12:00:00Z" initialMonth="2026-06" initialYear={2026} initialDay="2026-06-11" />);
     expect(screen.getByRole("link", { name: "View TESTUSD trade detail" })).toBeVisible();
     expect(screen.queryByText("TESTINR")).not.toBeInTheDocument();
     expect(screen.getByText(/Money cells are isolated to/)).toHaveTextContent("USD");

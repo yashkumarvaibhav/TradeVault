@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ScopeField, ScopeToolbar } from "@/components/layout/scope-toolbar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Currency } from "@/lib/domain/types";
 import { DEFAULT_TIME_ZONE } from "@/lib/date-time";
 import { ASSET_OPTIONS, PERIOD_OPTIONS, scopeHref, scopePeriodLabel, type DashboardScope } from "@/lib/trade-scope";
@@ -13,19 +12,17 @@ import { cn } from "@/lib/utils";
 
 /**
  * Shared dashboard scope toolbar. Date + asset scope are URL-driven (so the server recomputes the
- * page); currency is an instant client toggle. Used by the Overview and Analytics screens.
+ * page); currency comes from the persistent app-wide market workspace.
  */
 export function ScopeControls({
   basePath,
   scope,
   currency,
-  onCurrencyChange,
   timeZone = DEFAULT_TIME_ZONE,
 }: {
   basePath: string;
   scope: DashboardScope;
   currency: Currency;
-  onCurrencyChange: (currency: Currency) => void;
   timeZone?: string;
 }) {
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
@@ -93,15 +90,6 @@ export function ScopeControls({
             {ASSET_OPTIONS.map((asset) => <option key={asset} value={asset}>{asset}</option>)}
           </select>
         </form>
-      </ScopeField>
-      <ScopeField label="Currency">
-        <Select value={currency} onValueChange={(value) => onCurrencyChange(value as Currency)}>
-          <SelectTrigger aria-label="Currency scope" className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="INR">INR</SelectItem>
-            <SelectItem value="USD">USD</SelectItem>
-          </SelectContent>
-        </Select>
       </ScopeField>
     </ScopeToolbar>
   );

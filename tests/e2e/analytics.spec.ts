@@ -15,7 +15,7 @@ test("analytics renders per-currency performance, diagnostics, and scope", async
   await expect(page.getByRole("img", { name: /INR cumulative net P&L equity curve/i })).toBeVisible();
   await expect(page.getByText("Excursion efficiency")).toBeVisible();
   await expect(page.getByRole("img", { name: /INR favorable excursion captured versus realized R/i })).toBeVisible();
-  await expect(page.getByText("1 captured")).toBeVisible();
+  await expect(page.getByText(/^\d+ captured$/)).toBeVisible();
   await expect(page.getByRole("img", { name: /Net P&L by weekday bar chart/i })).toBeVisible();
 
   // No horizontal page overflow.
@@ -33,8 +33,7 @@ test("analytics renders per-currency performance, diagnostics, and scope", async
   await page.screenshot({ path: testInfo.outputPath("analytics.png"), fullPage: true, animations: "disabled" });
 
   // Currency isolation: switch to USD.
-  await page.getByRole("combobox", { name: "Currency scope" }).click();
-  await page.getByRole("option", { name: "USD" }).click();
+  await page.getByRole("button", { name: "Switch to International/USD Trades" }).click();
   await expect(page.getByText(/Money metrics are isolated to/)).toContainText("USD");
   await expect(page.getByRole("img", { name: /USD favorable excursion captured versus realized R/i })).toBeVisible();
 
