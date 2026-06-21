@@ -180,7 +180,10 @@ h1, h2, h3, h4 {
 }
 
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
+  /* The polished report is the server-generated A4-portrait PDF (Download PDF
+     report). This block only keeps an in-browser Ctrl+P of the live preview from
+     looking broken — portrait, light, with the configurator hidden. */
+  @page { size: A4 portrait; margin: 12mm; }
   [data-sonner-toaster], .print-hidden, aside, body > next-route-announcer { display: none !important; }
   html, body { background: #ffffff !important; color: #333333 !important; }
   body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }

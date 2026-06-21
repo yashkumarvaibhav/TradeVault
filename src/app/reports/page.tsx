@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Reports · TradeVault",
-  description: "Printable, currency-scoped trading performance reports and private JSON backups.",
+  description: "Polished PDF, currency-scoped trading performance reports and private JSON backups.",
 };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; asset?: string; from?: string; to?: string }> }) {

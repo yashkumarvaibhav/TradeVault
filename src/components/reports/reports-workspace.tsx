@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, FileJson, Printer, RotateCcw, ShieldCheck, Upload } from "lucide-react";
+import { Download, FileJson, FileText, RotateCcw, ShieldCheck, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -151,10 +151,23 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
   const tradeCount = data?.totalTrades ?? 0;
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
 
+  // Link to the server-generated PDF for the active scope + currency. The PDF is
+  // rendered identically regardless of the viewer's theme/device, unlike browser
+  // print which followed the live (possibly dark, possibly mobile) page.
+  const pdfParams = new URLSearchParams();
+  if (scope.period !== "all") pdfParams.set("period", scope.period);
+  if (scope.period === "custom") {
+    if (scope.from) pdfParams.set("from", scope.from);
+    if (scope.to) pdfParams.set("to", scope.to);
+  }
+  if (scope.asset !== "Overall") pdfParams.set("asset", scope.asset);
+  pdfParams.set("currency", currency);
+  const pdfHref = `/api/reports/pdf?${pdfParams.toString()}`;
+
   return (
     <div className="space-y-6 lg:space-y-8">
       <div className="print-hidden">
-        <PageHeader eyebrow={<><Chip tone="accent">Reports</Chip><Chip>{tradeCount} closed trades · {currency}</Chip></>} title="Reports & backups" description="Build a print-ready performance report, export a private JSON backup, or restore a TradeVault v1–v3 export." actions={scopeActive ? <Button asChild variant="outline" size="compact"><Link href="/reports"><RotateCcw aria-hidden="true" />Reset scope</Link></Button> : undefined} />
+        <PageHeader eyebrow={<><Chip tone="accent">Reports</Chip><Chip>{tradeCount} closed trades · {currency}</Chip></>} title="Reports & backups" description="Download a polished PDF performance report, export a private JSON backup, or restore a TradeVault v1–v3 export." actions={scopeActive ? <Button asChild variant="outline" size="compact"><Link href="/reports"><RotateCcw aria-hidden="true" />Reset scope</Link></Button> : undefined} />
       </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[19rem_minmax(0,1fr)]">
@@ -188,7 +201,12 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
               </form>
               <fieldset><legend className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Currency</legend><SegmentedControl type="single" value={currency} onValueChange={(value) => value && setCurrency(value as Currency)} aria-label="Report currency" className="mt-2 w-full"><SegmentedControlItem value="INR" className="flex-1">INR</SegmentedControlItem><SegmentedControlItem value="USD" className="flex-1">USD</SegmentedControlItem></SegmentedControl></fieldset>
               <div className="rounded-md border border-line bg-sidebar p-3"><p className="text-xs font-semibold text-ink">{tradeCount} closed trades</p><p className="mt-1 text-xs leading-relaxed text-muted">{scopePeriodLabel(scope)} · {scope.asset} · {currency}</p></div>
-              <Button type="button" className="w-full" onClick={() => window.print()}><Printer aria-hidden="true" />Print / Save PDF</Button>
+              {data ? (
+                <Button asChild className="w-full"><a href={pdfHref}><FileText aria-hidden="true" />Download PDF report</a></Button>
+              ) : (
+                <Button type="button" className="w-full" disabled><FileText aria-hidden="true" />Download PDF report</Button>
+              )}
+              <p className="text-xs leading-relaxed text-muted">A4 portrait · {currency} only · the same polished layout on every device, light or dark.</p>
             </CardContent>
           </Card>
 
