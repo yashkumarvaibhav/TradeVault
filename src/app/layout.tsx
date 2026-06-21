@@ -13,7 +13,7 @@ const newsreader = Newsreader({
 
 const SITE_URL = "https://tradevault.yashkumarvaibhav.me";
 const SITE_DESCRIPTION =
-  "TradeVault is a free, private trading journal and post-trade review workspace — honest per-currency analytics, Risk Studio, and disciplined review, with INR and USD never mixed.";
+  "TradeVault is a private trading journal and post-trade review workspace — honest per-currency analytics, Risk Studio, and disciplined review, with INR and USD never mixed. Free to start.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

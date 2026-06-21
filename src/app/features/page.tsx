@@ -54,7 +54,7 @@ export default function FeaturesPage() {
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
           <Button asChild size="lg">
-            <Link href="/signup">Get started — it&apos;s free<ArrowRight aria-hidden="true" /></Link>
+            <Link href="/signup">Get started free<ArrowRight aria-hidden="true" /></Link>
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/faq">Read the FAQ</Link>

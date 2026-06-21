@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Create your account · TradeVault",
-  description: "Create a free TradeVault account — username and password only, no email required.",
+  description: "Create your TradeVault account — username and password only, no email required. Free to start.",
 };
 
 export default function SignupPage() {

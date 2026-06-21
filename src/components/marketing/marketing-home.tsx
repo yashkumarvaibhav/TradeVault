@@ -42,12 +42,16 @@ export function MarketingHome() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg">
-              <Link href="/signup">Get started — it&apos;s free<ArrowRight aria-hidden="true" /></Link>
+              <Link href="/signup">Get started free<ArrowRight aria-hidden="true" /></Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/features">See what&apos;s inside</Link>
             </Button>
           </div>
+          <p className="mt-4 text-sm text-muted">
+            Free while we&apos;re in early access — no card required. Paid plans are coming, and the core
+            journaling and review features will always have a free tier.
+          </p>
         </div>
       </section>
 
@@ -112,7 +116,7 @@ export function MarketingHome() {
         <div className="mx-auto w-full max-w-[1240px] px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
           <h2 className="font-serif text-3xl tracking-[-0.02em] text-ink sm:text-4xl">Start your journal today</h2>
           <p className="mx-auto mt-3 max-w-xl text-body">
-            Free, private, and ready in under a minute — username and password only, no email required.
+            Free to start, private, and ready in under a minute — username and password only, no email required.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <Button asChild size="lg">

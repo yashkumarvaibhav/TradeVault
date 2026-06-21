@@ -27,8 +27,8 @@ export function SiteFooter() {
         <div className="max-w-xs">
           <Wordmark widthClass="w-36" />
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            A private trading journal and post-trade review workspace. Free, and built so INR and USD are
-            never mixed.
+            A private trading journal and post-trade review workspace. Free to start, and built so INR and USD
+            are never mixed.
           </p>
         </div>
 

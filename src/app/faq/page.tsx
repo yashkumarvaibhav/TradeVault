@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "FAQ · TradeVault",
   description:
-    "Common questions about TradeVault — pricing, sign-up, privacy, currency handling, importing data, and what you can log.",
+    "Common questions about TradeVault — pricing and plans, sign-up, privacy, currency handling, importing data, and what you can log.",
   alternates: { canonical: "/faq" },
 };
 
 const FAQ: { q: string; a: string }[] = [
   {
-    q: "Is TradeVault really free?",
-    a: "Yes. There are no paid plans, no card, and no trial timer. It is free to use.",
+    q: "How much does TradeVault cost?",
+    a: "TradeVault is free to use right now while we are in early access — no card required. Paid plans are on the way, but the core journaling and post-trade review features will always have a free tier.",
   },
   {
     q: "Do I need an email to sign up?",
