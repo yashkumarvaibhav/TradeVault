@@ -43,6 +43,9 @@ function pct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 function mult(value: number): string {
+  // Keep small multiples precise but compact the large ones so they fit narrow table columns.
+  if (value >= 1000) return `${Math.round(value).toLocaleString("en-IN")}×`;
+  if (value >= 100) return `${value.toFixed(1)}×`;
   return `${value.toFixed(2)}×`;
 }
 
@@ -202,9 +205,9 @@ export function RiskStudio({
               <LabeledSelect label="Ruin at" value={ruinPct} options={RUIN_PCT_OPTIONS} format={(v) => `−${v}%`} onChange={setRuinPct} />
               <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Sizing</span>
-                <SegmentedControl type="single" value={mode} onValueChange={(value) => value && setMode(value as RiskSimMode)} aria-label="Position sizing" className="h-10">
-                  <SegmentedControlItem value="fixed" className="flex-1">Fixed</SegmentedControlItem>
-                  <SegmentedControlItem value="compound" className="flex-1">Compound</SegmentedControlItem>
+                <SegmentedControl type="single" value={mode} onValueChange={(value) => value && setMode(value as RiskSimMode)} aria-label="Position sizing" className="h-10 w-full">
+                  <SegmentedControlItem value="fixed" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">Fixed</SegmentedControlItem>
+                  <SegmentedControlItem value="compound" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">Compound</SegmentedControlItem>
                 </SegmentedControl>
               </div>
               <LabeledSelect label="Outlier stress" value={outlierCap} options={OUTLIER_OPTIONS.map((o) => o.value)} format={(v) => OUTLIER_OPTIONS.find((o) => o.value === v)?.label ?? String(v)} onChange={setOutlierCap} />
@@ -271,9 +274,9 @@ export function RiskStudio({
                         <Table className="table-fixed">
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[28%] px-2">Risk / trade</TableHead>
-                              <TableHead className="w-[24%] px-2 text-right">Risk of ruin</TableHead>
-                              <TableHead className="w-[24%] px-2 text-right">Median final</TableHead>
+                              <TableHead className="w-[26%] px-2">Risk / trade</TableHead>
+                              <TableHead className="w-[22%] px-2 text-right">Risk of ruin</TableHead>
+                              <TableHead className="w-[28%] px-2 text-right">Median final</TableHead>
                               <TableHead className="w-[24%] px-2 text-right">Max DD (95th)</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -282,9 +285,9 @@ export function RiskStudio({
                               const over = point.fraction > kelly.kellyFraction + 1e-9;
                               return (
                                 <TableRow key={point.fraction} className={cn(over && "bg-loss/[0.05]")}>
-                                  <TableCell className="px-2 font-semibold text-ink">
+                                  <TableCell className="whitespace-normal px-2 font-semibold text-ink">
                                     {pct(point.fraction)}
-                                    {Math.abs(point.fraction - kelly.kellyFraction) < 1e-9 ? <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-accent">Full Kelly</span> : over ? <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-loss">Over-bet</span> : null}
+                                    {Math.abs(point.fraction - kelly.kellyFraction) < 1e-9 ? <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-accent">Full Kelly</span> : over ? <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-loss">Over-bet</span> : null}
                                   </TableCell>
                                   <TableCell className={cn("tnum px-2 text-right", point.riskOfRuin >= 0.2 ? "text-loss" : point.riskOfRuin <= 0.05 ? "text-profit" : "text-ink")}>{pct(point.riskOfRuin)}</TableCell>
                                   <TableCell className={cn("tnum px-2 text-right", point.medianFinalEquity >= 1 ? "text-profit" : "text-loss")}>{mult(point.medianFinalEquity)}</TableCell>

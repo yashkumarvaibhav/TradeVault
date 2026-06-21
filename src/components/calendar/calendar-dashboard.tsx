@@ -133,13 +133,13 @@ function DayButton({ date, day, currency, selected, compact = false, onSelect }:
       aria-label={dayLabel(date, day, currency)}
       onClick={() => onSelect(date)}
       className={cn(
-        "tnum relative flex min-h-11 min-w-11 flex-col items-center justify-center rounded-sm border px-1 py-1 text-xs transition-colors",
+        "tnum relative flex min-h-11 w-full min-w-0 flex-col items-center justify-center rounded-sm border px-1 py-1 text-xs transition-colors",
         cellTone(day, selected),
       )}
     >
       <span className="font-semibold">{utcDate(date).getUTCDate()}</span>
       {!compact && day?.pnl != null ? <span className="max-w-full truncate text-[9px] font-semibold">{compactMoney(currency, day.pnl)}</span> : null}
-      {!compact && day?.count ? <span className="text-[9px]">{day.count} trade{day.count === 1 ? "" : "s"}</span> : null}
+      {!compact && day?.count ? <span className="max-w-full truncate text-[9px]">{day.count} trade{day.count === 1 ? "" : "s"}</span> : null}
       {day?.reviewCount ? <span className="absolute right-1 top-1 size-1.5 rounded-full bg-accent" aria-hidden="true" /> : null}
     </button>
   );
@@ -228,7 +228,7 @@ function MonthGrid({ data, currency, month, selected, onSelect }: { data: Calend
   const activity = summarize(data, range.start, range.end).days;
   return <>
     <SummaryBand data={data} currency={currency} start={range.start} end={range.end} />
-    <div className="overflow-x-auto pb-2"><div className="min-w-[36rem]"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => date.startsWith(month) ? <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} /> : <span key={date} className="min-h-11 rounded-sm bg-sidebar/40" aria-hidden="true" />)}</div></div></div>
+    <div className="overflow-x-auto pb-2"><div className="min-w-0"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => date.startsWith(month) ? <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} /> : <span key={date} className="min-h-11 rounded-sm bg-sidebar/40" aria-hidden="true" />)}</div></div></div>
     <CalendarLegend /><ActivityList days={activity} currency={currency} selected={selected} onSelect={onSelect} />
   </>;
 }
@@ -241,7 +241,7 @@ function RecentGrid({ data, currency, now, selected, onSelect }: { data: Calenda
   const activity = summarize(data, range.start, range.end).days;
   return <>
     <SummaryBand data={data} currency={currency} start={range.start} end={range.end} />
-    <div className="overflow-x-auto pb-2"><div className="min-w-[36rem]"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{columns.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} />)}</div></div></div>
+    <div className="overflow-x-auto pb-2"><div className="min-w-0"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{columns.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} />)}</div></div></div>
     <CalendarLegend /><ActivityList days={activity} currency={currency} selected={selected} onSelect={onSelect} />
   </>;
 }
@@ -254,7 +254,7 @@ function CustomGrid({ data, currency, start, end, selected, onSelect }: { data: 
   const activity = summarize(data, start, end).days;
   return <>
     <SummaryBand data={data} currency={currency} start={start} end={end} />
-    <div className="overflow-x-auto pb-2"><div className="min-w-[36rem]"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{columns.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} />)}</div></div></div>
+    <div className="overflow-x-auto pb-2"><div className="min-w-0"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{columns.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="grid grid-cols-7 gap-1.5">{dates.map((date) => <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} onSelect={onSelect} />)}</div></div></div>
     <CalendarLegend /><ActivityList days={activity} currency={currency} selected={selected} onSelect={onSelect} />
   </>;
 }
@@ -271,7 +271,7 @@ function YearGrid({ data, currency, year, selected, onSelect }: { data: Calendar
       const offset = (first.getUTCDay() + 6) % 7;
       const start = addDays(first, -offset);
       const dates = Array.from({ length: 42 }, (_, index) => dateKey(addDays(start, index)));
-      return <section key={key} className="min-w-0 rounded-md border border-line bg-page p-3" aria-label={`${monthLabel(key)} intensity`}><h3 className="mb-2 font-serif text-lg text-ink">{first.toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" })}</h3><div className="overflow-x-auto pb-1"><div className="min-w-[20rem]"><div className="mb-1 grid grid-cols-7 gap-1 text-center text-[9px] uppercase text-faint">{WEEKDAYS.map((day) => <span key={day}>{day.slice(0, 1)}</span>)}</div><div className="grid grid-cols-7 gap-1">{dates.map((date) => date.startsWith(key) ? <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} compact onSelect={onSelect} /> : <span key={date} className="min-h-11 min-w-11 rounded-sm bg-sidebar/30" aria-hidden="true" />)}</div></div></div></section>;
+      return <section key={key} className="min-w-0 rounded-md border border-line bg-page p-3" aria-label={`${monthLabel(key)} intensity`}><h3 className="mb-2 font-serif text-lg text-ink">{first.toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" })}</h3><div className="overflow-x-auto pb-1"><div className="min-w-0"><div className="mb-1 grid grid-cols-7 gap-1 text-center text-[9px] uppercase text-faint">{WEEKDAYS.map((day) => <span key={day}>{day.slice(0, 1)}</span>)}</div><div className="grid grid-cols-7 gap-1">{dates.map((date) => date.startsWith(key) ? <DayButton key={date} date={date} day={map.get(date)} currency={currency} selected={selected === date} compact onSelect={onSelect} /> : <span key={date} className="min-h-11 w-full min-w-0 rounded-sm bg-sidebar/30" aria-hidden="true" />)}</div></div></div></section>;
     })}</div>
     <CalendarLegend /><ActivityList days={activity} currency={currency} selected={selected} onSelect={onSelect} />
   </>;

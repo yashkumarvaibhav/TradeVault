@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogOut, Menu, Plus, Search, Settings, Sparkles } from "lucide-react";
+import { LogOut, Menu, Plus, Search, Settings } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
@@ -11,7 +11,6 @@ import { navItems } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Wordmark } from "@/components/wordmark";
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -26,12 +25,7 @@ export interface AppShellUser {
   username: string;
 }
 
-function initialsFor(name: string) {
-  const cleaned = name.replace(/[^a-zA-Z0-9]/g, "");
-  return (cleaned.slice(0, 2) || "TV").toUpperCase();
-}
-
-function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boolean }) {
+function Navigation({ mobile = false }: { mobile?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -84,20 +78,6 @@ function Navigation({ user, mobile = false }: { user: AppShellUser; mobile?: boo
           <Settings className={cn("size-[18px]", pathname === "/settings" && "text-accent")} aria-hidden="true" />
           Settings
         </Link>
-        <div className="mt-2 flex items-center gap-3 rounded-md border border-line bg-raised p-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-ink">
-            {initialsFor(user.displayName)}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-ink">{user.displayName}</span>
-            <span className="block text-xs text-muted">Private workspace</span>
-          </span>
-          <form action={signOutAction}>
-            <Button type="submit" variant="ghost" size="icon" aria-label="Sign out" title="Sign out">
-              <LogOut aria-hidden="true" />
-            </Button>
-          </form>
-        </div>
       </div>
     </div>
   );
@@ -134,7 +114,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
       </a>
       <div className="min-h-svh bg-page md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-line bg-sidebar md:block">
-          <Navigation user={user} />
+          <Navigation />
         </aside>
 
         <div className="min-w-0">
@@ -150,7 +130,7 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                   <SheetTitle>TradeVault navigation</SheetTitle>
                   <SheetDescription>Navigate the TradeVault workspace.</SheetDescription>
                 </div>
-                <Navigation user={user} mobile />
+                <Navigation mobile />
               </SheetContent>
             </Sheet>
 
@@ -188,13 +168,15 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
               <TooltipContent>Search &amp; commands (⌘K)</TooltipContent>
             </Tooltip>
 
-            <Chip tone="accent" className="hidden sm:inline-flex">
-              <Sparkles className="size-3.5" aria-hidden="true" /> Preview
-            </Chip>
             <ThemeToggle />
             <Button size="compact" aria-label="Add trade" asChild>
               <Link href="/trades/new"><Plus aria-hidden="true" /><span className="hidden sm:inline">Add trade</span></Link>
             </Button>
+            <form action={signOutAction}>
+              <Button type="submit" variant="ghost" size="compact" aria-label={`Log out ${user.username}`} title="Log out">
+                <LogOut aria-hidden="true" /><span className="hidden sm:inline">Log out</span>
+              </Button>
+            </form>
           </header>
 
           <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1540px] overflow-x-clip px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

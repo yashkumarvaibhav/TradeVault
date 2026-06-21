@@ -46,10 +46,10 @@ function GroupStatTable({ rows, currency, emptyLabel, label }: { rows: GroupStat
     <Table className="table-fixed" regionLabel={label}>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[40%] px-2">Name</TableHead>
-          <TableHead className="w-[15%] px-2 text-right">Trades</TableHead>
-          <TableHead className="w-[20%] px-2 text-right">Win %</TableHead>
-          <TableHead className="w-[25%] px-2 text-right">Expectancy</TableHead>
+          <TableHead className="w-[34%] px-2">Name</TableHead>
+          <TableHead className="w-[14%] px-2 text-right">Trades</TableHead>
+          <TableHead className="w-[18%] px-2 text-right">Win %</TableHead>
+          <TableHead className="w-[34%] px-2 text-right">Expectancy</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

@@ -147,7 +147,7 @@ function MetricCard({
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted">{label}</p>
         <p
           className={cn(
-            "tnum mt-2 truncate font-serif text-3xl font-medium tracking-[-0.035em] text-ink",
+            "tnum mt-2 truncate font-serif text-2xl font-medium tracking-[-0.035em] text-ink sm:text-3xl",
             tone === "profit" && "text-profit",
             tone === "warning" && "text-warn",
           )}

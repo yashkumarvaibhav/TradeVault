@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, ListChecks, LineChart, Repeat } from "lucide-react";
+import { ArrowRight, ListChecks, LineChart, Repeat } from "lucide-react";
 
 import { FEATURES } from "@/components/marketing/features";
 import { Button } from "@/components/ui/button";
@@ -20,13 +20,6 @@ const STEPS = [
     title: "Improve",
     body: "Watch expectancy, profit factor and your discipline trend in the right direction, per currency.",
   },
-];
-
-const TRUST = [
-  "Free — no paid plans, no card",
-  "Private — username-only sign-in, optional 2FA",
-  "Your data — export any time",
-  "Built for INR & USD, never mixed",
 ];
 
 export function MarketingHome() {
@@ -55,14 +48,6 @@ export function MarketingHome() {
               <Link href="/features">See what&apos;s inside</Link>
             </Button>
           </div>
-          <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
-            {TRUST.map((item) => (
-              <li key={item} className="flex items-center gap-2 text-sm text-muted">
-                <Check className="size-4 shrink-0 text-accent" aria-hidden="true" />
-                {item}
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 

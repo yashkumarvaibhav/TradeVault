@@ -36,7 +36,9 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
 }
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th className={cn("h-11 whitespace-nowrap px-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted", className)} {...props} />;
+  // Headers wrap (rather than nowrap) so dense tables stay legible on narrow viewports instead of
+  // colliding with the next column; align to the bottom so multi-line headers line up with single ones.
+  return <th className={cn("h-11 px-3 align-bottom text-xs font-semibold uppercase leading-tight tracking-[0.08em] text-muted", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
