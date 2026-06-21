@@ -7,6 +7,7 @@ import type { Currency } from "@/lib/domain/types";
 import { buildReportModel } from "@/lib/report-model";
 import { parseTradeScope, scopePeriodLabel, scopeTradeRows } from "@/lib/trade-scope";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
+import { hasSensitiveActionAuthorization, sensitiveActionDeniedResponse } from "@/lib/sensitive-reauth";
 import { renderReportPdf } from "@/server/pdf/render-report";
 
 // react-pdf reads vendored fonts/brand art from disk and bundles fontkit, so this
@@ -20,7 +21,10 @@ function slugify(value: string): string {
 
 export async function GET(request: Request) {
   // Fails closed: an unauthenticated request is redirected to /login by the session guard.
-  const { scope: tenantScope, account, timeZone } = await requireWorkspaceSession();
+  const { session, scope: tenantScope, account, timeZone } = await requireWorkspaceSession();
+  if (!(await hasSensitiveActionAuthorization({ userId: session.user.id, sessionId: session.session.id }))) {
+    return sensitiveActionDeniedResponse();
+  }
 
   const url = new URL(request.url);
   const reportScope = parseTradeScope({

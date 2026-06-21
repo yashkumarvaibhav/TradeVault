@@ -11,6 +11,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { toast } from "@/components/ui/toaster";
 import type { CurrencyAnalytics, CurrencyAnalyticsMap } from "@/lib/domain/analytics";
@@ -18,6 +21,8 @@ import type { Currency } from "@/lib/domain/types";
 import { formatDateInTimeZone } from "@/lib/date-time";
 import { ASSET_OPTIONS, PERIOD_OPTIONS, scopeHref, scopePeriodLabel, type DashboardScope } from "@/lib/trade-scope";
 import { cn } from "@/lib/utils";
+
+import { authorizeSensitiveAction } from "@/app/reports/actions";
 
 function moneyFormatter(currency: Currency) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: currency === "INR" ? 0 : 2 });
@@ -113,40 +118,90 @@ function ReportPreview({ data, currency, accountName, period, generatedAt, timeZ
   );
 }
 
-function ImportControl() {
-  const router = useRouter();
+function ImportControl({ onSelect }: { onSelect: (file: File) => void }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = React.useState(false);
-
-  async function importFile(file: File) {
-    setBusy(true);
-    const form = new FormData();
-    form.set("file", file);
-    try {
-      const response = await fetch("/api/data-transfer/import", { method: "POST", body: form });
-      const payload = await response.json() as { error?: string; details?: string[]; summary?: { trades: { imported: number; skipped: number }; notes: { imported: number; skipped: number } } };
-      if (!response.ok || !payload.summary) throw new Error([payload.error, ...(payload.details ?? [])].filter(Boolean).join(" ") || "Import failed.");
-      toast.success("Import complete", { description: `${payload.summary.trades.imported} trades and ${payload.summary.notes.imported} notes added. ${payload.summary.trades.skipped} duplicate trades skipped.` });
-      router.refresh();
-    } catch (error) {
-      toast.error("Import not applied", { description: error instanceof Error ? error.message : "The file could not be imported." });
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
 
   return (
     <>
-      <input ref={inputRef} className="sr-only" type="file" accept="application/json,.json" aria-label="Choose TradeVault JSON export to import" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importFile(file); }} />
-      <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={() => inputRef.current?.click()}><Upload aria-hidden="true" />{busy ? "Validating…" : "Import JSON"}</Button>
+      <input ref={inputRef} className="sr-only" type="file" accept="application/json,.json" aria-label="Choose TradeVault JSON export to import" onChange={(event) => { const file = event.target.files?.[0]; if (file) onSelect(file); event.currentTarget.value = ""; }} />
+      <Button type="button" variant="outline" className="w-full" onClick={() => inputRef.current?.click()}><Upload aria-hidden="true" />Import JSON</Button>
     </>
   );
 }
 
+type SensitiveIntent =
+  | { kind: "pdf"; href: string }
+  | { kind: "export" }
+  | { kind: "import"; file: File };
+
+function intentCopy(intent: SensitiveIntent | null): { title: string; action: string } {
+  if (intent?.kind === "pdf") return { title: "Download PDF report", action: "Verify & download PDF" };
+  if (intent?.kind === "export") return { title: "Export private JSON", action: "Verify & export JSON" };
+  return { title: "Import private JSON", action: "Verify & import JSON" };
+}
+
+function SensitiveActionDialog({
+  intent,
+  onClose,
+  onAuthorized,
+}: {
+  intent: SensitiveIntent | null;
+  onClose: () => void;
+  onAuthorized: (intent: SensitiveIntent) => Promise<void> | void;
+}) {
+  const [pending, startTransition] = React.useTransition();
+  const [error, setError] = React.useState<string>();
+  const copy = intentCopy(intent);
+
+  return (
+    <Dialog open={Boolean(intent)} onOpenChange={(open) => { if (!open && !pending) { setError(undefined); onClose(); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <DialogDescription>Confirm your current password, then the 6-digit code from your authenticator. Authorization lasts for two minutes on this signed-in device.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!intent) return;
+            const form = new FormData(event.currentTarget);
+            setError(undefined);
+            startTransition(async () => {
+              const result = await authorizeSensitiveAction(String(form.get("password") ?? ""), String(form.get("code") ?? ""));
+              if (!result.ok) { setError(result.error); return; }
+              const authorizedIntent = intent;
+              setError(undefined);
+              onClose();
+              await onAuthorized(authorizedIntent);
+            });
+          }}
+          noValidate
+        >
+          {error ? <p role="alert" className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="sensitive-password">Current password</Label>
+            <Input id="sensitive-password" name="password" type="password" autoComplete="current-password" autoFocus required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sensitive-code">Authenticator code</Label>
+            <Input id="sensitive-code" name="code" inputMode="numeric" autoComplete="one-time-code" className="tnum" required />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline" disabled={pending}>Cancel</Button></DialogClose>
+            <Button type="submit" disabled={pending}>{pending ? "Verifying…" : copy.action}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurrency, scope, timeZone, generatedAt }: { accountName: string; defaultCurrency: Currency; analyticsByCurrency: CurrencyAnalyticsMap; scope: DashboardScope; timeZone: string; generatedAt: string }) {
+  const router = useRouter();
   const availableDefault = analyticsByCurrency[defaultCurrency] ? defaultCurrency : analyticsByCurrency.INR ? "INR" : analyticsByCurrency.USD ? "USD" : defaultCurrency;
   const [currency, setCurrency] = React.useState<Currency>(availableDefault);
+  const [sensitiveIntent, setSensitiveIntent] = React.useState<SensitiveIntent | null>(null);
   const data = analyticsByCurrency[currency];
   const tradeCount = data?.totalTrades ?? 0;
   const scopeActive = scope.period !== "all" || scope.asset !== "Overall";
@@ -163,6 +218,32 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
   if (scope.asset !== "Overall") pdfParams.set("asset", scope.asset);
   pdfParams.set("currency", currency);
   const pdfHref = `/api/reports/pdf?${pdfParams.toString()}`;
+
+  function download(href: string) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  async function runAuthorized(intent: SensitiveIntent) {
+    if (intent.kind === "pdf") { download(intent.href); return; }
+    if (intent.kind === "export") { download("/api/data-transfer/export"); return; }
+
+    const form = new FormData();
+    form.set("file", intent.file);
+    try {
+      const response = await fetch("/api/data-transfer/import", { method: "POST", body: form });
+      const payload = await response.json() as { error?: string; details?: string[]; summary?: { trades: { imported: number; skipped: number }; notes: { imported: number; skipped: number } } };
+      if (!response.ok || !payload.summary) throw new Error([payload.error, ...(payload.details ?? [])].filter(Boolean).join(" ") || "Import failed.");
+      toast.success("Import complete", { description: `${payload.summary.trades.imported} trades and ${payload.summary.notes.imported} notes added. ${payload.summary.trades.skipped} duplicate trades skipped.` });
+      router.refresh();
+    } catch (error) {
+      toast.error("Import not applied", { description: error instanceof Error ? error.message : "The file could not be imported." });
+    }
+  }
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -202,7 +283,7 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
               <fieldset><legend className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Currency</legend><SegmentedControl type="single" value={currency} onValueChange={(value) => value && setCurrency(value as Currency)} aria-label="Report currency" className="mt-2 w-full"><SegmentedControlItem value="INR" className="flex-1">INR</SegmentedControlItem><SegmentedControlItem value="USD" className="flex-1">USD</SegmentedControlItem></SegmentedControl></fieldset>
               <div className="rounded-md border border-line bg-sidebar p-3"><p className="text-xs font-semibold text-ink">{tradeCount} closed trades</p><p className="mt-1 text-xs leading-relaxed text-muted">{scopePeriodLabel(scope)} · {scope.asset} · {currency}</p></div>
               {data ? (
-                <Button asChild className="w-full"><a href={pdfHref}><FileText aria-hidden="true" />Download PDF report</a></Button>
+                <Button type="button" className="w-full" onClick={() => setSensitiveIntent({ kind: "pdf", href: pdfHref })}><FileText aria-hidden="true" />Download PDF report</Button>
               ) : (
                 <Button type="button" className="w-full" disabled><FileText aria-hidden="true" />Download PDF report</Button>
               )}
@@ -213,8 +294,8 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
           <Card>
             <CardHeader><div><CardTitle>Private data</CardTitle><CardDescription>Portable JSON, scoped to this account.</CardDescription></div><ShieldCheck className="size-5 text-accent" aria-hidden="true" /></CardHeader>
             <CardContent className="space-y-2">
-              <Button asChild variant="secondary" className="w-full"><a href="/api/data-transfer/export"><Download aria-hidden="true" />Export JSON</a></Button>
-              <ImportControl />
+              <Button type="button" variant="secondary" className="w-full" onClick={() => setSensitiveIntent({ kind: "export" })}><Download aria-hidden="true" />Export JSON</Button>
+              <ImportControl onSelect={(file) => setSensitiveIntent({ kind: "import", file })} />
               <p className="pt-2 text-xs leading-relaxed text-muted"><FileJson className="mr-1 inline size-3.5" aria-hidden="true" />No passwords, sessions, TOTP secrets, internal IDs, or attachment files are included. Attachment counts are retained.</p>
             </CardContent>
           </Card>
@@ -224,6 +305,7 @@ export function ReportsWorkspace({ accountName, defaultCurrency, analyticsByCurr
           {data ? <ReportPreview key={currency} data={data} currency={currency} accountName={accountName} period={`${scopePeriodLabel(scope)} · ${scope.asset}`} generatedAt={generatedAt} timeZone={timeZone} /> : <Card className="report-preview"><CardContent className="px-6 py-20 text-center"><h2 className="font-serif text-2xl text-ink">No closed {currency} trades in this scope.</h2><p className="mt-2 text-sm text-muted">Switch currency or widen the report period. Currency totals are never combined.</p></CardContent></Card>}
         </main>
       </div>
+      <SensitiveActionDialog intent={sensitiveIntent} onClose={() => setSensitiveIntent(null)} onAuthorized={runAuthorized} />
     </div>
   );
 }

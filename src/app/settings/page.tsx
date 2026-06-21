@@ -14,6 +14,7 @@ import { isTotpEnrolled } from "@/lib/auth-totp";
 import { supportedTimeZones, timeZoneLabel } from "@/lib/date-time";
 
 import { ProfileForm } from "./profile-form";
+import { ChangePasswordForm } from "./change-password-form";
 import { ThemePreference } from "./theme-preference";
 import { TimeZonePreference } from "./time-zone-preference";
 import { TwoFactorSettings } from "./two-factor-settings";
@@ -78,6 +79,10 @@ export default async function SettingsPage() {
 
         <SettingsSection title="Two-factor authentication" description="Authenticator app for sensitive actions, recovery, and optional sign-in protection.">
           <TwoFactorSettings enrolled loginRequired={Boolean((user as { twoFactorEnabled?: boolean }).twoFactorEnabled)} />
+        </SettingsSection>
+
+        <SettingsSection title="Change password" description="Confirm your current password and authenticator code.">
+          <ChangePasswordForm />
         </SettingsSection>
 
         <SettingsSection title="Account">

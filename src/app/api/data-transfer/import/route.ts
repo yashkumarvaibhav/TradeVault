@@ -3,12 +3,16 @@ import { NextResponse } from "next/server";
 import { createDataTransferRepository } from "@/db/repositories/data-transfer";
 import { getDb } from "@/db/server";
 import { requireWorkspaceSession } from "@/lib/workspace-session";
+import { hasSensitiveActionAuthorization, sensitiveActionDeniedResponse } from "@/lib/sensitive-reauth";
 
 export const dynamic = "force-dynamic";
 const MAX_JSON_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const { scope, account, timeZone } = await requireWorkspaceSession();
+  const { session, scope, account, timeZone } = await requireWorkspaceSession();
+  if (!(await hasSensitiveActionAuthorization({ userId: session.user.id, sessionId: session.session.id }))) {
+    return sensitiveActionDeniedResponse();
+  }
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) return NextResponse.json({ error: "Choose a TradeVault JSON export." }, { status: 415 });
 

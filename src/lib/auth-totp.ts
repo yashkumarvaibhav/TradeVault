@@ -1,9 +1,9 @@
 import { createOTP } from "@better-auth/utils/otp";
-import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { symmetricDecrypt, symmetricEncrypt, verifyPassword } from "better-auth/crypto";
+import { and, eq } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
-import { authTwoFactors } from "@/db/schema";
+import { authAccounts, authTwoFactors } from "@/db/schema";
 
 /**
  * Shared TOTP verification against a user's stored two-factor secret.
@@ -34,6 +34,26 @@ export async function isTotpEnrolled(db: Database, userId: string): Promise<bool
     .where(eq(authTwoFactors.userId, userId))
     .limit(1);
   return Boolean(factor?.verified);
+}
+
+/**
+ * Verify the user's current credential without signing in or minting another session.
+ * Better Auth stores the password hash on the credential account, so sensitive-action
+ * re-authentication can use the same crypto primitive while keeping the existing session.
+ */
+export async function verifyUserPassword(db: Database, userId: string, password: string): Promise<boolean> {
+  if (!password) return false;
+  const [account] = await db
+    .select({ password: authAccounts.password })
+    .from(authAccounts)
+    .where(and(eq(authAccounts.userId, userId), eq(authAccounts.providerId, "credential")))
+    .limit(1);
+  if (!account?.password) return false;
+  try {
+    return await verifyPassword({ hash: account.password, password });
+  } catch {
+    return false;
+  }
 }
 
 /**

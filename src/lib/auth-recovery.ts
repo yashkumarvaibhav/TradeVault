@@ -1,10 +1,10 @@
 import { hashPassword } from "better-auth/crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import type { Database } from "@/db/client";
 import { authAccounts, authSessions, users } from "@/db/schema";
 import { normalizeUsername } from "@/lib/auth-policy";
-import { verifyUserTotp } from "@/lib/auth-totp";
+import { verifyUserPassword, verifyUserTotp } from "@/lib/auth-totp";
 
 /**
  * Email-free password recovery. Better Auth has no native TOTP-based reset (its reset is
@@ -19,6 +19,14 @@ import { verifyUserTotp } from "@/lib/auth-totp";
  * `db` is injected so this is testable on PGlite (see `scripts/verify-auth.ts`).
  */
 export type RecoveryResult = "ok" | "invalid";
+
+async function writePassword(db: Database, userId: string, newPassword: string): Promise<void> {
+  const hash = await hashPassword(newPassword);
+  await db
+    .update(authAccounts)
+    .set({ password: hash, updatedAt: new Date() })
+    .where(and(eq(authAccounts.userId, userId), eq(authAccounts.providerId, "credential")));
+}
 
 export async function recoverPasswordWithTotp(
   db: Database,
@@ -35,12 +43,26 @@ export async function recoverPasswordWithTotp(
   const valid = await verifyUserTotp(db, user.id, code, { useBackup: input.useBackup });
   if (!valid) return "invalid";
 
-  const hash = await hashPassword(input.newPassword);
-  await db
-    .update(authAccounts)
-    .set({ password: hash, updatedAt: new Date() })
-    .where(and(eq(authAccounts.userId, user.id), eq(authAccounts.providerId, "credential")));
+  await writePassword(db, user.id, input.newPassword);
   // A password reset revokes every existing session.
   await db.delete(authSessions).where(eq(authSessions.userId, user.id));
+  return "ok";
+}
+
+/** Change an authenticated user's password only after current-password then TOTP verification. */
+export async function changePasswordWithTotp(
+  db: Database,
+  input: { userId: string; currentPassword: string; newPassword: string; code: string; currentSessionId: string },
+): Promise<RecoveryResult> {
+  if (!input.currentPassword || !input.newPassword || !input.code || !input.currentSessionId) return "invalid";
+  // Keep the prescribed order explicit: password must succeed before the TOTP is evaluated.
+  if (!(await verifyUserPassword(db, input.userId, input.currentPassword))) return "invalid";
+  if (!(await verifyUserTotp(db, input.userId, input.code))) return "invalid";
+
+  await writePassword(db, input.userId, input.newPassword);
+  // Preserve only the session performing the change; every other device must sign in again.
+  await db
+    .delete(authSessions)
+    .where(and(eq(authSessions.userId, input.userId), ne(authSessions.id, input.currentSessionId)));
   return "ok";
 }

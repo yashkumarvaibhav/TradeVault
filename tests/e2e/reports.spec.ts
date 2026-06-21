@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { AUTH_STATE } from "./auth-paths";
+import { AUTH_STATE, E2E_PASSWORD } from "./auth-paths";
+import { totpForAuthenticatedFixture } from "./totp";
 
 test.use({ storageState: AUTH_STATE });
 
@@ -13,7 +14,7 @@ test("reports previews one currency, exports safely, and re-imports idempotently
   await expect(page.getByRole("img", { name: /INR cumulative net P&L equity curve/i })).toBeVisible();
   await expect(page.getByRole("img", { name: /Monthly net P&L bar chart/i })).toBeVisible();
   await expect(page.getByRole("img", { name: /Net P&L by weekday bar chart/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Download PDF report" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download PDF report" })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
@@ -22,6 +23,21 @@ test("reports previews one currency, exports safely, and re-imports idempotently
   await page.getByRole("radio", { name: "USD" }).click();
   await expect(page.getByRole("article", { name: "USD performance report preview" })).toBeVisible();
   await expect(page.getByRole("img", { name: /USD cumulative net P&L equity curve/i })).toBeVisible();
+
+  // Session auth alone is insufficient for any sensitive download/import route.
+  expect((await page.request.get("/api/data-transfer/export")).status()).toBe(403);
+  expect((await page.request.get("/api/reports/pdf?currency=INR")).status()).toBe(403);
+
+  // Password then TOTP grants this session a short two-minute authorization and starts
+  // the requested download. The same grant covers the round-trip operations below.
+  await page.getByRole("button", { name: "Download PDF report" }).click();
+  await expect(page.getByRole("dialog", { name: "Download PDF report" })).toBeVisible();
+  await expect(page.getByLabel("Current password")).toBeFocused();
+  await page.getByLabel("Current password").fill(E2E_PASSWORD);
+  await page.getByLabel("Authenticator code").fill(await totpForAuthenticatedFixture());
+  const pdfDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Verify & download PDF" }).click();
+  expect((await pdfDownload).suggestedFilename()).toContain("-usd-");
 
   const exportResponse = await page.request.get("/api/data-transfer/export");
   expect(exportResponse.status()).toBe(200);
@@ -56,6 +72,6 @@ test("reports previews one currency, exports safely, and re-imports idempotently
   expect(usdPdf.headers()["content-disposition"]).toContain("-usd-");
 
   await page.emulateMedia({ media: "print" });
-  await expect(page.getByRole("link", { name: "Download PDF report" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Download PDF report" })).toBeHidden();
   await expect(page.getByRole("article", { name: "USD performance report preview" })).toBeVisible();
 });

@@ -1,12 +1,14 @@
 import { expect, test as setup } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
-import { AUTH_STATE } from "./auth-paths";
+import { AUTH_STATE, E2E_PASSWORD, TOTP_SECRET_STATE } from "./auth-paths";
 import { totpFromDisplayedSecret } from "./totp";
 
 // A throwaway account used by the gated specs (overview, command palette).
 // Teardown deletes everything matching the `pw_e2e_` prefix.
 const username = `pw_e2e_${Date.now().toString(36)}`;
-const password = "playwright-e2e-passphrase-2026";
+const password = E2E_PASSWORD;
 
 setup("create an authenticated session", async ({ page }) => {
   await page.goto("/login");
@@ -26,6 +28,8 @@ setup("create an authenticated session", async ({ page }) => {
   await page.getByLabel("Confirm your password to begin").fill(password);
   await page.getByRole("button", { name: "Set up authenticator" }).click();
   const secret = (await page.getByTestId("totp-secret").innerText()).trim();
+  await mkdir(dirname(TOTP_SECRET_STATE), { recursive: true });
+  await writeFile(TOTP_SECRET_STATE, secret, { encoding: "utf8", mode: 0o600 });
   await page.getByLabel("Verification code").fill(await totpFromDisplayedSecret(secret));
   await page.getByRole("button", { name: "Finish setup" }).click();
 

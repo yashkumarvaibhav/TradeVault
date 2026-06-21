@@ -11,10 +11,10 @@ import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { createAuth } from "../src/lib/auth";
 import type { Database } from "../src/db/client";
 import * as schema from "../src/db/schema";
-import { authTwoFactors, users } from "../src/db/schema";
+import { authSessions, authTwoFactors, users } from "../src/db/schema";
 import { ensureWorkspaceForUser, synthesizeAuthEmail } from "../src/db/repositories/workspaces";
-import { recoverPasswordWithTotp } from "../src/lib/auth-recovery";
-import { isTotpEnrolled, markTotpEnrolled, verifyUserTotp } from "../src/lib/auth-totp";
+import { changePasswordWithTotp, recoverPasswordWithTotp } from "../src/lib/auth-recovery";
+import { isTotpEnrolled, markTotpEnrolled, verifyUserPassword, verifyUserTotp } from "../src/lib/auth-totp";
 
 const ORACLE_SECRET = "verify-auth-oracle-secret-key-0123456789abcdef";
 process.env.BETTER_AUTH_SECRET = ORACLE_SECRET;
@@ -168,9 +168,46 @@ async function main() {
     "wrong TOTP code is rejected",
   );
 
+  // Sensitive in-session change: current password must pass before TOTP, the credential is
+  // replaced, the active session survives, and every other session is revoked.
+  const beforeChangePassword = "backup-reset-passphrase-2026";
+  assert.equal(await verifyUserPassword(db as unknown as Database, userId, beforeChangePassword), true, "current password verifies directly");
+  assert.equal(await verifyUserPassword(db as unknown as Database, userId, "wrong-password"), false, "wrong current password is rejected");
+  await auth.api.signInUsername({ body: { username, password: beforeChangePassword } });
+  await auth.api.signInUsername({ body: { username, password: beforeChangePassword } });
+  const liveSessions = await db.select({ id: authSessions.id }).from(authSessions).where(eq(authSessions.userId, userId));
+  assert.equal(liveSessions.length, 2, "two live sessions exist before in-session password change");
+  const changedPassword = "changed-with-password-and-totp-2026";
+  assert.equal(
+    await changePasswordWithTotp(db as unknown as Database, {
+      userId,
+      currentPassword: "wrong-password",
+      newPassword: "must-not-apply-2026",
+      code: await createOTP(rawTotpSecret, { period: 30, digits: 6 }).totp(),
+      currentSessionId: liveSessions[0].id,
+    }),
+    "invalid",
+    "password change rejects a wrong current password",
+  );
+  assert.equal(
+    await changePasswordWithTotp(db as unknown as Database, {
+      userId,
+      currentPassword: beforeChangePassword,
+      newPassword: changedPassword,
+      code: await createOTP(rawTotpSecret, { period: 30, digits: 6 }).totp(),
+      currentSessionId: liveSessions[0].id,
+    }),
+    "ok",
+    "password then TOTP changes the credential",
+  );
+  assert.equal(await verifyUserPassword(db as unknown as Database, userId, changedPassword), true, "new password hash verifies");
+  assert.equal(await verifyUserPassword(db as unknown as Database, userId, beforeChangePassword), false, "old password no longer verifies");
+  const remainingSessions = await db.select({ id: authSessions.id }).from(authSessions).where(eq(authSessions.userId, userId));
+  assert.deepEqual(remainingSessions.map((row) => row.id), [liveSessions[0].id], "only the current session remains");
+
   // Opting into a code at every sign-in re-introduces the Better Auth login challenge.
   await db.update(users).set({ twoFactorEnabled: true }).where(eq(users.id, userId));
-  const challenged = await auth.api.signInUsername({ body: { username, password: "backup-reset-passphrase-2026" } });
+  const challenged = await auth.api.signInUsername({ body: { username, password: changedPassword } });
   assert.ok(challenged && "twoFactorRedirect" in challenged && challenged.twoFactorRedirect, "with login-2FA on, sign-in is challenged");
 
   await db.execute(sql`select 1`);
@@ -178,7 +215,7 @@ async function main() {
   console.log(
     "Auth runtime verified on PGlite: username sign-up created the reconciled users + auth_accounts (hashed) rows, " +
       "username sign-in issued an auth_sessions row while rejecting a wrong password, and onboarding provisioned a " +
-      "single default workspace idempotently.",
+      "single default workspace idempotently; mandatory TOTP, recovery, and password-then-TOTP change paths passed.",
   );
 }
 

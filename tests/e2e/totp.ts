@@ -1,5 +1,8 @@
 import { base32 } from "@better-auth/utils/base32";
 import { createOTP } from "@better-auth/utils/otp";
+import { readFile } from "node:fs/promises";
+
+import { TOTP_SECRET_STATE } from "./auth-paths";
 
 /**
  * Generate a current 6-digit TOTP from the base32 secret the enrollment UI displays
@@ -10,4 +13,8 @@ import { createOTP } from "@better-auth/utils/otp";
 export async function totpFromDisplayedSecret(displayedSecret: string): Promise<string> {
   const raw = new TextDecoder().decode(base32.decode(displayedSecret.trim()));
   return createOTP(raw, { period: 30, digits: 6 }).totp();
+}
+
+export async function totpForAuthenticatedFixture(): Promise<string> {
+  return totpFromDisplayedSecret(await readFile(TOTP_SECRET_STATE, "utf8"));
 }
