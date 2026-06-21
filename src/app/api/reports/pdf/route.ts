@@ -20,7 +20,7 @@ function slugify(value: string): string {
 }
 
 export async function GET(request: Request) {
-  // Fails closed: an unauthenticated request is redirected to /login by the session guard.
+  // Fails closed: an unauthenticated request is redirected to the landing page by the session guard.
   const { session, scope: tenantScope, account, timeZone } = await requireWorkspaceSession();
   if (!(await hasSensitiveActionAuthorization({ userId: session.user.id, sessionId: session.session.id }))) {
     return sensitiveActionDeniedResponse();

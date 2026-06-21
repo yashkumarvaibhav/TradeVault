@@ -9,7 +9,7 @@ test("an un-enrolled account is forced through TOTP setup before using the app",
   const username = `pw_e2e_${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
   const password = "playwright-e2e-passphrase-2026";
 
-  await page.goto("/signup");
+  await page.goto("/?auth=signup");
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByLabel("Confirm password").fill(password);

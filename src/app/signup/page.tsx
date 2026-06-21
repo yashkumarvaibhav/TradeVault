@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-
-import { AuthScreen } from "@/components/auth/auth-screen";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Create your account · TradeVault",
-  description: "Create your TradeVault account — username and password only, no email required. Free to start.",
-};
-
+// The dedicated sign-up screen is retired: auth now happens in the landing-page modal.
+// This route is kept only as a canonical, link-friendly redirect that opens the modal.
 export default function SignupPage() {
-  return <AuthScreen mode="signup" />;
+  redirect("/?auth=signup");
 }

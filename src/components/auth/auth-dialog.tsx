@@ -29,8 +29,8 @@ function useAuthDialog(): AuthDialogContextValue {
 
 /**
  * Hosts a single auth modal for the public marketing surfaces. Sign in / Create account are opened
- * from the landing page as a closable popup (rather than navigating to a separate page); the
- * dedicated /login and /signup routes still exist as canonical, link-friendly fallbacks.
+ * from the landing page as a closable popup. The dedicated /login and /signup routes are retired —
+ * they now redirect here via the `?auth=signin|signup` query param, which auto-opens the modal.
  */
 export function AuthDialogProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
@@ -45,6 +45,21 @@ export function AuthDialogProvider({ children }: { children: React.ReactNode }) 
     }),
     [],
   );
+
+  // Deep-link support: `/?auth=signin` / `/?auth=signup` (used by the retired /login + /signup
+  // routes and by the gated-route / sign-out redirects) auto-opens the modal, then strips the
+  // param so a refresh or back-navigation does not re-open it. URL is external state, so a
+  // one-shot read on mount via the stable open() callback is the right place for it.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("auth");
+    if (requested !== "signin" && requested !== "signup") return;
+    value.open(requested);
+    params.delete("auth");
+    const query = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : "") + window.location.hash);
+  }, [value]);
 
   return (
     <AuthDialogContext.Provider value={value}>
@@ -62,7 +77,8 @@ export function AuthDialogProvider({ children }: { children: React.ReactNode }) 
           {/* Remount on each open so the form starts in the requested mode with fresh state. */}
           {open ? <AuthForm key={mode} initialMode={mode} /> : null}
           <p className="text-center text-xs leading-relaxed text-muted">
-            Username and password only — no email required. Account recovery uses your authenticator app (TOTP).
+            Username and password only — no email required. You&apos;ll set up an authenticator app (TOTP) right after
+            signing up; it&apos;s also how you recover your account.
           </p>
         </DialogContent>
       </Dialog>

@@ -12,7 +12,8 @@ import { MARKET_CURRENCY_COOKIE, parseMarketCurrency } from "@/lib/market-mode";
 
 export async function requireWorkspaceSession() {
   const session = await getAuth().api.getSession({ headers: await headers() }).catch(() => null);
-  if (!session) redirect("/login");
+  // Auth happens in the landing-page modal; bring it up pre-opened in sign-in mode.
+  if (!session) redirect("/?auth=signin");
 
   // TOTP enrollment is mandatory — block every gated route until the authenticator is set up.
   if (!(await isTotpEnrolled(getDb(), session.user.id))) redirect("/onboarding/2fa");

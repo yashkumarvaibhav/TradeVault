@@ -20,7 +20,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Do I need an email to sign up?",
-    a: "No — username and password only. Account recovery uses an authenticator app (TOTP) that you can enable in Settings, so there is no email to leak or lose.",
+    a: "No — username and password only. Right after you create your account you set up an authenticator app (TOTP); it is required for everyone. That same authenticator is how you recover your account and approve sensitive actions, so there is no email to leak or lose.",
   },
   {
     q: "Does it ever mix INR and USD?",
@@ -28,7 +28,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What can I log?",
-    a: "Equities, indices, forex, commodities, crypto and US indices — as cash/spot, futures or options. The form adapts to the asset class and instrument type, and remembers your per-instrument defaults.",
+    a: "Equities, indices, forex, commodities and crypto — as cash/spot, futures or options. The entry form adapts to the asset class and instrument type, and remembers your per-instrument defaults.",
   },
   {
     q: "Is my data private, and can I take it with me?",

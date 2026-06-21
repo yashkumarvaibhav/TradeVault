@@ -11,8 +11,9 @@ const username = `pw_e2e_${Date.now().toString(36)}`;
 const password = E2E_PASSWORD;
 
 setup("create an authenticated session", async ({ page }) => {
-  await page.goto("/login");
-  // The login form hydrates after SSR; on a cold dev compile a plain click can land before React
+  // Auth is a landing-page modal; the deep link auto-opens it in create-account mode.
+  await page.goto("/?auth=signup");
+  // The modal hydrates after SSR; on a cold dev compile a plain click can land before React
   // attaches the toggle handler. Retry the mode switch until the signup-only field appears.
   await expect(async () => {
     await page.getByRole("radio", { name: "Create account" }).click();

@@ -31,9 +31,9 @@ export async function signOutAction() {
   try {
     await getAuth().api.signOut({ headers: await headers() });
   } catch {
-    // Already signed out / no session — fall through to the login page.
+    // Already signed out / no session — fall through to the public landing page.
   }
-  redirect("/login");
+  redirect("/");
 }
 
 export async function signInAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {

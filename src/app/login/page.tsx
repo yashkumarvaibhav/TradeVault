@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-
-import { AuthScreen } from "@/components/auth/auth-screen";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Sign in · TradeVault",
-  description: "Sign in to your TradeVault trading journal.",
-};
-
+// The dedicated sign-in screen is retired: auth now happens in the landing-page modal.
+// This route is kept only as a canonical, link-friendly redirect that opens the modal.
 export default function LoginPage() {
-  return <AuthScreen mode="signin" />;
+  redirect("/?auth=signin");
 }

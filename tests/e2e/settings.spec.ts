@@ -49,7 +49,7 @@ test("password change requires the current password then TOTP", async ({ page },
   const currentPassword = "current-password-passphrase-2026";
   const newPassword = "changed-password-passphrase-2026";
 
-  await page.goto("/signup");
+  await page.goto("/?auth=signup");
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(currentPassword);
   await page.getByLabel("Confirm password").fill(currentPassword);
@@ -71,9 +71,12 @@ test("password change requires the current password then TOTP", async ({ page },
   await expect(page.getByRole("status")).toContainText("Password changed");
 
   await page.getByRole("main").getByRole("button", { name: "Sign out" }).click();
-  await page.waitForURL(/\/login$/);
-  await page.getByLabel("Username").fill(username);
-  await page.getByLabel("Password", { exact: true }).fill(newPassword);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  // Sign-out now returns to the public landing page; sign back in via the modal.
+  await page.waitForURL(/\/$/);
+  await page.getByRole("button", { name: "Sign in" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Username").fill(username);
+  await dialog.getByLabel("Password", { exact: true }).fill(newPassword);
+  await dialog.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/$/);
 });

@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Set up two-factor · TradeVault" };
  */
 export default async function TwoFactorOnboardingPage() {
   const session = await getAuth().api.getSession({ headers: await headers() }).catch(() => null);
-  if (!session) redirect("/login");
+  if (!session) redirect("/?auth=signin");
   if (await isTotpEnrolled(getDb(), session.user.id)) redirect("/");
 
   return (

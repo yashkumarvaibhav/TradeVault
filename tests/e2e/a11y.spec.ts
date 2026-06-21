@@ -50,15 +50,15 @@ test.describe("public pages (unauthenticated)", () => {
     });
   }
 
-  test("login screen has no WCAG A/AA violations", async ({ page }) => {
-    await page.goto("/login");
-    await expect(page.getByRole("button", { name: /Sign in/i }).first()).toBeVisible();
+  test("sign-in modal has no WCAG A/AA violations", async ({ page }) => {
+    await page.goto("/?auth=signin");
+    await expect(page.getByRole("dialog")).toBeVisible();
     await audit(page);
   });
 
-  test("signup screen has no WCAG A/AA violations", async ({ page }) => {
-    await page.goto("/signup");
-    await expect(page.getByRole("button", { name: /Create account/i }).first()).toBeVisible();
+  test("sign-up modal has no WCAG A/AA violations", async ({ page }) => {
+    await page.goto("/?auth=signup");
+    await expect(page.getByRole("dialog").getByLabel("Confirm password")).toBeVisible();
     await audit(page);
   });
 });
