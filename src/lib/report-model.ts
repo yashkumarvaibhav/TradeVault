@@ -86,6 +86,19 @@ export function reportMoneyFormatter(currency: Currency): { format: (amount: num
   return { format: (amount: number) => formatReportMoney(currency, amount) };
 }
 
+/**
+ * Compact money for PDF chart axes/labels, e.g. "Rs 1.2L" / "-Rs 12K" / "$1.2M".
+ * Mirrors {@link formatReportMoney}'s "Rs"-for-INR rule (react-pdf drops ₹) but in
+ * compact notation so a chart axis can show its money scale without colliding.
+ */
+export function formatReportMoneyCompact(currency: Currency, amount: number): string {
+  if (currency === "USD") {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(amount);
+  }
+  const grouped = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(amount);
+  return `Rs ${grouped}`;
+}
+
 function signedR(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}R`;
 }

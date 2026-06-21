@@ -15,9 +15,26 @@ import {
   View,
 } from "@react-pdf/renderer";
 
-import type { ReportChartPoint, ReportModel, ReportSymbolBar } from "@/lib/report-model";
+import type { Currency } from "@/lib/domain/types";
+import { formatReportMoneyCompact, type ReportChartPoint, type ReportModel, type ReportSymbolBar } from "@/lib/report-model";
 
 import { registerReportFonts, SANS } from "./assets";
+
+/** Round "nice" axis ticks + bounds so a money chart reads in clean increments. */
+function niceAxis(min: number, max: number, count = 4): { ticks: number[]; lo: number; hi: number } {
+  const lo0 = Math.min(0, min);
+  let hi0 = Math.max(0, max);
+  if (lo0 === hi0) hi0 = lo0 + 1;
+  const step0 = (hi0 - lo0) / (count - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const norm = step0 / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const lo = Math.floor(lo0 / step) * step;
+  const hi = Math.ceil(hi0 / step) * step;
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi + step * 0.5; v += step) ticks.push(Math.round(v));
+  return { ticks, lo, hi };
+}
 
 /** Editorial light palette, locked — the PDF never follows the viewer's theme. */
 const C = {
@@ -217,8 +234,26 @@ function PageFrame({ model }: { model: ReportModel }) {
   );
 }
 
-/** Deterministic line chart (equity). Drawn as SVG so it never reflows or overflows. */
-function LineChartSvg({ points, width, height }: { points: ReportChartPoint[]; width: number; height: number }) {
+const AXIS_W = 52;
+
+/** Money Y-axis: light gridlines + right-aligned compact labels (e.g. "Rs 1.2L"). */
+function MoneyAxis({ ticks, y, plotLeft, plotRight, currency }: { ticks: number[]; y: (v: number) => number; plotLeft: number; plotRight: number; currency: Currency }) {
+  return (
+    <>
+      {ticks.map((t) => (
+        <React.Fragment key={t}>
+          <Line x1={plotLeft} y1={y(t)} x2={plotRight} y2={y(t)} stroke={t === 0 ? C.muted : C.line} strokeWidth={t === 0 ? 0.6 : 0.4} />
+          <Text x={plotLeft - 4} y={y(t) + 2.2} textAnchor="end" fill={C.faint} style={{ fontFamily: SANS, fontSize: 6.2 }}>
+            {formatReportMoneyCompact(currency, t)}
+          </Text>
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+/** Deterministic equity line chart with a money Y-axis. Never reflows or overflows. */
+function LineChartSvg({ points, width, height, currency }: { points: ReportChartPoint[]; width: number; height: number; currency: Currency }) {
   if (points.length < 2) {
     return (
       <View style={styles.emptyChart}>
@@ -227,26 +262,27 @@ function LineChartSvg({ points, width, height }: { points: ReportChartPoint[]; w
     );
   }
   const values = points.map((p) => p.value);
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-  const range = max - min || 1;
+  const { ticks, lo, hi } = niceAxis(Math.min(...values), Math.max(...values));
+  const range = hi - lo || 1;
   const n = points.length;
-  const x = (i: number) => (i / (n - 1)) * width;
-  const y = (v: number) => height - ((v - min) / range) * height;
+  const plotLeft = AXIS_W;
+  const plotW = width - plotLeft;
+  const x = (i: number) => plotLeft + (i / (n - 1)) * plotW;
+  const y = (v: number) => height - ((v - lo) / range) * height;
   const zeroY = y(0);
   const coords = points.map((p, i) => `${x(i).toFixed(2)},${y(p.value).toFixed(2)}`);
   const area = `M ${x(0).toFixed(2)},${zeroY.toFixed(2)} L ${coords.join(" L ")} L ${x(n - 1).toFixed(2)},${zeroY.toFixed(2)} Z`;
   return (
     <Svg width={width} height={height}>
+      <MoneyAxis ticks={ticks} y={y} plotLeft={plotLeft} plotRight={width} currency={currency} />
       <Path d={area} fill={C.accentSoft} />
-      <Line x1={0} y1={zeroY} x2={width} y2={zeroY} stroke={C.line} strokeWidth={0.75} />
       <Polyline points={coords.join(" ")} fill="none" stroke={C.accent} strokeWidth={1.4} />
     </Svg>
   );
 }
 
-/** Deterministic diverging bar chart (monthly / weekday P&L). */
-function BarChartSvg({ points, width, height }: { points: ReportChartPoint[]; width: number; height: number }) {
+/** Deterministic diverging bar chart (monthly / weekday P&L) with a money Y-axis. */
+function BarChartSvg({ points, width, height, currency }: { points: ReportChartPoint[]; width: number; height: number; currency: Currency }) {
   if (points.length === 0) {
     return (
       <View style={styles.emptyChart}>
@@ -255,31 +291,32 @@ function BarChartSvg({ points, width, height }: { points: ReportChartPoint[]; wi
     );
   }
   const values = points.map((p) => p.value);
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-  const range = max - min || 1;
+  const { ticks, lo, hi } = niceAxis(Math.min(...values), Math.max(...values));
+  const range = hi - lo || 1;
   const n = points.length;
-  const slot = width / n;
-  const barW = Math.min(slot * 0.6, 26);
-  const y = (v: number) => height - ((v - min) / range) * height;
+  const plotLeft = AXIS_W;
+  const plotW = width - plotLeft;
+  const slot = plotW / n;
+  const barW = Math.min(slot * 0.6, 24);
+  const y = (v: number) => height - ((v - lo) / range) * height;
   const zeroY = y(0);
+  const showLabels = n <= 7;
   return (
     <Svg width={width} height={height}>
-      <Line x1={0} y1={zeroY} x2={width} y2={zeroY} stroke={C.line} strokeWidth={0.75} />
+      <MoneyAxis ticks={ticks} y={y} plotLeft={plotLeft} plotRight={width} currency={currency} />
       {points.map((p, i) => {
-        const cx = slot * i + slot / 2;
+        const cx = plotLeft + slot * i + slot / 2;
         const top = Math.min(zeroY, y(p.value));
         const h = Math.max(1, Math.abs(y(p.value) - zeroY));
         return (
-          <Rect
-            key={`${p.label}-${i}`}
-            x={cx - barW / 2}
-            y={top}
-            width={barW}
-            height={h}
-            fill={p.value >= 0 ? C.profit : C.loss}
-            rx={1.5}
-          />
+          <React.Fragment key={`${p.label}-${i}`}>
+            <Rect x={cx - barW / 2} y={top} width={barW} height={h} fill={p.value >= 0 ? C.profit : C.loss} rx={1.5} />
+            {showLabels ? (
+              <Text x={cx} y={p.value >= 0 ? top - 3 : top + h + 6} textAnchor="middle" fill={p.value >= 0 ? C.profit : C.loss} style={{ fontFamily: SANS, fontSize: 6 }}>
+                {formatReportMoneyCompact(currency, p.value)}
+              </Text>
+            ) : null}
+          </React.Fragment>
         );
       })}
     </Svg>
@@ -289,9 +326,9 @@ function BarChartSvg({ points, width, height }: { points: ReportChartPoint[]; wi
 function BarAxis({ points }: { points: ReportChartPoint[] }) {
   if (points.length === 0) return null;
   return (
-    <View style={styles.axisRow}>
+    <View style={[styles.axisRow, { paddingLeft: AXIS_W }]}>
       {points.map((p, i) => (
-        <Text key={`${p.label}-${i}`} style={[styles.axisLabel, { width: `${100 / points.length}%` }]}>
+        <Text key={`${p.label}-${i}`} style={[styles.axisLabel, { flex: 1 }]}>
           {p.label}
         </Text>
       ))}
@@ -367,20 +404,20 @@ export function ReportDocument({ model }: { model: ReportModel }) {
         <View style={styles.section} wrap={false}>
           <Text style={styles.sectionTitle}>Equity curve</Text>
           <Text style={styles.sectionNote}>Cumulative closed-trade P&amp;L · {model.currency}</Text>
-          <LineChartSvg points={model.equity} width={chartWidth} height={140} />
+          <LineChartSvg points={model.equity} width={chartWidth} height={150} currency={model.currency} />
         </View>
 
         <View style={styles.twoCol}>
           <View style={[styles.col, styles.section]} wrap={false}>
             <Text style={styles.sectionTitle}>Monthly P&amp;L</Text>
             <Text style={styles.sectionNote}>Closed trades · {model.currency}</Text>
-            <BarChartSvg points={model.monthly} width={halfWidth} height={120} />
+            <BarChartSvg points={model.monthly} width={halfWidth} height={130} currency={model.currency} />
             <BarAxis points={model.monthly} />
           </View>
           <View style={[styles.col, styles.section]} wrap={false}>
             <Text style={styles.sectionTitle}>Weekday performance</Text>
             <Text style={styles.sectionNote}>Net P&amp;L by outcome day · {model.currency}</Text>
-            <BarChartSvg points={model.weekday} width={halfWidth} height={120} />
+            <BarChartSvg points={model.weekday} width={halfWidth} height={130} currency={model.currency} />
             <BarAxis points={model.weekday} />
           </View>
         </View>

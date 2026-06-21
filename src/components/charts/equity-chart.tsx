@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AxisBottom } from "@visx/axis";
+import { AxisBottom, AxisLeft } from "@visx/axis";
 import { curveMonotoneX } from "@visx/curve";
 import { GridRows } from "@visx/grid";
 import { Group } from "@visx/group";
@@ -9,6 +9,7 @@ import { scaleLinear } from "@visx/scale";
 import { AreaClosed, LinePath } from "@visx/shape";
 
 import type { Currency } from "@/lib/domain/types";
+import { compactMoneyFormatter } from "@/lib/chart-format";
 import { ChartStatePanel, type ChartRenderState } from "@/components/charts/chart-state";
 
 export interface EquityDatum {
@@ -18,7 +19,7 @@ export interface EquityDatum {
 
 const width = 760;
 const height = 286;
-const margin = { top: 18, right: 18, bottom: 38, left: 18 };
+const margin = { top: 18, right: 18, bottom: 38, left: 64 };
 
 export function EquityChart({
   points,
@@ -48,6 +49,7 @@ export function EquityChart({
     currency,
     maximumFractionDigits: currency === "INR" ? 0 : 2,
   });
+  const compact = compactMoneyFormatter(currency);
   const metric = mode === "equity" ? "Cumulative net P&L" : "Underwater drawdown";
   const chartTitle = mode === "equity" ? `${currency} cumulative net P&L equity curve` : `${currency} underwater drawdown curve`;
   const lineColor = mode === "equity" ? "var(--accent)" : "var(--loss)";
@@ -70,6 +72,15 @@ export function EquityChart({
             left={margin.left}
             stroke="var(--line)"
             numTicks={4}
+          />
+          <AxisLeft
+            scale={yScale}
+            left={margin.left}
+            numTicks={4}
+            tickFormat={(value) => compact.format(Number(value))}
+            stroke="var(--line)"
+            tickStroke="var(--line)"
+            tickLabelProps={() => ({ fill: "var(--muted)", fontSize: 11, textAnchor: "end", dx: -6, dy: 4 })}
           />
           <line
             data-zero-line="true"
