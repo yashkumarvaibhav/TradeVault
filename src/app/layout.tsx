@@ -11,13 +11,30 @@ const newsreader = Newsreader({
   display: "swap",
 });
 
+const SITE_URL = "https://tradevault.yashkumarvaibhav.me";
+const SITE_DESCRIPTION =
+  "TradeVault is a free, private trading journal and post-trade review workspace — honest per-currency analytics, Risk Studio, and disciplined review, with INR and USD never mixed.";
+
 export const metadata: Metadata = {
-  title: "TradeVault — private trade journal & review",
-  description:
-    "A private, disciplined trading journal and post-trade review workspace.",
+  metadataBase: new URL(SITE_URL),
+  title: "TradeVault — private trading journal & review",
+  description: SITE_DESCRIPTION,
+  applicationName: "TradeVault",
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "TradeVault",
+    url: SITE_URL,
+    title: "TradeVault — private trading journal & review",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: "TradeVault — private trading journal & review",
+    description: SITE_DESCRIPTION,
   },
 };
 

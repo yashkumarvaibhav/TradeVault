@@ -21,8 +21,8 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 
 type Mode = "signin" | "signup";
 
-export function AuthForm() {
-  const [mode, setMode] = React.useState<Mode>("signin");
+export function AuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
+  const [mode, setMode] = React.useState<Mode>(initialMode);
   return (
     <div className="space-y-5">
       <SegmentedControl

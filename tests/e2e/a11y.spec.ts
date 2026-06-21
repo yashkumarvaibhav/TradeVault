@@ -38,13 +38,27 @@ async function waitForContent(page: Page) {
   await expect(page.locator("#main-content :is(h1, h2)").first()).toBeVisible();
 }
 
-// The login screen is the only audited route reachable signed-out (no app shell).
-test.describe("login (unauthenticated)", () => {
+// The public marketing + auth pages are reachable signed-out.
+test.describe("public pages (unauthenticated)", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const path of ["/", "/features", "/faq"]) {
+    test(`marketing ${path} has no WCAG A/AA violations`, async ({ page }) => {
+      await page.goto(path);
+      await waitForContent(page);
+      await audit(page);
+    });
+  }
 
   test("login screen has no WCAG A/AA violations", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /Sign in/i }).first()).toBeVisible();
+    await audit(page);
+  });
+
+  test("signup screen has no WCAG A/AA violations", async ({ page }) => {
+    await page.goto("/signup");
+    await expect(page.getByRole("button", { name: /Create account/i }).first()).toBeVisible();
     await audit(page);
   });
 });
